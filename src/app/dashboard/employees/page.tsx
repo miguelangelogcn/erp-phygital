@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { auth } from "@/lib/firebase/config";
 
 export default function EmployeesPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -77,8 +78,8 @@ export default function EmployeesPage() {
         const createUser = httpsCallable(functions, 'createUser');
         const result: any = await createUser(data);
 
-        if (result.data.error) {
-            throw new Error(result.data.error);
+        if (result.data.success !== true) {
+             throw new Error(result.data.message || 'Ocorreu um erro desconhecido.');
         }
 
       toast({
