@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { getUsers } from "@/lib/firebase/services/users";
 import type { User } from "@/types/user";
 import {
@@ -38,7 +39,6 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { createUserAction } from "@/actions/users";
 
 export default function EmployeesPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -70,22 +70,23 @@ export default function EmployeesPage() {
     setIsSubmitting(true);
 
     const formData = new FormData(e.currentTarget);
+    const data = Object.fromEntries(formData.entries());
 
     try {
-      const result = await createUserAction(formData);
+        const functions = getFunctions();
+        const createUser = httpsCallable(functions, 'createUser');
+        const result: any = await createUser(data);
 
-      if (result.error) {
-        throw new Error(result.error);
-      }
+        if (result.data.error) {
+            throw new Error(result.data.error);
+        }
 
       toast({
         title: "Sucesso!",
         description: "Novo funcionário adicionado com sucesso.",
       });
 
-      // Reset form and close modal
       setIsModalOpen(false);
-      // Refetch users to update the table
       await fetchUsers();
     } catch (err: any) {
       toast({
