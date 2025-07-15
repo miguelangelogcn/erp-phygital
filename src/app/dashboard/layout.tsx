@@ -1,4 +1,5 @@
 import AuthGuard from "@/components/auth/AuthGuard";
+import DashboardLayoutComponent from "@/components/layout/DashboardLayout";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -11,5 +12,9 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <AuthGuard>{children}</AuthGuard>;
+  return (
+    <AuthGuard>
+      <DashboardLayoutComponent>{children}</DashboardLayoutComponent>
+    </AuthGuard>
+  );
 }
