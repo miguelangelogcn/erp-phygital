@@ -1,13 +1,27 @@
 'use server';
 
-import { initializeApp, getApps, App } from 'firebase-admin/app';
+import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
-// Inicializa o Firebase Admin SDK de forma segura e idempotente.
-// Garante que a inicialização ocorra apenas uma vez.
+// Condicionalmente inicializa o Firebase Admin SDK
+// Em produção (onde as variáveis de ambiente não estão definidas), usa as credenciais padrão do ambiente.
+// Em desenvolvimento local, usa as credenciais do arquivo .env.local.
 if (!getApps().length) {
-  initializeApp();
+  if (process.env.FIREBASE_PROJECT_ID) {
+    // Ambiente de desenvolvimento local com .env.local
+    const serviceAccount = {
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    };
+    initializeApp({
+      credential: cert(serviceAccount),
+    });
+  } else {
+    // Ambiente de produção (Firebase App Hosting, Cloud Functions, etc.)
+    initializeApp();
+  }
 }
 
 const adminAuth = getAuth();
