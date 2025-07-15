@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   SidebarProvider,
   Sidebar,
@@ -20,7 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Home } from "lucide-react";
+import { Users } from "lucide-react";
 
 export default function DashboardPage() {
   return (
@@ -34,6 +35,14 @@ export default function DashboardPage() {
             <SidebarMenu>
               <SidebarGroup>
                 <SidebarGroupLabel>GESTÃO</SidebarGroupLabel>
+                <SidebarMenuItem>
+                  <Link href="/dashboard/employees" legacyBehavior passHref>
+                    <SidebarMenuButton>
+                      <Users />
+                      Gerenciar Funcionários
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
               </SidebarGroup>
               <SidebarGroup>
                 <SidebarGroupLabel>OPERAÇÕES</SidebarGroupLabel>
