@@ -6,12 +6,12 @@ import { getStorage } from "firebase/storage";
 
 // Cole o seu objeto firebaseConfig aqui
 const firebaseConfig = {
-  apiKey: "SUA_API_KEY",
-  authDomain: "SEU_AUTH_DOMAIN",
-  projectId: "SEU_PROJECT_ID",
-  storageBucket: "SEU_STORAGE_BUCKET",
-  messagingSenderId: "SEU_MESSAGING_SENDER_ID",
-  appId: "SUA_APP_ID"
+  apiKey: "AIzaSyAR6yVtSS3ONIHQA2n_8MZZwcWzv925sII",
+  authDomain: "phygital-login.firebaseapp.com",
+  projectId: "phygital-login",
+  storageBucket: "phygital-login.firebasestorage.app",
+  messagingSenderId: "505157758099",
+  appId: "1:505157758099:web:5a42382637f95900c27166"
 };
 
 // Inicialize o Firebase

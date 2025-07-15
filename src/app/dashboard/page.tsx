@@ -1,3 +1,18 @@
+"use client";
+
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarInset,
+  SidebarTrigger,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+} from "@/components/ui/sidebar";
 import {
   Card,
   CardContent,
@@ -5,21 +20,43 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Home } from "lucide-react";
 
 export default function DashboardPage() {
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-background">
-      <Card className="w-full max-w-lg">
-        <CardHeader>
-          <CardTitle>Dashboard</CardTitle>
-          <CardDescription>
-            Bem-vindo ao seu painel!
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p>Login realizado com sucesso.</p>
-        </CardContent>
-      </Card>
-    </div>
+    <SidebarProvider>
+      <div className="flex min-h-screen">
+        <Sidebar>
+          <SidebarHeader>
+            <SidebarTrigger />
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarMenu>
+              <SidebarGroup>
+                <SidebarGroupLabel>GESTÃO</SidebarGroupLabel>
+              </SidebarGroup>
+              <SidebarGroup>
+                <SidebarGroupLabel>OPERAÇÕES</SidebarGroupLabel>
+              </SidebarGroup>
+            </SidebarMenu>
+          </SidebarContent>
+        </Sidebar>
+        <SidebarInset>
+          <main className="p-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Dashboard</CardTitle>
+                <CardDescription>
+                  Bem-vindo ao seu painel!
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p>Selecione uma opção no menu para começar.</p>
+              </CardContent>
+            </Card>
+          </main>
+        </SidebarInset>
+      </div>
+    </SidebarProvider>
   );
 }
