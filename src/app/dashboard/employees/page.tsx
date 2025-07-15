@@ -37,35 +37,65 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { createUserAction } from "@/actions/users";
 
 export default function EmployeesPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const usersData = await getUsers();
+      setUsers(usersData);
+      setError(null);
+    } catch (err) {
+      setError("Falha ao buscar funcionários. Tente novamente mais tarde.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        setLoading(true);
-        const usersData = await getUsers();
-        setUsers(usersData);
-        setError(null);
-      } catch (err) {
-        setError("Falha ao buscar funcionários. Tente novamente mais tarde.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchUsers();
   }, []);
 
-  const handleAddEmployee = (e: React.FormEvent) => {
+  const handleAddEmployee = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Lógica para adicionar funcionário aqui
-    console.log("Formulário enviado");
-    setIsModalOpen(false);
+    setIsSubmitting(true);
+
+    const formData = new FormData(e.currentTarget);
+
+    try {
+      const result = await createUserAction(formData);
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      toast({
+        title: "Sucesso!",
+        description: "Novo funcionário adicionado com sucesso.",
+      });
+
+      // Reset form and close modal
+      setIsModalOpen(false);
+      // Refetch users to update the table
+      await fetchUsers();
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao adicionar funcionário",
+        description: err.message || "Ocorreu um erro desconhecido.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -133,25 +163,25 @@ export default function EmployeesPage() {
                 <Label htmlFor="name" className="text-right">
                   Nome
                 </Label>
-                <Input id="name" placeholder="Nome Completo" className="col-span-3" />
+                <Input id="name" name="name" placeholder="Nome Completo" className="col-span-3" required />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="email" className="text-right">
                   Email
                 </Label>
-                <Input id="email" type="email" placeholder="email@empresa.com" className="col-span-3" />
+                <Input id="email" name="email" type="email" placeholder="email@empresa.com" className="col-span-3" required />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="password" className="text-right">
                   Senha
                 </Label>
-                <Input id="password" type="password" placeholder="Senha Provisória" className="col-span-3" />
+                <Input id="password" name="password" type="password" placeholder="Senha Provisória" className="col-span-3" required />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="role" className="text-right">
                   Cargo
                 </Label>
-                <Select>
+                <Select name="role" required>
                     <SelectTrigger className="col-span-3">
                         <SelectValue placeholder="Selecione o cargo" />
                     </SelectTrigger>
@@ -164,8 +194,11 @@ export default function EmployeesPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-              <Button type="submit">Salvar</Button>
+              <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} disabled={isSubmitting}>Cancelar</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Salvar
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
