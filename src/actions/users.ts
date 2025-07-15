@@ -4,17 +4,14 @@ import { getApps, initializeApp, App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
-// Função para inicializar o Firebase Admin SDK de forma segura
+// Função para inicializar o Firebase Admin SDK de forma segura e idempotente.
+// Isso garante que o app seja inicializado apenas uma vez.
 function initializeFirebaseAdmin(): App {
-  const apps = getApps();
-  if (apps.length > 0) {
-    return apps[0] as App;
+  if (getApps().length > 0) {
+    return getApps()[0] as App;
   }
-
-  // As credenciais são obtidas automaticamente das variáveis de ambiente
-  // em ambientes como o Firebase App Hosting ou Cloud Functions.
-  // Para desenvolvimento local, você precisará configurar um arquivo de conta de serviço.
-  // Consulte a documentação do Firebase: https://firebase.google.com/docs/admin/setup
+  // Em ambientes como o App Hosting, as credenciais são detectadas automaticamente.
+  // Para desenvolvimento local, configure o arquivo de conta de serviço via variável de ambiente GOOGLE_APPLICATION_CREDENTIALS.
   return initializeApp();
 }
 
@@ -67,8 +64,10 @@ export async function createUserAction(formData: FormData) {
       errorMessage = 'Este endereço de e-mail já está em uso.';
     } else if (error.code === 'auth/invalid-password') {
         errorMessage = 'A senha fornecida é inválida. Deve ter pelo menos 6 caracteres.';
+    } else {
+        errorMessage = error.message;
     }
 
-    return { error: error.message || errorMessage };
+    return { error: errorMessage };
   }
 }
