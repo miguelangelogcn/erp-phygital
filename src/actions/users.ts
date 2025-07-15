@@ -1,19 +1,17 @@
 'use server';
 
-import { getApps, initializeApp, App } from 'firebase-admin/app';
+import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
-// Função para inicializar o Firebase Admin SDK de forma segura e idempotente.
-// Isso garante que o app seja inicializado apenas uma vez.
-function initializeFirebaseAdmin(): App {
-  if (getApps().length > 0) {
-    return getApps()[0] as App;
-  }
-  // Em ambientes como o App Hosting, as credenciais são detectadas automaticamente.
-  // Para desenvolvimento local, configure o arquivo de conta de serviço via variável de ambiente GOOGLE_APPLICATION_CREDENTIALS.
-  return initializeApp();
+// Inicializa o Firebase Admin SDK de forma segura e idempotente.
+// Garante que a inicialização ocorra apenas uma vez.
+if (!getApps().length) {
+  initializeApp();
 }
+
+const adminAuth = getAuth();
+const adminDb = getFirestore();
 
 /**
  * Cria um novo usuário no Firebase Authentication e um documento correspondente no Firestore.
@@ -34,10 +32,6 @@ export async function createUserAction(formData: FormData) {
      if (password.length < 6) {
       throw new Error('A senha deve ter pelo menos 6 caracteres.');
     }
-
-    const adminApp = initializeFirebaseAdmin();
-    const adminAuth = getAuth(adminApp);
-    const adminDb = getFirestore(adminApp);
 
     // 1. Criar usuário no Firebase Authentication
     const userRecord = await adminAuth.createUser({
