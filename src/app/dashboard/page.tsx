@@ -36,7 +36,7 @@ export default function DashboardPage() {
               <SidebarGroup>
                 <SidebarGroupLabel>GESTÃO</SidebarGroupLabel>
                 <SidebarMenuItem>
-                  <Link href="/dashboard/employees" legacyBehavior passHref>
+                  <Link href="/dashboard/employees">
                     <SidebarMenuButton>
                       <Users />
                       Gerenciar Funcionários
