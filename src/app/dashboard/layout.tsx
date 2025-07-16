@@ -1,6 +1,8 @@
+
 import AuthGuard from "@/components/auth/AuthGuard";
 import DashboardLayoutComponent from "@/components/layout/DashboardLayout";
 import type { Metadata } from "next";
+import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata: Metadata = {
   title: "Dashboard - ERP Phygital",
@@ -14,7 +16,9 @@ export default function DashboardLayout({
 }) {
   return (
     <AuthGuard>
-      <DashboardLayoutComponent>{children}</DashboardLayoutComponent>
+      <AuthProvider>
+        <DashboardLayoutComponent>{children}</DashboardLayoutComponent>
+      </AuthProvider>
     </AuthGuard>
   );
 }

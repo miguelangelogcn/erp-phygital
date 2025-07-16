@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -15,12 +16,16 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import { Users } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export default function DashboardLayoutComponent({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { userData } = useAuth();
+  const canManageEmployees = userData?.permissions?.includes("manage_employees");
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen">
@@ -32,14 +37,16 @@ export default function DashboardLayoutComponent({
             <SidebarMenu>
               <SidebarGroup>
                 <SidebarGroupLabel>GESTÃO</SidebarGroupLabel>
-                <SidebarMenuItem>
-                  <Link href="/dashboard/employees">
-                    <SidebarMenuButton>
-                      <Users />
-                      Gerenciar Funcionários
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
+                {canManageEmployees && (
+                  <SidebarMenuItem>
+                    <Link href="/dashboard/employees">
+                      <SidebarMenuButton>
+                        <Users />
+                        Gerenciar Funcionários
+                      </SidebarMenuButton>
+                    </Link>
+                  </SidebarMenuItem>
+                )}
               </SidebarGroup>
               <SidebarGroup>
                 <SidebarGroupLabel>OPERAÇÕES</SidebarGroupLabel>

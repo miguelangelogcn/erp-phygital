@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useAuthState } from "react-firebase-hooks/auth";
@@ -16,12 +17,16 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, router]);
 
-  if (loading || !user) {
+  if (loading) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
+  }
+
+  if (!user) {
+    return null; // ou um redirecionamento, mas a lógica do useEffect já trata disso
   }
 
   return <>{children}</>;
