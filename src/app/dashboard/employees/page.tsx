@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -37,9 +38,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
+import { Loader2, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { auth } from "@/lib/firebase/config";
+
+const ALL_PERMISSIONS = [
+  { id: "manage_employees", label: "Gerenciar Funcionários" },
+  { id: "manage_clients", label: "Gerenciar Clientes" },
+  { id: "manage_tasks", label: "Gerenciar Tarefas" },
+  { id: "view_reports", label: "Ver Relatórios" },
+];
 
 export default function EmployeesPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -47,11 +57,12 @@ export default function EmployeesPage() {
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const { toast } = useToast();
 
   const functions = getFunctions(auth.app, "southamerica-east1");
-  const createUserCallable = httpsCallable(functions, 'createUser');
-
+  const createUserCallable = httpsCallable(functions, "createUser");
+  const updateUserCallable = httpsCallable(functions, "updateUser");
 
   const fetchUsers = async () => {
     try {
@@ -75,30 +86,55 @@ export default function EmployeesPage() {
     fetchUsers();
   }, []);
 
-  const handleAddEmployee = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleOpenModalForCreate = () => {
+    setEditingUser(null);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenModalForEdit = (user: User) => {
+    setEditingUser(user);
+    setIsModalOpen(true);
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     const formData = new FormData(e.currentTarget);
-    const data = Object.fromEntries(formData.entries());
+    const data: any = Object.fromEntries(formData.entries());
+
+    // Collect permissions from checkboxes
+    const permissions = ALL_PERMISSIONS.map(p => p.id).filter(id => formData.has(id));
+    data.permissions = permissions;
+
 
     try {
-      console.log("A chamar a função 'createUser' com:", data);
-      const result: any = await createUserCallable(data);
-      console.log("Sucesso:", result.data);
-
-      toast({
-        title: "Sucesso!",
-        description: result.data.message,
-      });
+      if (editingUser) {
+        // Update existing user
+        console.log("A chamar a função 'updateUser' com:", { uid: editingUser.id, ...data });
+        const result: any = await updateUserCallable({ uid: editingUser.id, ...data });
+        toast({
+          title: "Sucesso!",
+          description: result.data.message,
+        });
+      } else {
+        // Create new user
+        console.log("A chamar a função 'createUser' com:", data);
+        const result: any = await createUserCallable(data);
+        toast({
+          title: "Sucesso!",
+          description: result.data.message,
+        });
+      }
 
       setIsModalOpen(false);
+      setEditingUser(null);
       await fetchUsers(); // Re-fetch users to update the table
     } catch (err: any) {
       console.error("Erro ao chamar a função:", err);
       toast({
         variant: "destructive",
-        title: "Erro ao adicionar funcionário",
+        title: `Erro ao ${editingUser ? 'atualizar' : 'adicionar'} funcionário`,
         description: err.message || "Ocorreu um erro desconhecido.",
       });
     } finally {
@@ -110,13 +146,15 @@ export default function EmployeesPage() {
     <main className="p-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-                <CardTitle>Gerenciar Funcionários</CardTitle>
-                <CardDescription>
-                    Visualize e gerencie os funcionários da sua empresa.
-                </CardDescription>
-            </div>
-            <Button onClick={() => setIsModalOpen(true)}>Adicionar Funcionário</Button>
+          <div>
+            <CardTitle>Gerenciar Funcionários</CardTitle>
+            <CardDescription>
+              Visualize, adicione e edite os funcionários da sua empresa.
+            </CardDescription>
+          </div>
+          <Button onClick={handleOpenModalForCreate}>
+            Adicionar Funcionário
+          </Button>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -133,20 +171,33 @@ export default function EmployeesPage() {
                     <TableHead>Nome</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Cargo</TableHead>
+                    <TableHead>Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {users.length > 0 ? (
                     users.map((user) => (
                       <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.name}</TableCell>
+                        <TableCell className="font-medium">
+                          {user.name}
+                        </TableCell>
                         <TableCell>{user.email}</TableCell>
                         <TableCell>{user.role}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleOpenModalForEdit(user)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                            <span className="sr-only">Editar</span>
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={3} className="h-24 text-center">
+                      <TableCell colSpan={4} className="h-24 text-center">
                         Nenhum funcionário encontrado.
                       </TableCell>
                     </TableRow>
@@ -157,54 +208,112 @@ export default function EmployeesPage() {
           )}
         </CardContent>
       </Card>
+
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Adicionar Novo Funcionário</DialogTitle>
+            <DialogTitle>
+              {editingUser ? "Editar Funcionário" : "Adicionar Novo Funcionário"}
+            </DialogTitle>
             <DialogDescription>
-              Preencha os dados abaixo para cadastrar um novo funcionário.
+              {editingUser
+                ? "Atualize os dados e permissões do funcionário."
+                : "Preencha os dados abaixo para cadastrar um novo funcionário."}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleAddEmployee}>
+          <form onSubmit={handleFormSubmit}>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="name" className="text-right">
                   Nome
                 </Label>
-                <Input id="name" name="name" placeholder="Nome Completo" className="col-span-3" required />
+                <Input
+                  id="name"
+                  name="name"
+                  placeholder="Nome Completo"
+                  className="col-span-3"
+                  defaultValue={editingUser?.name || ""}
+                  required
+                />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="email" className="text-right">
                   Email
                 </Label>
-                <Input id="email" name="email" type="email" placeholder="email@empresa.com" className="col-span-3" required />
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="email@empresa.com"
+                  className="col-span-3"
+                  defaultValue={editingUser?.email || ""}
+                  disabled={!!editingUser} // Desabilita edição de email
+                  required
+                />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="password" className="text-right">
-                  Senha
-                </Label>
-                <Input id="password" name="password" type="password" placeholder="Senha Provisória" className="col-span-3" required />
-              </div>
+              {!editingUser && (
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="password" className="text-right">
+                    Senha
+                  </Label>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    placeholder="Senha Provisória"
+                    className="col-span-3"
+                    required
+                  />
+                </div>
+              )}
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="role" className="text-right">
                   Cargo
                 </Label>
-                <Select name="role" required>
-                    <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Selecione o cargo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="Admin">Admin</SelectItem>
-                        <SelectItem value="Manager">Manager</SelectItem>
-                        <SelectItem value="Employee">Employee</SelectItem>
-                    </SelectContent>
+                <Select name="role" defaultValue={editingUser?.role} required>
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Selecione o cargo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Admin">Admin</SelectItem>
+                    <SelectItem value="Manager">Manager</SelectItem>
+                    <SelectItem value="Employee">Employee</SelectItem>
+                  </SelectContent>
                 </Select>
               </div>
+
+              <Separator className="my-2" />
+
+              <div className="grid grid-cols-4 items-start gap-4">
+                  <Label className="text-right pt-2">Permissões</Label>
+                  <div className="col-span-3 grid gap-2">
+                    {ALL_PERMISSIONS.map((permission) => (
+                       <div key={permission.id} className="flex items-center space-x-2">
+                         <Checkbox
+                            id={permission.id}
+                            name={permission.id}
+                            defaultChecked={editingUser?.permissions?.includes(permission.id)}
+                         />
+                         <Label htmlFor={permission.id} className="font-normal">{permission.label}</Label>
+                       </div>
+                    ))}
+                  </div>
+              </div>
+
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} disabled={isSubmitting}>Cancelar</Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsModalOpen(false)}
+                disabled={isSubmitting}
+              >
+                Cancelar
+              </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSubmitting && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 Salvar
               </Button>
             </DialogFooter>
@@ -214,3 +323,4 @@ export default function EmployeesPage() {
     </main>
   );
 }
+

@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import { updateUser } from "./updateUser";
 
 // Inicialização segura do Admin SDK
 if (!admin.apps.length) {
@@ -64,3 +65,6 @@ export const createUser = onCall(
     }
   }
 );
+
+// Exportar a nova função
+export { updateUser };
