@@ -29,6 +29,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -40,7 +50,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Pencil } from "lucide-react";
+import { Loader2, Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { auth } from "@/lib/firebase/config";
 
@@ -58,11 +68,14 @@ export default function EmployeesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
   const { toast } = useToast();
 
   const functions = getFunctions(auth.app, "southamerica-east1");
   const createUserCallable = httpsCallable(functions, "createUser");
   const updateUserCallable = httpsCallable(functions, "updateUser");
+  const deleteUserCallable = httpsCallable(functions, "deleteUser");
 
   const fetchUsers = async () => {
     try {
@@ -94,6 +107,11 @@ export default function EmployeesPage() {
   const handleOpenModalForEdit = (user: User) => {
     setEditingUser(user);
     setIsModalOpen(true);
+  };
+
+  const handleOpenAlertForDelete = (user: User) => {
+    setDeletingUser(user);
+    setIsAlertOpen(true);
   };
 
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -145,6 +163,31 @@ export default function EmployeesPage() {
     }
   };
 
+  const handleDeleteUser = async () => {
+    if (!deletingUser) return;
+    setIsSubmitting(true);
+
+    try {
+      const result: any = await deleteUserCallable({ uid: deletingUser.id });
+       toast({
+        title: "Sucesso!",
+        description: result.data.message,
+      });
+      await fetchUsers(); // Refresh the user list
+    } catch (err: any) {
+      console.error("Erro ao excluir o funcionário:", err);
+      toast({
+        variant: "destructive",
+        title: "Erro ao excluir funcionário",
+        description: err.message || "Ocorreu um erro desconhecido.",
+      });
+    } finally {
+      setIsSubmitting(false);
+      setIsAlertOpen(false);
+      setDeletingUser(null);
+    }
+  };
+
   return (
     <main className="p-4">
       <Card>
@@ -152,7 +195,7 @@ export default function EmployeesPage() {
           <div>
             <CardTitle>Gerenciar Funcionários</CardTitle>
             <CardDescription>
-              Visualize, adicione e edite os funcionários da sua empresa.
+              Visualize, adicione, edite e exclua os funcionários da sua empresa.
             </CardDescription>
           </div>
           <Button onClick={handleOpenModalForCreate}>
@@ -186,7 +229,7 @@ export default function EmployeesPage() {
                         </TableCell>
                         <TableCell>{user.email}</TableCell>
                         <TableCell>{user.role}</TableCell>
-                        <TableCell>
+                        <TableCell className="flex items-center gap-2">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -194,6 +237,14 @@ export default function EmployeesPage() {
                           >
                             <Pencil className="h-4 w-4" />
                             <span className="sr-only">Editar</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleOpenAlertForDelete(user)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Excluir</span>
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -323,6 +374,25 @@ export default function EmployeesPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem a certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Isto irá excluir
+              permanentemente o funcionário e todos os seus dados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmitting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteUser} disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }

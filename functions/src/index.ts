@@ -25,6 +25,10 @@ interface UpdateUserData {
   permissions: string[];
 }
 
+interface DeleteUserData {
+  uid: string;
+}
+
 
 export const createUser = onCall(
   // Define a região e outras opções aqui
@@ -105,6 +109,35 @@ export const updateUser = onCall(
     } catch (error: any) {
       logger.error(`Erro ao atualizar o utilizador ${uid}:`, error);
       throw new HttpsError("internal", "Ocorreu um erro ao atualizar o utilizador.", error.message);
+    }
+  }
+);
+
+export const deleteUser = onCall(
+  { region: "southamerica-east1" },
+  async (request) => {
+    const data: DeleteUserData = request.data;
+    const { uid } = data;
+    logger.info(`A excluir o utilizador: ${uid}`);
+
+    if (!uid) {
+      throw new HttpsError("invalid-argument", "O UID do utilizador é obrigatório.");
+    }
+
+    try {
+      // Exclui o utilizador do Firebase Authentication
+      await auth.deleteUser(uid);
+      logger.info(`Utilizador ${uid} excluído do Auth.`);
+
+      // Exclui o documento do utilizador do Firestore
+      await db.collection("users").doc(uid).delete();
+      logger.info(`Documento do utilizador ${uid} excluído do Firestore.`);
+
+      return { success: true, message: "Utilizador excluído com sucesso!" };
+
+    } catch (error: any) {
+      logger.error(`Erro ao excluir o utilizador ${uid}:`, error);
+      throw new HttpsError("internal", "Ocorreu um erro ao excluir o utilizador.", error.message);
     }
   }
 );
