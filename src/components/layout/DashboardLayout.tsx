@@ -15,7 +15,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { Briefcase, Users } from "lucide-react";
+import { Briefcase, Users, ListTodo } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 export default function DashboardLayoutComponent({
@@ -55,6 +55,14 @@ export default function DashboardLayoutComponent({
                       <SidebarMenuButton>
                         <Briefcase />
                         Gerenciar Clientes
+                      </SidebarMenuButton>
+                    </Link>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <Link href="/dashboard/tasks">
+                      <SidebarMenuButton>
+                        <ListTodo />
+                        Painel de Tarefas
                       </SidebarMenuButton>
                     </Link>
                   </SidebarMenuItem>
