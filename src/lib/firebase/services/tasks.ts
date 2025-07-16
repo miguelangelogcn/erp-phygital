@@ -5,10 +5,12 @@ import {
   onSnapshot,
   doc,
   updateDoc,
-  serverTimestamp
+  serverTimestamp,
+  addDoc,
+  deleteDoc
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
-import type { Task, TaskStatus } from "@/types/task";
+import type { Task, TaskStatus, NewTask } from "@/types/task";
 
 /**
  * Listens for real-time updates on the 'tasks' collection in Firestore.
@@ -42,6 +44,44 @@ export function onTasksUpdate(
 }
 
 /**
+ * Adds a new task to the 'tasks' collection.
+ * @param {NewTask} taskData - The data for the new task.
+ * @returns {Promise<string>} The ID of the newly created task.
+ */
+export async function addTask(taskData: NewTask): Promise<string> {
+  try {
+    const docRef = await addDoc(collection(db, "tasks"), {
+      ...taskData,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error("Error adding task: ", error);
+    throw new Error("Failed to add task to Firestore.");
+  }
+}
+
+/**
+ * Updates an existing task in Firestore.
+ * @param {string} taskId - The ID of the task to update.
+ * @param {Partial<Task>} taskData - An object with the fields to update.
+ * @returns {Promise<void>}
+ */
+export async function updateTask(taskId: string, taskData: Partial<Task>): Promise<void> {
+  try {
+    const taskDocRef = doc(db, "tasks", taskId);
+    await updateDoc(taskDocRef, {
+      ...taskData,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error("Error updating task: ", error);
+    throw new Error("Failed to update task in Firestore.");
+  }
+}
+
+/**
  * Updates the status of a specific task in Firestore.
  * @param {string} taskId - The ID of the task to update.
  * @param {TaskStatus} newStatus - The new status for the task.
@@ -61,4 +101,19 @@ export async function updateTaskStatus(
     console.error("Error updating task status: ", error);
     throw new Error("Failed to update task status in Firestore.");
   }
+}
+
+/**
+ * Deletes a task from Firestore.
+ * @param {string} taskId - The ID of the task to delete.
+ * @returns {Promise<void>}
+ */
+export async function deleteTask(taskId: string): Promise<void> {
+    try {
+        const taskDocRef = doc(db, "tasks", taskId);
+        await deleteDoc(taskDocRef);
+    } catch (error) {
+        console.error("Error deleting task: ", error);
+        throw new Error("Failed to delete task from Firestore.");
+    }
 }
