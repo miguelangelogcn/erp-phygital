@@ -1,7 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
-import { updateUser } from "./updateUser";
 
 // Inicialização segura do Admin SDK
 if (!admin.apps.length) {
@@ -18,6 +17,14 @@ interface CreateUserData {
   password: string;
   role: string;
 }
+
+interface UpdateUserData {
+  uid: string;
+  name: string;
+  role: string;
+  permissions: string[];
+}
+
 
 export const createUser = onCall(
   // Define a região e outras opções aqui
@@ -66,5 +73,38 @@ export const createUser = onCall(
   }
 );
 
-// Exportar a nova função
-export { updateUser };
+
+export const updateUser = onCall(
+  { region: "southamerica-east1" },
+  async (request) => {
+    const data: UpdateUserData = request.data;
+    const { uid, name, role, permissions } = data;
+    logger.info(`A atualizar o utilizador: ${uid}`, data);
+
+    if (!uid || !name || !role || !Array.isArray(permissions)) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Faltam dados essenciais (uid, nome, cargo, permissões)."
+      );
+    }
+
+    try {
+      // Atualiza o documento no Firestore
+      await db.collection("users").doc(uid).update({
+        name: name,
+        role: role,
+        permissions: permissions,
+      });
+
+      // Opcional: Atualiza também o nome no Firebase Auth
+      await auth.updateUser(uid, { displayName: name });
+
+      logger.info(`Utilizador ${uid} atualizado com sucesso.`);
+      return { success: true, message: "Utilizador atualizado com sucesso!" };
+
+    } catch (error: any) {
+      logger.error(`Erro ao atualizar o utilizador ${uid}:`, error);
+      throw new HttpsError("internal", "Ocorreu um erro ao atualizar o utilizador.", error.message);
+    }
+  }
+);

@@ -111,15 +111,18 @@ export default function EmployeesPage() {
     try {
       if (editingUser) {
         // Update existing user
-        console.log("A chamar a função 'updateUser' com:", { uid: editingUser.id, ...data });
-        const result: any = await updateUserCallable({ uid: editingUser.id, ...data });
+        const result: any = await updateUserCallable({
+          uid: editingUser.id,
+          name: data.name,
+          role: data.role,
+          permissions: data.permissions
+        });
         toast({
           title: "Sucesso!",
           description: result.data.message,
         });
       } else {
         // Create new user
-        console.log("A chamar a função 'createUser' com:", data);
         const result: any = await createUserCallable(data);
         toast({
           title: "Sucesso!",
@@ -323,4 +326,3 @@ export default function EmployeesPage() {
     </main>
   );
 }
-
