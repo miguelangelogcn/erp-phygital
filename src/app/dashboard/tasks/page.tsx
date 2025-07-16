@@ -158,7 +158,13 @@ export default function TasksPage() {
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
           {columns && Object.values(columns).map((column) => (
-            <Droppable key={column.id} droppableId={column.id} isDropDisabled={false} isCombineEnabled={false}>
+            <Droppable 
+                key={column.id} 
+                droppableId={column.id} 
+                isDropDisabled={false} 
+                isCombineEnabled={false}
+                ignoreContainerClipping={false}
+            >
               {(provided, snapshot) => (
                 <Card
                   ref={provided.innerRef}
