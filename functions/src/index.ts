@@ -2,62 +2,70 @@ import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 
-admin.initializeApp();
+// Garanta que a inicialização seja feita apenas uma vez.
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
 
 const db = admin.firestore();
 const auth = admin.auth();
 
 export const createUser = onCall(async (request) => {
-    // Note: Checking for auth is a good practice for callable functions.
+    logger.info("Função 'createUser' chamada com os dados:", request.data);
+
+    // Verificação de autenticação (opcional, mas boa prática)
     // if (!request.auth) {
-    //   throw new HttpsError("unauthenticated", "Você deve estar autenticado para criar um usuário.");
+    //   throw new HttpsError(
+    //     "unauthenticated",
+    //     "O utilizador deve estar autenticado para criar outros utilizadores."
+    //   );
     // }
 
     const { name, email, password, role } = request.data;
 
-    logger.info("Tentativa de criação de usuário:", { email, role });
-
-    // Validação dos dados
     if (!name || !email || !password || !role) {
-        throw new HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
-    }
-    if (password.length < 6) {
-        throw new HttpsError("invalid-argument", "A senha deve ter pelo menos 6 caracteres.");
+        logger.warn("Tentativa de criar usuário com dados ausentes.", { name, email, role });
+        throw new HttpsError(
+            "invalid-argument",
+            "Faltam dados essenciais (nome, email, senha, cargo)."
+        );
     }
 
     try {
-        // 1. Criar usuário no Firebase Authentication
+        logger.info(`A criar utilizador no Auth para: ${email}`);
         const userRecord = await auth.createUser({
             email,
             password,
             displayName: name,
         });
+        logger.info(`Utilizador criado no Auth com UID: ${userRecord.uid}`);
 
-        logger.info("Usuário criado no Auth com UID:", userRecord.uid);
-
-        // 2. Criar documento no Firestore
+        logger.info(`A criar documento no Firestore para UID: ${userRecord.uid}`);
         await db.collection("users").doc(userRecord.uid).set({
             name,
             email,
             role,
             permissions: [],
         });
-
-        logger.info("Documento do usuário criado no Firestore para UID:", userRecord.uid);
-
+        logger.info("Documento criado no Firestore com sucesso.");
 
         return { success: true, uid: userRecord.uid };
+
     } catch (error: any) {
-        logger.error("Erro ao criar usuário:", error);
+        logger.error("ERRO DETALHADO dentro da função:", error);
 
         // Mapeia os erros comuns do Firebase para mensagens mais amigáveis
-        let message = "Ocorreu um erro desconhecido.";
-        if (error.code === "auth/email-already-exists") {
-            message = "Este endereço de e-mail já está em uso.";
-        } else if (error.code === "auth/invalid-password") {
-            message = "A senha fornecida é inválida. Deve ter pelo menos 6 caracteres.";
+        if (error.code === 'auth/email-already-exists') {
+            throw new HttpsError('already-exists', 'Este endereço de e-mail já está em uso.');
+        } else if (error.code === 'auth/invalid-password') {
+             throw new HttpsError('invalid-argument', 'A senha fornecida é inválida. Deve ter pelo menos 6 caracteres.');
         }
-        
-        throw new HttpsError("internal", message, error);
+
+        // Para outros erros, lança um erro HttpsError genérico para que o cliente receba uma mensagem clara
+        throw new HttpsError(
+            "internal",
+            "Ocorreu um erro no servidor ao criar o utilizador.",
+            error.message
+        );
     }
 });
