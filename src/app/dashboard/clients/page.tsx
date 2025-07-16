@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { getClients, addClient } from "@/lib/firebase/services/clients";
 import type { Client, NewClient } from "@/types/client";
 import {
@@ -175,15 +176,17 @@ export default function ClientsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {clients.length > 0 ? (
                 clients.map((client) => (
-                  <Card key={client.id}>
-                    <CardHeader>
-                      <CardTitle className="text-lg">{client.name}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground">Orçamento: R$ {client.budget.toFixed(2)}</p>
-                       <p className="text-sm text-muted-foreground truncate">Serviços: {client.services.join(', ')}</p>
-                    </CardContent>
-                  </Card>
+                  <Link href={`/dashboard/clients/${client.id}`} key={client.id} className="block hover:shadow-lg transition-shadow duration-200 rounded-lg">
+                    <Card className="h-full">
+                      <CardHeader>
+                        <CardTitle className="text-lg">{client.name}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground">Orçamento: R$ {client.budget.toFixed(2)}</p>
+                        <p className="text-sm text-muted-foreground truncate">Serviços: {client.services.join(', ')}</p>
+                      </CardContent>
+                    </Card>
+                  </Link>
                 ))
               ) : (
                 <div className="col-span-full text-center py-8">

@@ -1,5 +1,5 @@
 // src/lib/firebase/services/clients.ts
-import { collection, getDocs, orderBy, query, addDoc } from "firebase/firestore";
+import { collection, getDocs, orderBy, query, addDoc, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import type { Client, NewClient } from "@/types/client";
 
@@ -22,6 +22,29 @@ export async function getClients(): Promise<Client[]> {
     throw new Error("Failed to fetch clients from Firestore.");
   }
 }
+
+/**
+ * Fetches a single client by its ID from Firestore.
+ * @param {string} id - The ID of the client document to fetch.
+ * @returns {Promise<Client | null>} A promise that resolves to the client object or null if not found.
+ */
+export async function getClientById(id: string): Promise<Client | null> {
+  try {
+    const clientDocRef = doc(db, "clients", id);
+    const clientDocSnap = await getDoc(clientDocRef);
+
+    if (clientDocSnap.exists()) {
+      return { id: clientDocSnap.id, ...clientDocSnap.data() } as Client;
+    } else {
+      console.log("No such client!");
+      return null;
+    }
+  } catch (error) {
+    console.error("Error fetching client by ID: ", error);
+    throw new Error("Failed to fetch client from Firestore.");
+  }
+}
+
 
 /**
  * Adds a new client to the 'clients' collection in Firestore.
