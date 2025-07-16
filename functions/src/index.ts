@@ -1,6 +1,6 @@
-// Ficheiro: functions/src/index.ts
-import * as functions from "firebase-functions";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
+import * as logger from "firebase-functions/logger";
 
 // Inicialização segura do Admin SDK
 if (!admin.apps.length) {
@@ -10,52 +10,57 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 const auth = admin.auth();
 
-export const createUser = functions
-  .region("southamerica-east1") // Especifica a região
-  .https.onCall(async (data) => {
+// Define a interface para os dados esperados
+interface CreateUserData {
+  name: string;
+  email: string;
+  password: string;
+  role: string;
+}
+
+export const createUser = onCall(
+  // Define a região e outras opções aqui
+  { region: "southamerica-east1" },
+  async (request) => {
+    // Tipa os dados recebidos
+    const data: CreateUserData = request.data;
+    logger.info("Função 'createUser' chamada com os dados:", data);
+
     // Validação de dados de entrada
-    const {name, email, password, role} = data;
-    if (!(typeof name === "string" && name.length > 0 &&
-      typeof email === "string" && email.length > 0 &&
-      typeof password === "string" && password.length > 0 &&
-      typeof role === "string" && role.length > 0)) {
-      throw new functions.https.HttpsError(
+    const { name, email, password, role } = data;
+    if (!name || !email || !password || !role) {
+      throw new HttpsError(
         "invalid-argument",
-        "Dados inválidos ou em falta."
+        "Faltam dados essenciais (nome, email, senha, cargo)."
       );
     }
 
     try {
-      // Cria o utilizador no Authentication
+      logger.info(`A criar utilizador no Auth para: ${email}`);
       const userRecord = await auth.createUser({
         email: email,
         password: password,
         displayName: name,
       });
+      logger.info(`Utilizador criado no Auth com UID: ${userRecord.uid}`);
 
-      // Cria o documento do utilizador no Firestore
+      logger.info(`A criar documento no Firestore para UID: ${userRecord.uid}`);
       await db.collection("users").doc(userRecord.uid).set({
         name: name,
         email: email,
         role: role,
         permissions: [],
       });
+      logger.info("Documento criado no Firestore com sucesso.");
 
-      return {
-        success: true,
-        message: "Utilizador criado com sucesso!",
-        uid: userRecord.uid,
-      };
+      return { success: true, message: "Utilizador criado com sucesso!", uid: userRecord.uid };
+
     } catch (error: any) {
-      console.error("Erro ao criar utilizador:", error);
-      // Converte erros do Auth para erros que o cliente entende
-      if (error.code === "auth/email-already-exists") {
-        throw new functions.https.HttpsError(
-          "already-exists", "Este e-mail já está em uso."
-        );
+      logger.error("ERRO DETALHADO dentro da função:", error);
+      if (error.code === 'auth/email-already-exists') {
+           throw new HttpsError('already-exists', 'Este e-mail já está em uso.');
       }
-      throw new functions.https.HttpsError(
-        "internal", "Ocorreu um erro inesperado no servidor."
-      );
+      throw new HttpsError("internal", "Ocorreu um erro inesperado no servidor.", error.message);
     }
-  });
+  }
+);
