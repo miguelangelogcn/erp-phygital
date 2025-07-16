@@ -24,8 +24,7 @@ export default function DashboardLayoutComponent({
   children: React.ReactNode;
 }) {
   const { userData } = useAuth();
-  // const canManageEmployees = userData?.permissions?.includes("manage_employees");
-  const canManageEmployees = true; // Temporariamente visível para depuração
+  const canManageEmployees = userData?.permissions?.includes("manage_employees");
 
   return (
     <SidebarProvider>
