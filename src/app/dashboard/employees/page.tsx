@@ -39,7 +39,6 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { functions } from "@/lib/firebase/config";
 
 export default function EmployeesPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -49,6 +48,11 @@ export default function EmployeesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
+  const functions = getFunctions();
+  // Garante que a instância da função chamável seja criada apenas uma vez
+  const createUserCallable = httpsCallable(functions, 'createUser');
+
+
   const fetchUsers = async () => {
     try {
       setLoading(true);
@@ -57,6 +61,11 @@ export default function EmployeesPage() {
       setError(null);
     } catch (err) {
       setError("Falha ao buscar funcionários. Tente novamente mais tarde.");
+      toast({
+        variant: "destructive",
+        title: "Erro ao buscar funcionários",
+        description: "Ocorreu um erro ao carregar a lista de funcionários.",
+      });
     } finally {
       setLoading(false);
     }
@@ -74,21 +83,23 @@ export default function EmployeesPage() {
     const data = Object.fromEntries(formData.entries());
 
     try {
-        const createUser = httpsCallable(functions, 'createUser');
-        const result: any = await createUser(data);
+      console.log("A chamar a função 'createUser' com:", data);
+      const result: any = await createUserCallable(data);
+      console.log("Sucesso:", result.data);
 
-        if (result.data.success !== true) {
-             throw new Error(result.data.message || 'Ocorreu um erro desconhecido.');
-        }
+      if (result.data.success !== true) {
+        throw new Error(result.data.message || 'Ocorreu um erro desconhecido ao criar o utilizador.');
+      }
 
       toast({
         title: "Sucesso!",
-        description: "Novo funcionário adicionado com sucesso.",
+        description: result.data.message,
       });
 
       setIsModalOpen(false);
-      await fetchUsers();
+      await fetchUsers(); // Re-fetch users to update the table
     } catch (err: any) {
+      console.error("Erro ao chamar a função:", err);
       toast({
         variant: "destructive",
         title: "Erro ao adicionar funcionário",
