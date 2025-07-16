@@ -140,8 +140,14 @@ export default function EmployeesPage() {
           description: result.data.message,
         });
       } else {
-        // Create new user
-        const result: any = await createUserCallable(data);
+        // Create new user, including permissions
+        const result: any = await createUserCallable({
+          name: data.name,
+          email: data.email,
+          password: data.password,
+          role: data.role,
+          permissions: data.permissions
+        });
         toast({
           title: "Sucesso!",
           description: result.data.message,

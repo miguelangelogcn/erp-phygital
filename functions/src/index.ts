@@ -16,6 +16,7 @@ interface CreateUserData {
   email: string;
   password: string;
   role: string;
+  permissions?: string[];
 }
 
 interface UpdateUserData {
@@ -39,7 +40,7 @@ export const createUser = onCall(
     logger.info("Função 'createUser' chamada com os dados:", data);
 
     // Validação de dados de entrada
-    const { name, email, password, role } = data;
+    const { name, email, password, role, permissions } = data;
     if (!name || !email || !password || !role) {
       throw new HttpsError(
         "invalid-argument",
@@ -61,7 +62,7 @@ export const createUser = onCall(
         name: name,
         email: email,
         role: role,
-        permissions: [],
+        permissions: permissions || [], // Usa as permissões recebidas ou um array vazio
       });
       logger.info("Documento criado no Firestore com sucesso.");
 
