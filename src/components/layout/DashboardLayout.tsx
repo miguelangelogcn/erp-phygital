@@ -24,7 +24,7 @@ export default function DashboardLayoutComponent({
   children: React.ReactNode;
 }) {
   const { userData } = useAuth();
-  // const canManageEmployees = userData?.permissions?.includes("manage_employees");
+  const canManageEmployees = userData?.permissions?.includes("manage_employees");
 
   return (
     <SidebarProvider>
@@ -37,7 +37,7 @@ export default function DashboardLayoutComponent({
             <SidebarMenu>
               <SidebarGroup>
                 <SidebarGroupLabel>GESTÃO</SidebarGroupLabel>
-                {/* {canManageEmployees && ( */}
+                {canManageEmployees && (
                   <SidebarMenuItem>
                     <Link href="/dashboard/employees">
                       <SidebarMenuButton>
@@ -46,7 +46,7 @@ export default function DashboardLayoutComponent({
                       </SidebarMenuButton>
                     </Link>
                   </SidebarMenuItem>
-                {/* )} */}
+                )}
               </SidebarGroup>
               <SidebarGroup>
                 <SidebarGroupLabel>OPERAÇÕES</SidebarGroupLabel>
