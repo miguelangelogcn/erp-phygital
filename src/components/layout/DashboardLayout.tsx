@@ -1,4 +1,4 @@
-
+// src/components/layout/DashboardLayout.tsx
 "use client";
 
 import Link from "next/link";
@@ -15,7 +15,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { Users } from "lucide-react";
+import { Briefcase, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 export default function DashboardLayoutComponent({
@@ -50,6 +50,14 @@ export default function DashboardLayoutComponent({
               </SidebarGroup>
               <SidebarGroup>
                 <SidebarGroupLabel>OPERAÇÕES</SidebarGroupLabel>
+                 <SidebarMenuItem>
+                    <Link href="/dashboard/clients">
+                      <SidebarMenuButton>
+                        <Briefcase />
+                        Gerenciar Clientes
+                      </SidebarMenuButton>
+                    </Link>
+                  </SidebarMenuItem>
               </SidebarGroup>
             </SidebarMenu>
           </SidebarContent>
