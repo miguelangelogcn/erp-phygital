@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { auth } from "@/lib/firebase/config";
 
 export default function EmployeesPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -48,8 +49,7 @@ export default function EmployeesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  const functions = getFunctions();
-  // Garante que a instância da função chamável seja criada apenas uma vez
+  const functions = getFunctions(auth.app, "southamerica-east1");
   const createUserCallable = httpsCallable(functions, 'createUser');
 
 
@@ -86,10 +86,6 @@ export default function EmployeesPage() {
       console.log("A chamar a função 'createUser' com:", data);
       const result: any = await createUserCallable(data);
       console.log("Sucesso:", result.data);
-
-      if (result.data.success !== true) {
-        throw new Error(result.data.message || 'Ocorreu um erro desconhecido ao criar o utilizador.');
-      }
 
       toast({
         title: "Sucesso!",
