@@ -60,6 +60,7 @@ const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, 
     const onSubmit = (data: FormValues) => {
         const submissionData: NewTask | Partial<Task> = {
             ...data,
+            assistantIds: Array.isArray(data.assistantIds) ? data.assistantIds : [],
             dueDate: data.dueDate ? Timestamp.fromDate(data.dueDate) : null,
             checklist: data.checklist?.map(item => ({
                 ...item,
@@ -100,7 +101,7 @@ const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, 
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <SelectTrigger><SelectValue placeholder="Selecione um responsável" /></SelectTrigger>
                                 <SelectContent>
-                                    {users.map(user => <SelectItem key={user.value} value={user.value}>{user.label}</SelectItem>)}
+                                    {users.filter(u => u.value).map(user => <SelectItem key={user.value} value={user.value}>{user.label}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         )}
@@ -113,7 +114,7 @@ const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, 
                         control={control}
                         render={({ field }) => (
                             <MultiSelect
-                                options={users}
+                                options={users.filter(u => u.value)}
                                 selected={field.value || []}
                                 onChange={field.onChange}
                                 placeholder="Selecione assistentes"
@@ -133,7 +134,7 @@ const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, 
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <SelectTrigger><SelectValue placeholder="Selecione um cliente (opcional)" /></SelectTrigger>
                                 <SelectContent>
-                                    {clients.map(client => <SelectItem key={client.value} value={client.value}>{client.label}</SelectItem>)}
+                                    {clients.filter(c => c.value).map(client => <SelectItem key={client.value} value={client.value}>{client.label}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         )}
