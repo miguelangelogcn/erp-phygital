@@ -139,7 +139,7 @@ export default function EmployeesPage() {
 
     const permissions = ALL_PERMISSIONS.map(p => p.id).filter(id => formData.has(id));
     
-    const payload = {
+    const payload: any = {
         name: data.name,
         email: data.email,
         password: data.password,
@@ -147,6 +147,11 @@ export default function EmployeesPage() {
         teamId: data.teamId,
         permissions: permissions
     }
+    
+    if (payload.teamId === 'none') {
+        delete payload.teamId;
+    }
+
 
     try {
       if (editingUser) {
@@ -325,12 +330,12 @@ export default function EmployeesPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="teamId" className="text-right">Equipa</Label>
-                <Select name="teamId" defaultValue={editingUser?.teamId}>
+                <Select name="teamId" defaultValue={editingUser?.teamId || 'none'}>
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Selecione a equipa" />
                   </SelectTrigger>
                   <SelectContent>
-                     <SelectItem value="">Nenhuma</SelectItem>
+                     <SelectItem value="none">Nenhuma</SelectItem>
                      {teams.map(team => <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
