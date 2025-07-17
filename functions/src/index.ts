@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 
@@ -166,6 +167,50 @@ export const deleteTask = onCall(
     } catch(error: any) {
       logger.error(`Erro ao excluir a tarefa ${taskId}:`, error);
       throw new HttpsError("internal", "Ocorreu um erro ao excluir a tarefa.", error.message)
+    }
+  }
+);
+
+export const resetRecurringTasks = onSchedule(
+  {
+    schedule: "59 23 * * 0", // Every Sunday at 23:59
+    timeZone: "America/Sao_Paulo", // Or your preferred timezone
+    region: "southamerica-east1",
+  },
+  async (event) => {
+    logger.info("A executar a função de reset de tarefas recorrentes...");
+
+    const tasksCollectionRef = db.collection("recurringTasks");
+    const snapshot = await tasksCollectionRef.get();
+
+    if (snapshot.empty) {
+      logger.info("Nenhuma tarefa recorrente encontrada para resetar.");
+      return;
+    }
+
+    const batch = db.batch();
+
+    snapshot.forEach((doc) => {
+      const task = doc.data();
+      if (task.checklist && Array.isArray(task.checklist)) {
+        const resetChecklist = task.checklist.map((item: any) => ({
+          ...item,
+          isCompleted: false,
+        }));
+
+        const taskRef = tasksCollectionRef.doc(doc.id);
+        batch.update(taskRef, { checklist: resetChecklist });
+        logger.info(`A tarefa ${doc.id} foi agendada para reset no batch.`);
+      }
+    });
+
+    try {
+      await batch.commit();
+      logger.info(
+        `Reset de tarefas recorrentes concluído com sucesso para ${snapshot.size} tarefas.`
+      );
+    } catch (error) {
+      logger.error("Erro ao executar o batch de reset:", error);
     }
   }
 );
