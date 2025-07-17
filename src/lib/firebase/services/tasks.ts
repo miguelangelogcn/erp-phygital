@@ -7,10 +7,18 @@ import {
   updateDoc,
   serverTimestamp,
   addDoc,
-  deleteDoc
+  deleteDoc,
+  writeBatch,
+  getDocs,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import type { Task, TaskStatus, NewTask } from "@/types/task";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { auth } from "../config";
+
+const functions = getFunctions(auth.app, "southamerica-east1");
+const deleteTaskCallable = httpsCallable(functions, 'deleteTask');
+
 
 /**
  * Listens for real-time updates on the 'tasks' collection in Firestore.
@@ -71,49 +79,96 @@ export async function addTask(taskData: NewTask): Promise<string> {
 export async function updateTask(taskId: string, taskData: Partial<Task>): Promise<void> {
   try {
     const taskDocRef = doc(db, "tasks", taskId);
-    await updateDoc(taskDocRef, {
-      ...taskData,
-      updatedAt: serverTimestamp(),
-    });
+
+    const updateData: any = {
+        ...taskData,
+        updatedAt: serverTimestamp(),
+    };
+    
+    // Add timestamps based on status change
+    if (taskData.status) {
+        if (taskData.status === 'doing') {
+            updateData.startedAt = serverTimestamp();
+        } else if (taskData.status === 'done') {
+            updateData.completedAt = serverTimestamp();
+        }
+    }
+
+    await updateDoc(taskDocRef, updateData);
   } catch (error) {
     console.error("Error updating task: ", error);
     throw new Error("Failed to update task in Firestore.");
   }
 }
 
-/**
- * Updates the status of a specific task in Firestore.
- * @param {string} taskId - The ID of the task to update.
- * @param {TaskStatus} newStatus - The new status for the task.
- * @returns {Promise<void>} A promise that resolves when the update is complete.
- */
-export async function updateTaskStatus(
-  taskId: string,
-  newStatus: TaskStatus
-): Promise<void> {
-  try {
-    const taskDocRef = doc(db, "tasks", taskId);
-    await updateDoc(taskDocRef, {
-      status: newStatus,
-      updatedAt: serverTimestamp() 
-    });
-  } catch (error) {
-    console.error("Error updating task status: ", error);
-    throw new Error("Failed to update task status in Firestore.");
-  }
-}
 
 /**
- * Deletes a task from Firestore.
+ * Updates the status of a specific task and the order of affected tasks in a batch.
+ * @param {string} taskId - The ID of the task to update.
+ * @param {TaskStatus} newStatus - The new status for the task.
+ * @param {Task[]} sourceTasks - The list of tasks from the source column.
+ * @param {Task[]} destTasks - The list of tasks from the destination column.
+ * @param {string} sourceColumnId - The ID of the source column.
+ * @param {string} destColumnId - The ID of the destination column.
+ * @returns {Promise<void>} A promise that resolves when the update is complete.
+ */
+export async function updateTaskStatusAndOrder(
+  taskId: string,
+  newStatus: TaskStatus,
+  sourceTasks: Task[],
+  destTasks: Task[],
+  sourceColumnId: string,
+  destColumnId: string
+): Promise<void> {
+    const batch = writeBatch(db);
+    
+    const taskRef = doc(db, "tasks", taskId);
+    const updateData: any = {
+        status: newStatus,
+        updatedAt: serverTimestamp(),
+    };
+
+    if (newStatus === 'doing') {
+        updateData.startedAt = serverTimestamp();
+    } else if (newStatus === 'done') {
+        updateData.completedAt = serverTimestamp();
+    }
+    
+    batch.update(taskRef, updateData);
+
+    // Update order for source column if it's different from destination
+    if (sourceColumnId !== destColumnId) {
+        sourceTasks.forEach((task, index) => {
+            const taskRef = doc(db, "tasks", task.id);
+            batch.update(taskRef, { order: index });
+        });
+    }
+
+    // Update order for destination column
+    destTasks.forEach((task, index) => {
+        const taskRef = doc(db, "tasks", task.id);
+        batch.update(taskRef, { order: index });
+    });
+
+    try {
+        await batch.commit();
+    } catch (error) {
+        console.error("Error updating task status and order in batch: ", error);
+        throw new Error("Failed to update tasks in Firestore.");
+    }
+}
+
+
+/**
+ * Deletes a task from Firestore using a Cloud Function.
  * @param {string} taskId - The ID of the task to delete.
  * @returns {Promise<void>}
  */
 export async function deleteTask(taskId: string): Promise<void> {
     try {
-        const taskDocRef = doc(db, "tasks", taskId);
-        await deleteDoc(taskDocRef);
+        await deleteTaskCallable({ taskId });
     } catch (error) {
-        console.error("Error deleting task: ", error);
-        throw new Error("Failed to delete task from Firestore.");
+        console.error("Error calling deleteTask function: ", error);
+        throw new Error("Failed to delete task.");
     }
 }
