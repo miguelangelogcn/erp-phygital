@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 import { getUsers } from '@/lib/firebase/services/users';
 import { getClients } from '@/lib/firebase/services/clients';
 import { addRecurringTask } from '@/lib/firebase/services/recurringTasks';
@@ -27,12 +28,13 @@ export function CreateRecurringTaskModal({ children }: CreateRecurringTaskModalP
   const [isOpen, setIsOpen] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [users, setUsers] = useState<SelectOption[]>([]);
+  const [userOptions, setUserOptions] = useState<SelectOption[]>([]);
   const [clients, setClients] = useState<SelectOption[]>([]);
+  const { userData } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && userData) {
       setIsLoadingData(true);
       const fetchData = async () => {
         try {
@@ -40,7 +42,15 @@ export function CreateRecurringTaskModal({ children }: CreateRecurringTaskModalP
             getUsers(),
             getClients(),
           ]);
-          setUsers(usersData.map((u) => ({ value: u.id, label: u.name })));
+
+          let filteredUsers = usersData;
+          if (userData.isLeader && userData.teamMemberIds) {
+            filteredUsers = usersData.filter(u => userData.teamMemberIds!.includes(u.id));
+          } else {
+            filteredUsers = usersData.filter(u => u.id === userData.id);
+          }
+
+          setUserOptions(filteredUsers.map((u) => ({ value: u.id, label: u.name })));
           setClients(clientsData.map((c) => ({ value: c.id, label: c.name })));
         } catch (error) {
           toast({
@@ -54,12 +64,17 @@ export function CreateRecurringTaskModal({ children }: CreateRecurringTaskModalP
       };
       fetchData();
     }
-  }, [isOpen, toast]);
+  }, [isOpen, toast, userData]);
 
   const handleSaveTask = async (data: NewRecurringTask) => {
     setIsSubmitting(true);
     try {
-      await addRecurringTask(data);
+      const newTaskData: NewRecurringTask = {
+        ...data,
+        responsibleId: data.responsibleId || userData?.id || "",
+        isCompleted: false, // Default value on creation
+      };
+      await addRecurringTask(newTaskData);
       toast({ title: 'Sucesso', description: 'Nova tarefa recorrente criada.' });
       setIsOpen(false);
     } catch (error) {
@@ -88,11 +103,13 @@ export function CreateRecurringTaskModal({ children }: CreateRecurringTaskModalP
           </div>
         ) : (
           <RecurringTaskForm
-            users={users}
+            users={userOptions}
             clients={clients}
             onSave={handleSaveTask}
             onCancel={() => setIsOpen(false)}
             isSubmitting={isSubmitting}
+            currentUserIsLeader={userData?.isLeader || false}
+            currentUserId={userData?.id}
           />
         )}
       </DialogContent>

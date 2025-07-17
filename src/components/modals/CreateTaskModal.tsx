@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 import { getUsers } from '@/lib/firebase/services/users';
 import { getClients } from '@/lib/firebase/services/clients';
 import { addTask } from '@/lib/firebase/services/tasks';
@@ -27,13 +28,14 @@ export function CreateTaskModal({ children }: CreateTaskModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [users, setUsers] = useState<SelectOption[]>([]);
+  const [userOptions, setUserOptions] = useState<SelectOption[]>([]);
   const [clients, setClients] = useState<SelectOption[]>([]);
+  const { userData } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
     // Fetch data only when the modal is about to open
-    if (isOpen) {
+    if (isOpen && userData) {
       setIsLoadingData(true);
       const fetchData = async () => {
         try {
@@ -41,8 +43,19 @@ export function CreateTaskModal({ children }: CreateTaskModalProps) {
             getUsers(),
             getClients(),
           ]);
-          setUsers(usersData.map((u) => ({ value: u.id, label: u.name })));
+
+          let filteredUsers = usersData;
+          if (userData.isLeader && userData.teamMemberIds) {
+            // Leader can assign to team members
+            filteredUsers = usersData.filter(u => userData.teamMemberIds!.includes(u.id));
+          } else {
+            // Employee can only assign to themselves
+            filteredUsers = usersData.filter(u => u.id === userData.id);
+          }
+          
+          setUserOptions(filteredUsers.map((u) => ({ value: u.id, label: u.name })));
           setClients(clientsData.map((c) => ({ value: c.id, label: c.name })));
+
         } catch (error) {
           toast({
             variant: 'destructive',
@@ -56,12 +69,16 @@ export function CreateTaskModal({ children }: CreateTaskModalProps) {
       };
       fetchData();
     }
-  }, [isOpen, toast]);
+  }, [isOpen, toast, userData]);
 
   const handleSaveTask = async (data: NewTask) => {
     setIsSubmitting(true);
     try {
-      const newTaskData: NewTask = { status: 'todo', ...data };
+      const newTaskData: NewTask = { 
+        status: 'todo', 
+        ...data,
+        responsibleId: data.responsibleId || userData?.id || "",
+      };
       await addTask(newTaskData);
       toast({ title: 'Sucesso', description: 'Nova tarefa criada.' });
       setIsOpen(false);
@@ -92,11 +109,13 @@ export function CreateTaskModal({ children }: CreateTaskModalProps) {
           </div>
         ) : (
           <TaskForm
-            users={users}
+            users={userOptions}
             clients={clients}
             onSave={handleSaveTask}
             onCancel={() => setIsOpen(false)}
             isSubmitting={isSubmitting}
+            currentUserIsLeader={userData?.isLeader || false}
+            currentUserId={userData?.id}
           />
         )}
       </DialogContent>

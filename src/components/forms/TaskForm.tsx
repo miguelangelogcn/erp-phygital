@@ -37,6 +37,8 @@ interface TaskFormProps {
   onCancel: () => void;
   onDelete?: (taskId: string) => void;
   isSubmitting: boolean;
+  currentUserIsLeader: boolean;
+  currentUserId?: string;
 }
 
 type FormValues = Omit<NewTask, 'dueDate' | 'checklist'> & {
@@ -44,7 +46,7 @@ type FormValues = Omit<NewTask, 'dueDate' | 'checklist'> & {
     checklist?: (Omit<ChecklistItem, 'dueDate'> & { dueDate?: Date | null })[];
 }
 
-const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, isSubmitting }: TaskFormProps) => {
+const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, isSubmitting, currentUserIsLeader, currentUserId }: TaskFormProps) => {
     const [isViewerOpen, setIsViewerOpen] = useState(false);
     const [selectedFile, setSelectedFile] = useState<{ url: string; name: string } | null>(null);
 
@@ -57,7 +59,7 @@ const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, 
         defaultValues: {
             title: task?.title || "",
             description: task?.description || "",
-            responsibleId: task?.responsibleId || "",
+            responsibleId: task?.responsibleId || currentUserId || "",
             assistantIds: task?.assistantIds || [],
             clientId: task?.clientId || "",
             dueDate: task?.dueDate ? task.dueDate.toDate() : null,
@@ -138,7 +140,7 @@ const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, 
                         control={control}
                         rules={{ required: true }}
                         render={({ field }) => (
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!currentUserIsLeader}>
                                 <SelectTrigger><SelectValue placeholder="Selecione um responsável" /></SelectTrigger>
                                 <SelectContent>
                                     {users.filter(u => u.value).map(user => <SelectItem key={user.value} value={user.value}>{user.label}</SelectItem>)}

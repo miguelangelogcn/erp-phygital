@@ -33,6 +33,8 @@ interface RecurringTaskFormProps {
   onDelete?: (taskId: string) => void;
   onChecklistItemChange?: (taskId: string, checklist: RecurringChecklistItem[]) => void;
   isSubmitting: boolean;
+  currentUserIsLeader: boolean;
+  currentUserId?: string;
 }
 
 const dayOptions: { value: DayOfWeekNumber; label: string }[] = [
@@ -45,7 +47,7 @@ const dayOptions: { value: DayOfWeekNumber; label: string }[] = [
     { value: 7, label: 'Domingo' },
 ];
 
-const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, onChecklistItemChange, isSubmitting }: RecurringTaskFormProps) => {
+const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, onChecklistItemChange, isSubmitting, currentUserIsLeader, currentUserId }: RecurringTaskFormProps) => {
     const [isViewerOpen, setIsViewerOpen] = useState(false);
     const [selectedFile, setSelectedFile] = useState<{ url: string; name: string } | null>(null);
 
@@ -58,7 +60,7 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
         defaultValues: {
             title: task?.title || "",
             description: task?.description || "",
-            responsibleId: task?.responsibleId || "",
+            responsibleId: task?.responsibleId || currentUserId || "",
             assistantIds: task?.assistantIds || [],
             clientId: task?.clientId || "",
             dayOfWeek: task?.dayOfWeek || 1,
@@ -143,7 +145,7 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
                         name="responsibleId"
                         control={control}
                         render={({ field }) => (
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!currentUserIsLeader}>
                                 <SelectTrigger><SelectValue placeholder="Selecione um responsável" /></SelectTrigger>
                                 <SelectContent>
                                     {users.filter(u => u.value).map(user => <SelectItem key={user.value} value={user.value}>{user.label}</SelectItem>)}
