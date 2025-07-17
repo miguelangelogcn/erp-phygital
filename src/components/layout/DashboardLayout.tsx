@@ -44,7 +44,7 @@ export default function DashboardLayoutComponent({
                   <SidebarMenuItem>
                     <Link href="/dashboard/employees">
                       <SidebarMenuButton>
-                        <Users className="icon-gradient" />
+                        <Users className="text-primary" />
                         Gerenciar Funcionários
                       </SidebarMenuButton>
                     </Link>
@@ -54,7 +54,7 @@ export default function DashboardLayoutComponent({
                   <SidebarMenuItem>
                     <Link href="/dashboard/roles">
                       <SidebarMenuButton>
-                        <Shield className="icon-gradient" />
+                        <Shield className="text-primary" />
                         Gerenciar Cargos
                       </SidebarMenuButton>
                     </Link>
@@ -64,7 +64,7 @@ export default function DashboardLayoutComponent({
                   <SidebarMenuItem>
                     <Link href="/dashboard/teams">
                       <SidebarMenuButton>
-                        <UserSquare className="icon-gradient" />
+                        <UserSquare className="text-primary" />
                         Gerenciar Equipes
                       </SidebarMenuButton>
                     </Link>
@@ -74,7 +74,7 @@ export default function DashboardLayoutComponent({
                    <SidebarMenuItem>
                     <Link href="/dashboard/approvals">
                       <SidebarMenuButton>
-                        <CheckSquare className="icon-gradient" />
+                        <CheckSquare className="text-primary" />
                         Aprovações Pendentes
                       </SidebarMenuButton>
                     </Link>
@@ -86,7 +86,7 @@ export default function DashboardLayoutComponent({
                  <SidebarMenuItem>
                     <Link href="/dashboard/clients">
                       <SidebarMenuButton>
-                        <Briefcase className="icon-gradient" />
+                        <Briefcase className="text-primary" />
                         Gerenciar Clientes
                       </SidebarMenuButton>
                     </Link>
@@ -94,7 +94,7 @@ export default function DashboardLayoutComponent({
                   <SidebarMenuItem>
                     <Link href="/dashboard/tasks">
                       <SidebarMenuButton>
-                        <ListTodo className="icon-gradient" />
+                        <ListTodo className="text-primary" />
                         Painel de Tarefas
                       </SidebarMenuButton>
                     </Link>
