@@ -30,6 +30,10 @@ interface DeleteUserData {
   uid: string;
 }
 
+interface DeleteTaskData {
+  taskId: string;
+}
+
 
 export const createUser = onCall(
   // Define a região e outras opções aqui
@@ -139,6 +143,29 @@ export const deleteUser = onCall(
     } catch (error: any) {
       logger.error(`Erro ao excluir o utilizador ${uid}:`, error);
       throw new HttpsError("internal", "Ocorreu um erro ao excluir o utilizador.", error.message);
+    }
+  }
+);
+
+
+export const deleteTask = onCall(
+  { region: "southamerica-east1" },
+  async(request) => {
+    const data: DeleteTaskData = request.data;
+    const { taskId } = data;
+    logger.info(`A excluir a tarefa: ${taskId}`);
+
+    if (!taskId) {
+      throw new HttpsError("invalid-argument", "O ID da tarefa é obrigatório.");
+    }
+
+    try {
+      await db.collection("tasks").doc(taskId).delete();
+      logger.info(`Tarefa ${taskId} excluída do Firestore.`);
+      return { success: true, message: "Tarefa excluída com sucesso!" };
+    } catch(error: any) {
+      logger.error(`Erro ao excluir a tarefa ${taskId}:`, error);
+      throw new HttpsError("internal", "Ocorreu um erro ao excluir a tarefa.", error.message)
     }
   }
 );

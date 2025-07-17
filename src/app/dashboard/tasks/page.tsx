@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Loader2, PlusCircle, Calendar as CalendarIcon, X } from 'lucide-react';
+import { Loader2, PlusCircle, Calendar as CalendarIcon, X, MoreHorizontal, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -31,10 +31,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 import { addDays, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
-
 
 import { onTasksUpdate, updateTask, deleteTask, updateTaskStatus } from "@/lib/firebase/services/tasks";
 import { getUsers } from "@/lib/firebase/services/users";
@@ -252,7 +258,7 @@ export default function TasksPage() {
     setAlertState({
         isOpen: true,
         title: "Excluir Tarefa",
-        description: "Tem certeza que deseja excluir esta tarefa? Esta ação não pode ser desfeita.",
+        description: "Tem a certeza que deseja excluir esta tarefa? Esta ação não pode ser desfeita.",
         onConfirm: async () => {
             setIsSubmitting(true);
             try {
@@ -362,11 +368,31 @@ export default function TasksPage() {
                               ref={provided.innerRef}
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
-                              onClick={() => handleCardClick(task)}
                             >
-                              <Card className={`hover:shadow-md cursor-pointer ${snapshot.isDragging ? "shadow-lg" : ""}`}>
-                                <CardHeader className="p-4"><CardTitle className="text-base">{task.title}</CardTitle></CardHeader>
-                                {task.description && <CardContent className="p-4 pt-0"><p className="text-sm text-muted-foreground line-clamp-2">{task.description}</p></CardContent>}
+                              <Card className={`hover:shadow-md group relative ${snapshot.isDragging ? "shadow-lg" : ""}`}>
+                                <CardHeader className="p-4 cursor-pointer" onClick={() => handleCardClick(task)}>
+                                    <CardTitle className="text-base">{task.title}</CardTitle>
+                                </CardHeader>
+                                {task.description && 
+                                    <CardContent className="p-4 pt-0 cursor-pointer" onClick={() => handleCardClick(task)}>
+                                        <p className="text-sm text-muted-foreground line-clamp-2">{task.description}</p>
+                                    </CardContent>
+                                }
+                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                     <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onSelect={() => handleDeleteTask(task.id)} className="text-destructive">
+                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                Excluir Tarefa
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
                               </Card>
                             </div>
                           )}
@@ -432,5 +458,3 @@ export default function TasksPage() {
     </main>
   );
 }
-
-    
