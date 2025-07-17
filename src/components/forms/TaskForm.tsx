@@ -101,7 +101,7 @@ const TaskForm = ({ task, users, clients, onSave, onCancel, onDelete, isSubmitti
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <SelectTrigger><SelectValue placeholder="Selecione um responsável" /></SelectTrigger>
                                 <SelectContent>
-                                    {users.map(user => <SelectItem key={user.value} value={user.value}>{user.label}</SelectItem>)}
+                                    {users.filter(user => user.value).map(user => <SelectItem key={user.value} value={user.value}>{user.label}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         )}
@@ -114,7 +114,7 @@ const TaskForm = ({ task, users, clients, onSave, onCancel, onDelete, isSubmitti
                         control={control}
                         render={({ field }) => (
                             <MultiSelect
-                                options={users}
+                                options={users.filter(user => user.value)}
                                 selected={field.value || []}
                                 onChange={field.onChange}
                                 placeholder="Selecione assistentes"
@@ -135,7 +135,7 @@ const TaskForm = ({ task, users, clients, onSave, onCancel, onDelete, isSubmitti
                                 <SelectTrigger><SelectValue placeholder="Selecione um cliente (opcional)" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="">Nenhum</SelectItem>
-                                    {clients.map(client => <SelectItem key={client.value} value={client.value}>{client.label}</SelectItem>)}
+                                    {clients.filter(client => client.value).map(client => <SelectItem key={client.value} value={client.value}>{client.label}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         )}
