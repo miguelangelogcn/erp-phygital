@@ -3,8 +3,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { onSnapshot, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
 import {
   Card,
   CardHeader,
@@ -24,6 +22,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+
 
 import { onTasksUpdate, updateTask, deleteTask, updateTaskStatus } from "@/lib/firebase/services/tasks";
 import { getUsers } from "@/lib/firebase/services/users";
@@ -279,21 +285,27 @@ export default function TasksPage() {
         </div>
       </DragDropContext>
        
-       <CreateTaskModal>
-          <dialog open={isEditModalOpen} onOpenChange={(isOpen) => { if (!isOpen) { setIsEditModalOpen(false); setEditingTask(null); } else { setIsEditModalOpen(true); } }}>
-            {editingTask && (
-              <TaskForm
-                  task={editingTask}
-                  users={users}
-                  clients={clients}
-                  onSave={handleUpdateTask}
-                  onCancel={() => { setIsEditModalOpen(false); setEditingTask(null); }}
-                  onDelete={handleDeleteTask}
-                  isSubmitting={isSubmitting}
-              />
-            )}
-          </dialog>
-       </CreateTaskModal>
+      <Dialog open={isEditModalOpen} onOpenChange={(isOpen) => { if (!isOpen) { setEditingTask(null); setIsEditModalOpen(false); }}}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Editar Tarefa</DialogTitle>
+            <DialogDescription>
+              Atualize os detalhes da tarefa abaixo.
+            </DialogDescription>
+          </DialogHeader>
+          {editingTask && (
+            <TaskForm
+              task={editingTask}
+              users={users}
+              clients={clients}
+              onSave={handleUpdateTask}
+              onCancel={() => { setIsEditModalOpen(false); setEditingTask(null); }}
+              onDelete={handleDeleteTask}
+              isSubmitting={isSubmitting}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
 
        <TaskDetailsModal
