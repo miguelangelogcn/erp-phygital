@@ -6,12 +6,14 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { FileText } from "lucide-react";
+
 import type { Task } from "@/types/task";
 import type { SelectOption } from "@/types/common";
 import { format } from "date-fns";
@@ -32,6 +34,12 @@ const TaskDetailsModal = ({ task, isOpen, onClose, users, clients }: TaskDetails
   const assistants = task.assistantIds?.map(id => users.find(u => u.value === id)?.label).filter(Boolean).join(", ");
   const client = clients.find(c => c.value === task.clientId)?.label;
   const dueDate = task.dueDate ? format(task.dueDate.toDate(), "PPP", { locale: ptBR }) : "Não definida";
+  
+  const statusMap: Record<string, string> = {
+    todo: 'A Fazer',
+    doing: 'Fazendo',
+    done: 'Concluído'
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -40,10 +48,44 @@ const TaskDetailsModal = ({ task, isOpen, onClose, users, clients }: TaskDetails
           <DialogTitle>{task.title}</DialogTitle>
           <div className="text-sm text-muted-foreground">
              Detalhes da tarefa. Status:{" "}
-            <Badge variant="secondary">{task.status}</Badge>
+            <Badge variant="secondary">{statusMap[task.status] || task.status}</Badge>
           </div>
         </DialogHeader>
         <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
+          
+          {task.feedback && (
+            <Alert variant="destructive">
+              <AlertTitle>Feedback de Rejeição</AlertTitle>
+              <AlertDescription className="space-y-4">
+                <p className="text-sm">
+                  <strong>Notas:</strong> {task.feedback.notes}
+                </p>
+                {task.feedback.files && task.feedback.files.length > 0 && (
+                  <div>
+                    <strong>Ficheiros:</strong>
+                    <ul className="list-disc list-inside">
+                      {task.feedback.files.map((file, index) => (
+                        <li key={index}>
+                          <a href={file.url} target="_blank" rel="noopener noreferrer" className="underline flex items-center gap-1">
+                             <FileText className="h-4 w-4" /> {file.name}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {task.feedback.audioUrl && (
+                  <div>
+                    <strong>Áudio:</strong>
+                    <audio controls src={task.feedback.audioUrl} className="w-full mt-1">
+                      O seu navegador não suporta o elemento de áudio.
+                    </audio>
+                  </div>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+
           {task.description && (
             <p className="text-sm text-muted-foreground">{task.description}</p>
           )}

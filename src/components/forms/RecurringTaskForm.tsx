@@ -2,7 +2,7 @@
 "use client";
 
 import { useForm, useFieldArray, Controller } from "react-hook-form";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { MultiSelect } from "@/components/ui/multi-select";
 import type { RecurringTask, NewRecurringTask, DayOfWeekNumber, RecurringChecklistItem } from "@/types/recurringTask";
 import type { SelectOption } from "@/types/common";
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 
 interface RecurringTaskFormProps {
   task?: RecurringTask | null;
@@ -80,6 +81,39 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-4">
+             {task?.feedback && (
+                <Alert variant="destructive">
+                    <AlertTitle>Feedback de Rejeição</AlertTitle>
+                    <AlertDescription className="space-y-4">
+                        <p className="text-sm">
+                            <strong>Notas:</strong> {task.feedback.notes}
+                        </p>
+                        {task.feedback.files && task.feedback.files.length > 0 && (
+                            <div>
+                                <strong>Ficheiros:</strong>
+                                <ul className="list-disc list-inside">
+                                    {task.feedback.files.map((file, index) => (
+                                        <li key={index}>
+                                            <a href={file.url} target="_blank" rel="noopener noreferrer" className="underline flex items-center gap-1">
+                                                <FileText className="h-4 w-4" /> {file.name}
+                                            </a>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                         {task.feedback.audioUrl && (
+                             <div>
+                                <strong>Áudio:</strong>
+                                <audio controls src={task.feedback.audioUrl} className="w-full mt-1">
+                                    O seu navegador não suporta o elemento de áudio.
+                                </audio>
+                            </div>
+                        )}
+                    </AlertDescription>
+                </Alert>
+            )}
+
             {onDelete && task && (
                  <div className="flex justify-end">
                     <Button type="button" variant="destructive" size="sm" onClick={() => onDelete(task.id)} disabled={isSubmitting}>

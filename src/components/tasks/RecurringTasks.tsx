@@ -8,7 +8,7 @@ import { getClients } from "@/lib/firebase/services/clients";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, PlusCircle, X } from "lucide-react";
+import { Loader2, PlusCircle, X, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CreateRecurringTaskModal } from "@/components/modals/CreateRecurringTaskModal";
 import RecurringTaskForm from "@/components/forms/RecurringTaskForm";
 import { MultiSelect } from "@/components/ui/multi-select";
+import { Badge } from "@/components/ui/badge";
 
 import type { RecurringTask, RecurringChecklistItem } from "@/types/recurringTask";
 import type { SelectOption } from "@/types/common";
@@ -232,10 +233,18 @@ export default function RecurringTasks() {
                             className="mt-1"
                           />
                         <div className="flex-1 cursor-pointer" onClick={() => handleCardClick(task)}>
-                            <p className={cn(
-                                "font-semibold",
-                                task.isCompleted && "line-through text-muted-foreground"
-                            )}>{task.title}</p>
+                            <div className="flex items-center justify-between">
+                                <p className={cn(
+                                    "font-semibold",
+                                    task.isCompleted && "line-through text-muted-foreground"
+                                )}>{task.title}</p>
+                                {task.approvalStatus === 'rejected' && (
+                                     <Badge variant="destructive" className="flex items-center gap-1">
+                                        <AlertCircle className="h-3 w-3" />
+                                        Rejeitado
+                                    </Badge>
+                                )}
+                            </div>
                             {task.description && <p className="text-sm text-muted-foreground truncate">{task.description}</p>}
                         </div>
                       </div>

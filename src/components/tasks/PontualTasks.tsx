@@ -54,6 +54,7 @@ import { CreateTaskModal } from "@/components/modals/CreateTaskModal";
 import { SubmitForApprovalModal } from '@/components/modals/SubmitForApprovalModal';
 import { MultiSelect } from "@/components/ui/multi-select";
 import { cn } from "@/lib/utils";
+import { Badge } from '../ui/badge';
 
 type Columns = {
   [key in TaskStatus]: {
@@ -163,8 +164,7 @@ export default function PontualTasks() {
             return <Clock className="h-4 w-4 text-orange-500" />;
         case 'approved':
             return <CheckCircle className="h-4 w-4 text-green-500" />;
-        case 'rejected':
-            return <AlertCircle className="h-4 w-4 text-red-500" />;
+        // This is handled separately below for rejected status
         default:
             return null;
     }
@@ -172,9 +172,13 @@ export default function PontualTasks() {
 
 
   const handleCardClick = (task: Task) => {
+    setViewingTask(task);
+  };
+
+  const handleEditClick = (task: Task) => {
     setEditingTask(task);
     setIsEditModalOpen(true);
-  };
+  }
   
   const onDragEnd = (result: DropResult) => {
     const { source, destination, draggableId } = result;
@@ -373,17 +377,20 @@ export default function PontualTasks() {
                               {...provided.dragHandleProps}
                             >
                               <Card className={`hover:shadow-md group relative ${snapshot.isDragging ? "shadow-lg" : ""}`}>
-                                <CardHeader className="p-4 cursor-pointer" onClick={() => handleCardClick(task)}>
-                                    <CardTitle className="text-base flex items-center justify-between">
-                                        <span>{task.title}</span>
-                                        {getApprovalIcon(task.approvalStatus)}
-                                    </CardTitle>
-                                </CardHeader>
-                                {task.description && 
-                                    <CardContent className="p-4 pt-0 cursor-pointer" onClick={() => handleCardClick(task)}>
+                                <CardContent className="p-4 cursor-pointer" onClick={() => handleCardClick(task)}>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <p className="font-semibold text-base">{task.title}</p>
+                                        {task.approvalStatus === 'rejected' ? (
+                                             <Badge variant="destructive" className="flex items-center gap-1">
+                                                <AlertCircle className="h-3 w-3" />
+                                                Rejeitado
+                                            </Badge>
+                                        ) : getApprovalIcon(task.approvalStatus)}
+                                    </div>
+                                    {task.description && 
                                         <p className="text-sm text-muted-foreground line-clamp-2">{task.description}</p>
-                                    </CardContent>
-                                }
+                                    }
+                                </CardContent>
                                 <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                      <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
@@ -392,9 +399,9 @@ export default function PontualTasks() {
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onSelect={() => handleEditClick(task)}>Editar</DropdownMenuItem>
                                             <DropdownMenuItem onSelect={() => handleDeleteTask(task.id)} className="text-destructive">
-                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                Excluir Tarefa
+                                                Excluir
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
