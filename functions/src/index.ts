@@ -37,6 +37,13 @@ interface DeleteTaskData {
   taskId: string;
 }
 
+interface SubmitForApprovalData {
+    taskId: string;
+    taskType: 'tasks' | 'recurringTasks';
+    proofs: { url: string; name: string }[];
+    notes: string;
+}
+
 
 export const createUser = onCall(
   // Define a região e outras opções aqui
@@ -186,6 +193,43 @@ export const deleteTask = onCall(
   }
 );
 
+
+export const submitTaskForApproval = onCall(
+  { region: "southamerica-east1" },
+  async (request) => {
+    const data: SubmitForApprovalData = request.data;
+    const { taskId, taskType, proofs, notes } = data;
+
+    logger.info(`Submetendo tarefa para aprovação: ${taskId} do tipo ${taskType}`);
+
+    if (!taskId || !taskType || !proofs || proofs.length === 0) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Dados insuficientes para submeter para aprovação."
+      );
+    }
+
+    const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
+
+    try {
+      const taskDocRef = db.collection(collectionName).doc(taskId);
+      await taskDocRef.update({
+        approvalStatus: 'pending',
+        proofs: proofs,
+        approvalNotes: notes || "",
+        submittedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      logger.info(`Tarefa ${taskId} atualizada para 'pending' com sucesso.`);
+      return { success: true, message: "Tarefa submetida para aprovação!" };
+    } catch (error: any) {
+      logger.error(`Erro ao submeter a tarefa ${taskId}:`, error);
+      throw new HttpsError("internal", "Ocorreu um erro ao submeter a tarefa.", error.message);
+    }
+  }
+);
+
+
 export const resetRecurringTasks = onSchedule(
   {
     schedule: "59 23 * * 0", // Every Sunday at 23:59
@@ -208,7 +252,13 @@ export const resetRecurringTasks = onSchedule(
     snapshot.forEach((doc) => {
       const task = doc.data();
       const taskRef = tasksCollectionRef.doc(doc.id);
-      const updatePayload: any = { isCompleted: false };
+      const updatePayload: any = { 
+          isCompleted: false,
+          approvalStatus: admin.firestore.FieldValue.delete(),
+          proofs: admin.firestore.FieldValue.delete(),
+          approvalNotes: admin.firestore.FieldValue.delete(),
+          submittedAt: admin.firestore.FieldValue.delete(),
+      };
 
       if (task.checklist && Array.isArray(task.checklist)) {
         const resetChecklist = task.checklist.map((item: any) => ({

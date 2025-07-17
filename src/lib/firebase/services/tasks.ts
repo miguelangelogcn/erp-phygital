@@ -89,7 +89,7 @@ export async function updateTask(taskId: string, taskData: Partial<Task>): Promi
     if (taskData.status) {
         if (taskData.status === 'doing') {
             updateData.startedAt = serverTimestamp();
-        } else if (taskData.status === 'done') {
+        } else if (taskData.status === 'done' && taskData.approvalStatus === 'approved') {
             updateData.completedAt = serverTimestamp();
         }
     }
@@ -130,8 +130,6 @@ export async function updateTaskStatusAndOrder(
 
     if (newStatus === 'doing') {
         updateData.startedAt = serverTimestamp();
-    } else if (newStatus === 'done') {
-        updateData.completedAt = serverTimestamp();
     }
     
     batch.update(taskRef, updateData);

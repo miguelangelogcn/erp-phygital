@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Loader2, PlusCircle, Calendar as CalendarIcon, X, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Loader2, PlusCircle, Calendar as CalendarIcon, X, MoreHorizontal, Trash2, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -51,6 +51,7 @@ import type { SelectOption } from "@/types/common";
 import TaskForm from "@/components/forms/TaskForm";
 import TaskDetailsModal from "@/components/modals/TaskDetailsModal";
 import { CreateTaskModal } from "@/components/modals/CreateTaskModal";
+import { SubmitForApprovalModal } from '@/components/modals/SubmitForApprovalModal';
 import { MultiSelect } from "@/components/ui/multi-select";
 import { cn } from "@/lib/utils";
 
@@ -77,6 +78,9 @@ export default function PontualTasks() {
   const { toast } = useToast();
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
+  const [taskForApproval, setTaskForApproval] = useState<Task | null>(null);
+
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -153,14 +157,23 @@ export default function PontualTasks() {
     setDateRange(undefined);
   };
 
+  const getApprovalIcon = (status?: 'pending' | 'approved' | 'rejected') => {
+    switch (status) {
+        case 'pending':
+            return <Clock className="h-4 w-4 text-orange-500" />;
+        case 'approved':
+            return <CheckCircle className="h-4 w-4 text-green-500" />;
+        case 'rejected':
+            return <AlertCircle className="h-4 w-4 text-red-500" />;
+        default:
+            return null;
+    }
+  }
+
 
   const handleCardClick = (task: Task) => {
-    if (task.status === 'todo') {
-        setViewingTask(task);
-    } else if (task.status === 'doing' || task.status === 'done') {
-        setEditingTask(task);
-        setIsEditModalOpen(true);
-    }
+    setEditingTask(task);
+    setIsEditModalOpen(true);
   };
   
   const onDragEnd = (result: DropResult) => {
@@ -173,14 +186,21 @@ export default function PontualTasks() {
     const task = columns[sourceColumnId]?.tasks.find(t => t.id === draggableId);
     if (!task) return;
 
-    if (destColumnId === 'done' && task.checklist && !task.checklist.every(item => item.isCompleted)) {
-        toast({
-            variant: "destructive",
-            title: "Não é possível finalizar",
-            description: "Todos os itens do checklist devem ser concluídos antes de mover a tarefa para 'Feito'."
-        });
-        return;
+    // Intercept drop on "Done" column to open approval modal
+    if (destColumnId === 'done' && task.approvalStatus !== 'approved') {
+        if (task.checklist && !task.checklist.every(item => item.isCompleted)) {
+            toast({
+                variant: "destructive",
+                title: "Não é possível submeter",
+                description: "Todos os itens do checklist devem ser concluídos antes de submeter para aprovação."
+            });
+            return;
+        }
+        setTaskForApproval(task);
+        setIsApprovalModalOpen(true);
+        return; // Prevents the regular dnd logic
     }
+
 
     const startColumn = columns[sourceColumnId];
     const endColumn = columns[destColumnId];
@@ -220,8 +240,6 @@ export default function PontualTasks() {
 
     if (destColumnId === 'doing' && sourceColumnId !== 'doing') {
         setAlertState({ isOpen: true, title: 'Iniciar Tarefa', description: 'Deseja iniciar esta tarefa?', onConfirm: confirmAction });
-    } else if (destColumnId === 'done' && sourceColumnId !== 'done') {
-        setAlertState({ isOpen: true, title: 'Finalizar Tarefa', description: 'Deseja finalizar esta tarefa?', onConfirm: confirmAction });
     } else {
         confirmAction();
     }
@@ -356,7 +374,10 @@ export default function PontualTasks() {
                             >
                               <Card className={`hover:shadow-md group relative ${snapshot.isDragging ? "shadow-lg" : ""}`}>
                                 <CardHeader className="p-4 cursor-pointer" onClick={() => handleCardClick(task)}>
-                                    <CardTitle className="text-base">{task.title}</CardTitle>
+                                    <CardTitle className="text-base flex items-center justify-between">
+                                        <span>{task.title}</span>
+                                        {getApprovalIcon(task.approvalStatus)}
+                                    </CardTitle>
                                 </CardHeader>
                                 {task.description && 
                                     <CardContent className="p-4 pt-0 cursor-pointer" onClick={() => handleCardClick(task)}>
@@ -416,6 +437,18 @@ export default function PontualTasks() {
           )}
         </DialogContent>
       </Dialog>
+      
+      {taskForApproval && (
+        <SubmitForApprovalModal
+            isOpen={isApprovalModalOpen}
+            onClose={() => {
+                setIsApprovalModalOpen(false);
+                setTaskForApproval(null);
+            }}
+            task={taskForApproval}
+            taskType="tasks"
+        />
+      )}
 
 
        <TaskDetailsModal

@@ -3,6 +3,7 @@
 import type { Timestamp } from "firebase/firestore";
 
 export type TaskStatus = "todo" | "doing" | "done";
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
 export interface ChecklistItem {
   id: string;
@@ -10,6 +11,11 @@ export interface ChecklistItem {
   isCompleted: boolean;
   responsibleId?: string;
   dueDate?: Timestamp | null;
+}
+
+export interface TaskProof {
+    url: string;
+    name: string;
 }
 
 export interface Task {
@@ -25,6 +31,10 @@ export interface Task {
   assistantIds?: string[];
   clientId?: string;
   checklist?: ChecklistItem[];
+  approvalStatus?: ApprovalStatus;
+  proofs?: TaskProof[];
+  approvalNotes?: string;
+  submittedAt?: Timestamp;
 }
 
 // Para criar uma nova tarefa, omitimos o 'id' e tornamos os Timestamps opcionais
