@@ -153,17 +153,9 @@ export default function PontualTasks() {
   };
 
   const handleCardClick = (task: Task) => {
-    // The new TaskCard component will handle its own modal for feedback
-    // This function now only opens the details/edit modal for non-rejected tasks
-    if (task.approvalStatus !== 'rejected') {
-        setViewingTask(task);
-    }
-  };
-
-  const handleEditClick = (task: Task) => {
     setEditingTask(task);
     setIsEditModalOpen(true);
-  }
+  };
   
   const onDragEnd = (result: DropResult) => {
     const { source, destination, draggableId } = result;
@@ -236,8 +228,14 @@ export default function PontualTasks() {
   const handleUpdateTask = async (data: Partial<Task>) => {
     if (!editingTask) return;
     setIsSubmitting(true);
+    
+    let updateData = { ...data };
+    if (editingTask.approvalStatus === 'rejected') {
+      updateData.approvalStatus = 'pending';
+    }
+
     try {
-        await updateTask(editingTask.id, data);
+        await updateTask(editingTask.id, updateData);
         toast({ title: "Sucesso", description: "Tarefa atualizada." });
         setIsEditModalOpen(false);
         setEditingTask(null);

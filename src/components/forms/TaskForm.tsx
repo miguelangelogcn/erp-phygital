@@ -3,7 +3,7 @@
 
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { Timestamp } from "firebase/firestore";
-import { Calendar as CalendarIcon, Plus, Trash2 } from "lucide-react";
+import { Calendar as CalendarIcon, Plus, Trash2, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -19,6 +19,7 @@ import { MultiSelect } from "@/components/ui/multi-select";
 import { cn } from "@/lib/utils";
 import type { Task, NewTask, ChecklistItem } from "@/types/task";
 import type { SelectOption } from "@/types/common";
+import { Alert, AlertTitle, AlertDescription } from "../ui/alert";
 
 interface TaskFormProps {
   task?: Task | null;
@@ -75,6 +76,40 @@ const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-4">
+             {task?.approvalStatus === 'rejected' && task.feedback && (
+                <Alert variant="destructive">
+                    <AlertTitle className="mb-2">Histórico de Feedback</AlertTitle>
+                    <AlertDescription className="space-y-4">
+                        <div>
+                            <p className="text-sm font-semibold">Observações:</p>
+                            <p className="text-sm">{task.feedback.notes}</p>
+                        </div>
+                        {task.feedback.files && task.feedback.files.length > 0 && (
+                            <div>
+                                <p className="text-sm font-semibold">Ficheiros:</p>
+                                <ul className="list-disc list-inside">
+                                    {task.feedback.files.map((file, index) => (
+                                        <li key={index}>
+                                            <a href={file.url} target="_blank" rel="noopener noreferrer" className="underline flex items-center gap-1 text-sm">
+                                                <FileText className="h-4 w-4" /> {file.name}
+                                            </a>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                         {task.feedback.audioUrl && (
+                             <div>
+                                <p className="text-sm font-semibold">Áudio:</p>
+                                <audio controls src={task.feedback.audioUrl} className="w-full mt-1">
+                                    O seu navegador não suporta o elemento de áudio.
+                                </audio>
+                            </div>
+                        )}
+                    </AlertDescription>
+                </Alert>
+            )}
+
             {onDelete && task && (
                  <div className="flex justify-end">
                     <Button type="button" variant="destructive" size="sm" onClick={() => onDelete(task.id)} disabled={isSubmitting}>
@@ -214,5 +249,3 @@ const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, 
 };
 
 export default TaskForm;
-
-    

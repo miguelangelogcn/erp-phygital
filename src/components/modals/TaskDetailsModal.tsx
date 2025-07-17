@@ -11,8 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { FileText } from "lucide-react";
 
 import type { Task } from "@/types/task";
 import type { SelectOption } from "@/types/common";
@@ -53,39 +51,6 @@ const TaskDetailsModal = ({ task, isOpen, onClose, users, clients }: TaskDetails
         </DialogHeader>
         <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
           
-          {task.approvalStatus === 'rejected' && task.feedback && (
-            <Alert variant="destructive">
-              <AlertTitle>Feedback de Rejeição</AlertTitle>
-              <AlertDescription className="space-y-4">
-                <p className="text-sm">
-                  <strong>Notas:</strong> {task.feedback.notes}
-                </p>
-                {task.feedback.files && task.feedback.files.length > 0 && (
-                  <div>
-                    <strong>Ficheiros:</strong>
-                    <ul className="list-disc list-inside">
-                      {task.feedback.files.map((file, index) => (
-                        <li key={index}>
-                          <a href={file.url} target="_blank" rel="noopener noreferrer" className="underline flex items-center gap-1">
-                             <FileText className="h-4 w-4" /> {file.name}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {task.feedback.audioUrl && (
-                  <div>
-                    <strong>Áudio:</strong>
-                    <audio controls src={task.feedback.audioUrl} className="w-full mt-1">
-                      O seu navegador não suporta o elemento de áudio.
-                    </audio>
-                  </div>
-                )}
-              </AlertDescription>
-            </Alert>
-          )}
-
           {task.description && (
             <p className="text-sm text-muted-foreground">{task.description}</p>
           )}
