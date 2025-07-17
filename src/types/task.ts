@@ -47,7 +47,7 @@ export interface Task {
   approverId?: string;
   reviewedAt?: Timestamp;
   completedAt?: Timestamp;
-  feedback?: Feedback; // Renamed from rejectionFeedback for simplicity
+  rejectionFeedback?: Feedback;
 }
 
 // Para criar uma nova tarefa, omitimos o 'id' e tornamos os Timestamps opcionais

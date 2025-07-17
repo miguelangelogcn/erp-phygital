@@ -48,6 +48,11 @@ interface ReviewTaskData {
   taskId: string;
   taskType: "tasks" | "recurringTasks";
   decision: "approved" | "rejected";
+  feedback?: {
+    notes: string;
+    files?: { url: string; name: string }[];
+    audioUrl?: string;
+  };
 }
 
 export const createUser = onCall(
@@ -215,7 +220,10 @@ export const submitTaskForApproval = onCall(
         approvalStatus: 'pending',
         proofs: proofs,
         approvalNotes: notes || "",
-        submittedAt: admin.firestore.FieldValue.serverTimestamp()
+        submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+        // Limpar o feedback anterior ao resubmeter
+        feedback: admin.firestore.FieldValue.delete(),
+        rejectionFeedback: admin.firestore.FieldValue.delete(),
       });
 
       logger.info(`Tarefa ${taskId} atualizada para 'pending' com sucesso.`);
@@ -230,7 +238,10 @@ export const submitTaskForApproval = onCall(
 export const reviewTask = onCall(
   { region: "southamerica-east1" },
   async (request) => {
-    const { taskId, taskType, decision } = request.data as ReviewTaskData;
+    // Log para depuração: ver exatamente o que a função recebe
+    logger.info("Função 'reviewTask' chamada com os dados:", request.data);
+
+    const { taskId, taskType, decision, feedback } = request.data as ReviewTaskData;
     const approverId = request.auth?.uid;
 
     if (!approverId) {
@@ -245,20 +256,43 @@ export const reviewTask = onCall(
     const taskRef = db.collection(collectionName).doc(taskId);
 
     try {
-      const updateData: any = {
+      const updateData: { [key: string]: any } = {
         approvalStatus: decision,
         approverId: approverId,
+        reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
 
-      if (decision === 'approved') {
+      if (decision === 'rejected') {
+        // Guarda o objeto de feedback inteiro no campo correto
+        updateData.rejectionFeedback = { 
+            ...(feedback || {}),
+            rejectedBy: approverId,
+            rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }; 
+        
+        // Devolve a tarefa para o estado de trabalho
+        if (collectionName === 'tasks') {
+          updateData.status = 'todo';
+        } else {
+          updateData.isCompleted = false;
+        }
+         // Limpa os campos de aprovação antigos para consistência
+         updateData.proofs = admin.firestore.FieldValue.delete();
+         updateData.approvalNotes = admin.firestore.FieldValue.delete();
+
+      } else if (decision === 'approved') {
+        // Se aprovada, limpa qualquer feedback antigo e marca como concluída
+        updateData.rejectionFeedback = admin.firestore.FieldValue.delete();
         if (collectionName === 'tasks') {
           updateData.status = 'done';
+          updateData.completedAt = admin.firestore.FieldValue.serverTimestamp();
         } else {
           updateData.isCompleted = true;
         }
       }
 
       await taskRef.update(updateData);
+      logger.info(`Tarefa ${taskId} atualizada com sucesso com a decisão: ${decision}`);
       return { success: true, message: "Revisão da tarefa concluída." };
 
     } catch (error: any) {
@@ -267,6 +301,7 @@ export const reviewTask = onCall(
     }
   }
 );
+
 
 export const resetRecurringTasks = onSchedule(
   {
@@ -296,6 +331,8 @@ export const resetRecurringTasks = onSchedule(
           proofs: admin.firestore.FieldValue.delete(),
           approvalNotes: admin.firestore.FieldValue.delete(),
           submittedAt: admin.firestore.FieldValue.delete(),
+          feedback: admin.firestore.FieldValue.delete(), // Also reset feedback
+          rejectionFeedback: admin.firestore.FieldValue.delete(), // Also reset new feedback field
       };
 
       if (task.checklist && Array.isArray(task.checklist)) {

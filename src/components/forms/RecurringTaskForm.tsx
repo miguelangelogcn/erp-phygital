@@ -82,19 +82,19 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-4">
-             {task?.approvalStatus === 'rejected' && task.feedback && (
+             {task?.approvalStatus === 'rejected' && task.rejectionFeedback && (
                 <Alert variant="destructive" className="mb-6">
                     <AlertTitle className="mb-2">Histórico de Feedback</AlertTitle>
                     <AlertDescription className="space-y-4">
                         <div>
                             <p className="text-sm font-semibold">Observações:</p>
-                            <p className="text-sm">{task.feedback.notes}</p>
+                            <p className="text-sm">{task.rejectionFeedback.notes}</p>
                         </div>
-                        {task.feedback.files && task.feedback.files.length > 0 && (
+                        {task.rejectionFeedback.files && task.rejectionFeedback.files.length > 0 && (
                             <div>
                                 <p className="text-sm font-semibold">Ficheiros:</p>
                                 <ul className="list-disc list-inside">
-                                    {task.feedback.files.map((file, index) => (
+                                    {task.rejectionFeedback.files.map((file, index) => (
                                         <li key={index}>
                                             <a href={file.url} target="_blank" rel="noopener noreferrer" className="underline flex items-center gap-1 text-sm">
                                                 <FileText className="h-4 w-4" /> {file.name}
@@ -104,10 +104,10 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
                                 </ul>
                             </div>
                         )}
-                         {task.feedback.audioUrl && (
+                         {task.rejectionFeedback.audioUrl && (
                              <div>
                                 <p className="text-sm font-semibold">Áudio:</p>
-                                <audio controls src={task.feedback.audioUrl} className="w-full mt-1">
+                                <audio controls src={task.rejectionFeedback.audioUrl} className="w-full mt-1">
                                     O seu navegador não suporta o elemento de áudio.
                                 </audio>
                             </div>
