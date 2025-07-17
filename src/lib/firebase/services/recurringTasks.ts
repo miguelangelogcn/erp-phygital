@@ -16,6 +16,7 @@ import type {
   RecurringTask,
   NewRecurringTask,
   DayOfWeekNumber,
+  RecurringChecklistItem,
 } from "@/types/recurringTask";
 
 /**
@@ -26,7 +27,7 @@ export function onRecurringTasksUpdate(
   onError: (error: Error) => void
 ): () => void {
   const tasksCollection = collection(db, "recurringTasks");
-  const q = query(tasksCollection, orderBy("order", "asc"));
+  const q = query(tasksCollection);
 
   const unsubscribe = onSnapshot(
     q,
@@ -79,6 +80,22 @@ export async function updateRecurringTask(
     throw new Error("Failed to update recurring task.");
   }
 }
+
+/**
+ * Updates just the checklist for a recurring task.
+ * @param taskId The ID of the task to update.
+ * @param checklist The full, updated checklist array.
+ */
+export async function updateRecurringTaskChecklist(taskId: string, checklist: RecurringChecklistItem[]): Promise<void> {
+  try {
+    const taskDocRef = doc(db, "recurringTasks", taskId);
+    await updateDoc(taskDocRef, { checklist: checklist });
+  } catch (error) {
+    console.error("Error updating recurring task checklist: ", error);
+    throw new Error("Failed to update checklist.");
+  }
+}
+
 
 /**
  * Deletes a recurring task.

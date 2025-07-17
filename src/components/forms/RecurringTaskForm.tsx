@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { MultiSelect } from "@/components/ui/multi-select";
-import type { RecurringTask, NewRecurringTask, DayOfWeekNumber } from "@/types/recurringTask";
+import type { RecurringTask, NewRecurringTask, DayOfWeekNumber, RecurringChecklistItem } from "@/types/recurringTask";
 import type { SelectOption } from "@/types/common";
 
 interface RecurringTaskFormProps {
@@ -20,6 +20,7 @@ interface RecurringTaskFormProps {
   onSave: (data: NewRecurringTask | Partial<RecurringTask>) => void;
   onCancel: () => void;
   onDelete?: (taskId: string) => void;
+  onChecklistItemChange?: (taskId: string, checklist: RecurringChecklistItem[]) => void;
   isSubmitting: boolean;
 }
 
@@ -33,8 +34,8 @@ const dayOptions: { value: DayOfWeekNumber; label: string }[] = [
     { value: 7, label: 'Domingo' },
 ];
 
-const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, isSubmitting }: RecurringTaskFormProps) => {
-    const { register, control, handleSubmit } = useForm<NewRecurringTask>({
+const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, onChecklistItemChange, isSubmitting }: RecurringTaskFormProps) => {
+    const { register, control, handleSubmit, getValues } = useForm<NewRecurringTask>({
         defaultValues: {
             title: task?.title || "",
             description: task?.description || "",
@@ -66,6 +67,14 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
         }
         onSave(submissionData);
     };
+
+    const handleCheckboxChange = (index: number, checked: boolean) => {
+        if (!task || !onChecklistItemChange) return;
+        const currentChecklist = getValues("checklist") || [];
+        const updatedChecklist = [...currentChecklist];
+        updatedChecklist[index].isCompleted = checked;
+        onChecklistItemChange(task.id, updatedChecklist);
+    }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -172,7 +181,7 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
                             render={({ field: checkField }) => (
                                 <Checkbox
                                     checked={checkField.value}
-                                    onCheckedChange={checkField.onChange}
+                                    onCheckedChange={(checked) => handleCheckboxChange(index, !!checked)}
                                 />
                             )}
                         />
