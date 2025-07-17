@@ -109,7 +109,7 @@ export default function ClientsPage() {
             </div>
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
                 <DialogTrigger asChild>
-                    <Button>
+                    <Button variant="gradient">
                         <PlusCircle className="mr-2" />
                         Cadastrar Novo Cliente
                     </Button>

@@ -288,7 +288,7 @@ export default function PontualTasks() {
         <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold">Tarefas a Realizar</h2>
             <CreateTaskModal>
-                <Button>
+                <Button variant="gradient">
                     <PlusCircle className="mr-2" /> Criar Nova Tarefa
                 </Button>
             </CreateTaskModal>

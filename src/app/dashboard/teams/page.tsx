@@ -147,7 +147,7 @@ export default function TeamsPage() {
             <CardTitle>Gerenciar Equipes</CardTitle>
             <CardDescription>Crie e organize as equipes de trabalho.</CardDescription>
           </div>
-          <Button onClick={() => handleOpenModal()}>
+          <Button onClick={() => handleOpenModal()} variant="gradient">
             <PlusCircle className="mr-2" />
             Adicionar Equipe
           </Button>

@@ -146,7 +146,7 @@ export default function RolesPage() {
             <CardTitle>Gerenciar Cargos</CardTitle>
             <CardDescription>Crie, edite e defina permissões para os cargos da sua empresa.</CardDescription>
           </div>
-          <Button onClick={() => handleOpenModal()}>
+          <Button onClick={() => handleOpenModal()} variant="gradient">
             <PlusCircle className="mr-2" />
             Adicionar Cargo
           </Button>

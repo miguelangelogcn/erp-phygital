@@ -8,7 +8,7 @@ import { getClients } from "@/lib/firebase/services/clients";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, X } from "lucide-react";
+import { Loader2, PlusCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -179,7 +179,10 @@ export default function RecurringTasks() {
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold">Tarefas para a Semana</h2>
         <CreateRecurringTaskModal>
-          <Button>Criar Tarefa Recorrente</Button>
+          <Button variant="gradient">
+            <PlusCircle className="mr-2" />
+            Criar Tarefa Recorrente
+          </Button>
         </CreateRecurringTaskModal>
       </div>
 

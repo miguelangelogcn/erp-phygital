@@ -150,7 +150,7 @@ export default function EmployeesPage() {
             permissions: permissions
         };
         if (updatePayload.teamId === 'none') {
-            delete updatePayload.teamId;
+            updatePayload.teamId = null;
         }
 
         const result: any = await updateUserCallable(updatePayload);
@@ -169,7 +169,7 @@ export default function EmployeesPage() {
             permissions: permissions
         };
         if (createPayload.teamId === 'none') {
-            delete createPayload.teamId;
+            createPayload.teamId = null;
         }
 
         const result: any = await createUserCallable(createPayload);
@@ -231,7 +231,7 @@ export default function EmployeesPage() {
               Visualize, adicione, edite e exclua os funcionários da sua empresa.
             </CardDescription>
           </div>
-          <Button onClick={handleOpenModalForCreate}>
+          <Button onClick={handleOpenModalForCreate} variant="gradient">
             Adicionar Funcionário
           </Button>
         </CardHeader>
