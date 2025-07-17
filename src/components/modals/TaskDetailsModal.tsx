@@ -38,9 +38,10 @@ const TaskDetailsModal = ({ task, isOpen, onClose, users, clients }: TaskDetails
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{task.title}</DialogTitle>
-          <DialogDescription>
-            Detalhes da tarefa. Status: <Badge variant="secondary">{task.status}</Badge>
-          </DialogDescription>
+          <div className="text-sm text-muted-foreground">
+             Detalhes da tarefa. Status:{" "}
+            <Badge variant="secondary">{task.status}</Badge>
+          </div>
         </DialogHeader>
         <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
           {task.description && (
