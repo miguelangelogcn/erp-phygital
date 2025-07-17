@@ -35,10 +35,10 @@ import {
 import { Loader2, PlusCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-import { onTasksUpdate, updateTaskStatus, addTask, updateTask, deleteTask } from "@/lib/firebase/services/tasks";
+import { onTasksUpdate, updateTaskStatus, updateTask, deleteTask } from "@/lib/firebase/services/tasks";
 import { getUsers } from "@/lib/firebase/services/users";
 import { getClients } from "@/lib/firebase/services/clients";
-import type { Task, TaskStatus, NewTask } from "@/types/task";
+import type { Task, TaskStatus } from "@/types/task";
 import type { SelectOption } from "@/types/common";
 
 import TaskForm from "@/components/forms/TaskForm";
@@ -54,8 +54,14 @@ type Columns = {
   };
 };
 
+const initialColumns: Columns = {
+    todo: { id: "todo", title: "A Fazer", tasks: [] },
+    doing: { id: "doing", title: "Fazendo", tasks: [] },
+    done: { id: "done", title: "Feito", tasks: [] },
+}
+
 export default function TasksPage() {
-  const [columns, setColumns] = useState<Columns | null>(null);
+  const [columns, setColumns] = useState<Columns>(initialColumns);
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<SelectOption[]>([]);
   const [clients, setClients] = useState<SelectOption[]>([]);
@@ -74,7 +80,6 @@ export default function TasksPage() {
   } | null>(null);
 
   useEffect(() => {
-    // This fetch is now for the modals that need the data pre-loaded
     const fetchDataForModals = async () => {
         try {
             const [usersData, clientsData] = await Promise.all([getUsers(), getClients()]);
@@ -94,7 +99,9 @@ export default function TasksPage() {
           done: { id: "done", title: "Feito", tasks: [] },
         };
         tasks.forEach((task) => {
-          if (newColumns[task.status]) newColumns[task.status].tasks.push(task);
+          if (newColumns[task.status]) {
+            newColumns[task.status].tasks.push(task)
+          }
         });
         Object.values(newColumns).forEach(col => col.tasks.sort((a, b) => (a.order || 0) - (b.order || 0)));
         setColumns(newColumns);
@@ -124,12 +131,12 @@ export default function TasksPage() {
 
     const sourceColumnId = source.droppableId as TaskStatus;
     const destColumnId = destination.droppableId as TaskStatus;
-    if (sourceColumnId === destColumnId && source.index === destination.index) return;
     
-    if (!columns) return;
+    // Find the task being moved
     const task = columns[sourceColumnId]?.tasks.find(t => t.id === draggableId);
     if (!task) return;
 
+    // Prevent moving to "Done" if checklist is incomplete
     if (destColumnId === 'done' && task.checklist && !task.checklist.every(item => item.isCompleted)) {
         toast({
             variant: "destructive",
@@ -138,28 +145,53 @@ export default function TasksPage() {
         });
         return;
     }
+
+    const startColumn = columns[sourceColumnId];
+    const endColumn = columns[destColumnId];
+
+    // Optimistic UI update logic
+    const startTasks = Array.from(startColumn.tasks);
+    const [movedTask] = startTasks.splice(source.index, 1);
     
+    let newColumnsState = { ...columns };
+
+    if (startColumn.id === endColumn.id) {
+        // Moving within the same column
+        startTasks.splice(destination.index, 0, movedTask);
+        newColumnsState = {
+            ...columns,
+            [startColumn.id]: {
+                ...startColumn,
+                tasks: startTasks
+            }
+        };
+    } else {
+        // Moving to a different column
+        const endTasks = Array.from(endColumn.tasks);
+        endTasks.splice(destination.index, 0, movedTask);
+        newColumnsState = {
+            ...columns,
+            [startColumn.id]: {
+                ...startColumn,
+                tasks: startTasks
+            },
+            [endColumn.id]: {
+                ...endColumn,
+                tasks: endTasks
+            }
+        };
+    }
+
+    // This is the action that will be confirmed
     const confirmAction = () => {
-        // Optimistic UI update
-        const sourceColumn = columns[sourceColumnId];
-        const destColumn = columns[destColumnId];
-        const sourceTasks = [...sourceColumn.tasks];
-        const [movedTask] = sourceTasks.splice(source.index, 1);
-        movedTask.status = destColumnId;
-
-        const newColumns = {...columns};
-        const destTasks = sourceColumnId === destColumnId ? sourceTasks : [...destColumn.tasks];
-        destTasks.splice(destination.index, 0, movedTask);
-        newColumns[sourceColumnId] = { ...sourceColumn, tasks: sourceTasks };
-        newColumns[destColumnId] = { ...destColumn, tasks: destTasks };
-        setColumns(newColumns);
-
+        setColumns(newColumnsState);
         updateTaskStatus(draggableId, destColumnId).catch(error => {
             toast({ variant: "destructive", title: "Erro ao mover tarefa", description: "Não foi possível atualizar o status." });
-            // Here you might want to revert the optimistic update
+            setColumns(columns); // Revert optimistic update on error
         });
     }
 
+    // Show confirmation dialogs if needed
     if (destColumnId === 'doing' && sourceColumnId !== 'doing') {
         setAlertState({ isOpen: true, title: 'Iniciar Tarefa', description: 'Deseja iniciar esta tarefa?', onConfirm: confirmAction });
     } else if (destColumnId === 'done' && sourceColumnId !== 'done') {
@@ -223,7 +255,7 @@ export default function TasksPage() {
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
           {columns && Object.values(columns).map((column) => (
-            <Droppable key={column.id} droppableId={column.id} isDropDisabled={false} isCombineEnabled={false} ignoreContainerClipping={false}>
+            <Droppable key={column.id} droppableId={column.id}>
               {(provided, snapshot) => (
                 <Card ref={provided.innerRef} {...provided.droppableProps} className={`flex flex-col transition-colors ${snapshot.isDraggingOver ? "bg-accent" : ""}`}>
                   <CardHeader><CardTitle>{column.title}</CardTitle></CardHeader>
@@ -264,15 +296,17 @@ export default function TasksPage() {
              <DialogTitle>Editar Tarefa</DialogTitle>
              <DialogDescription>Atualize os detalhes da tarefa abaixo.</DialogDescription>
            </DialogHeader>
-           <TaskForm
+           {editingTask && (
+             <TaskForm
                 task={editingTask}
                 users={users}
                 clients={clients}
                 onSave={handleUpdateTask}
                 onCancel={() => { setIsEditModalOpen(false); setEditingTask(null); }}
-                onDelete={editingTask ? handleDeleteTask : undefined}
+                onDelete={handleDeleteTask}
                 isSubmitting={isSubmitting}
-           />
+             />
+           )}
          </DialogContent>
        </Dialog>
 
