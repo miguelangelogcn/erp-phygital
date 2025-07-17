@@ -28,7 +28,8 @@ export interface RecurringTask {
   approvalNotes?: string;
   submittedAt?: Timestamp;
   approverId?: string;
+  reviewedAt?: Timestamp;
   feedback?: Feedback;
 }
 
-export type NewRecurringTask = Omit<RecurringTask, "id" | "createdAt">;
+export type NewRecurringTask = Omit<RecurringTask, "id" | "createdAt" | "reviewedAt">;

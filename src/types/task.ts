@@ -36,7 +36,7 @@ export interface Task {
   createdAt: Timestamp;
   updatedAt?: Timestamp;
   dueDate?: Timestamp | null;
-  responsibleId: string; // Made mandatory for approval flow
+  responsibleId: string;
   assistantIds?: string[];
   clientId?: string;
   checklist?: ChecklistItem[];

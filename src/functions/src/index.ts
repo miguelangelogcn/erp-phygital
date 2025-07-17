@@ -265,14 +265,18 @@ export const reviewTask = onCall(
         }
         // Remove feedback on approval to clean up the document
         updateData.feedback = admin.firestore.FieldValue.delete();
-      } else if (decision === 'rejected' && feedback) {
-         updateData.feedback = {
-            ...feedback,
-            rejectedBy: approverId,
-            rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
-         };
+      } else if (decision === 'rejected') {
+         if (feedback) {
+            updateData.feedback = {
+                ...feedback,
+                rejectedBy: approverId,
+                rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
+            };
+         }
          if(collectionName === 'tasks') {
             updateData.status = 'todo'; // Move task back to 'todo'
+         } else {
+            updateData.isCompleted = false; // Un-complete recurring task
          }
       }
 
@@ -314,7 +318,7 @@ export const resetRecurringTasks = onSchedule(
           proofs: admin.firestore.FieldValue.delete(),
           approvalNotes: admin.firestore.FieldValue.delete(),
           submittedAt: admin.firestore.FieldValue.delete(),
-          feedback: admin.firestore.FieldValue.delete(),
+          feedback: admin.firestore.FieldValue.delete(), // Also reset feedback
       };
 
       if (task.checklist && Array.isArray(task.checklist)) {
