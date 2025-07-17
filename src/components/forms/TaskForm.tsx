@@ -133,7 +133,6 @@ const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, 
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <SelectTrigger><SelectValue placeholder="Selecione um cliente (opcional)" /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Nenhum</SelectItem>
                                     {clients.map(client => <SelectItem key={client.value} value={client.value}>{client.label}</SelectItem>)}
                                 </SelectContent>
                             </Select>
