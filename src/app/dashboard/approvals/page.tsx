@@ -101,7 +101,6 @@ export default function ApprovalsPage() {
         taskId,
         taskType,
         decision,
-        leaderId: authUser.uid,
       });
 
       toast({
