@@ -293,7 +293,7 @@ export default function RecurringTasks() {
                       <div className="flex items-start gap-3">
                          <Checkbox
                             id={`task-complete-${task.id}`}
-                            checked={task.isCompleted}
+                            checked={task.isCompleted || task.approvalStatus === 'approved'}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 handleToggleCompletion(task);
@@ -304,7 +304,7 @@ export default function RecurringTasks() {
                             <div className="flex items-start justify-between gap-2">
                                 <p className={cn(
                                     "font-semibold pr-2",
-                                    task.isCompleted && "line-through text-muted-foreground"
+                                    (task.isCompleted || task.approvalStatus === 'approved') && "line-through text-muted-foreground"
                                 )}>{task.title}</p>
                                 {getApprovalBadge(task.approvalStatus)}
                             </div>
