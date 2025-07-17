@@ -53,6 +53,7 @@ const ALL_PERMISSIONS = [
   { id: "view_reports", label: "Ver Relatórios" },
   { id: "manage_roles", label: "Gerenciar Cargos" },
   { id: "manage_teams", label: "Gerenciar Equipes" },
+  { id: "manage_calendar", label: "Gerenciar Calendário" },
 ];
 
 export default function RolesPage() {
