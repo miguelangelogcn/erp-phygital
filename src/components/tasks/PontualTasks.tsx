@@ -36,14 +36,13 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 
-import { onTasksUpdate, updateTask, deleteTask, updateTaskStatusAndOrder } from "@/lib/firebase/services/tasks";
+import { onTasksUpdate, updateTask, deleteTask as deleteTaskService, updateTaskStatusAndOrder } from "@/lib/firebase/services/tasks";
 import { getUsers } from "@/lib/firebase/services/users";
 import { getClients } from "@/lib/firebase/services/clients";
 import type { Task, TaskStatus } from "@/types/task";
 import type { SelectOption } from "@/types/common";
 
 import TaskForm from "@/components/forms/TaskForm";
-import TaskDetailsModal from "@/components/modals/TaskDetailsModal";
 import { CreateTaskModal } from "@/components/modals/CreateTaskModal";
 import { SubmitForApprovalModal } from '@/components/modals/SubmitForApprovalModal';
 import { TaskCard } from "@/components/tasks/TaskCard";
@@ -77,7 +76,6 @@ export default function PontualTasks() {
   const [taskForApproval, setTaskForApproval] = useState<Task | null>(null);
 
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Filter states
@@ -254,7 +252,7 @@ export default function PontualTasks() {
         onConfirm: async () => {
             setIsSubmitting(true);
             try {
-                await deleteTask(taskId);
+                await deleteTaskService(taskId);
                 toast({ title: "Sucesso", description: "Tarefa excluída." });
                 setIsEditModalOpen(false);
                 setEditingTask(null);
@@ -408,15 +406,6 @@ export default function PontualTasks() {
             taskType="tasks"
         />
       )}
-
-
-       <TaskDetailsModal
-            task={viewingTask}
-            isOpen={!!viewingTask}
-            onClose={() => setViewingTask(null)}
-            users={users}
-            clients={clients}
-       />
 
        {alertState && (
          <AlertDialog open={alertState.isOpen} onOpenChange={(isOpen) => !isOpen && setAlertState(null)}>
