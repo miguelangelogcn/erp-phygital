@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, Mic, Pause, Play, Trash2 } from "lucide-react";
+import { Loader2, Mic, Pause, Play, Trash2, StopCircle } from "lucide-react";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { v4 as uuidv4 } from 'uuid';
 import { useAudioRecorder } from '@/hooks/useAudioRecorder';
