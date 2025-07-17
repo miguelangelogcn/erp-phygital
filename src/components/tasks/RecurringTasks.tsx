@@ -18,37 +18,37 @@ import {
 } from "@/lib/firebase/services/recurringTasks";
 import { getUsers } from "@/lib/firebase/services/users";
 import { getClients } from "@/lib/firebase/services/clients";
-import type { RecurringTask, DayOfWeek, RecurringChecklistItem } from "@/types/recurringTask";
+import type { RecurringTask, DayOfWeekNumber, RecurringChecklistItem } from "@/types/recurringTask";
 import type { SelectOption } from "@/types/common";
 import { CreateRecurringTaskModal } from "../modals/CreateRecurringTaskModal";
 import RecurringTaskForm from "../forms/RecurringTaskForm";
 
 type Columns = {
-  [key in DayOfWeek]: {
-    id: DayOfWeek;
+  [key in DayOfWeekNumber]: {
+    id: DayOfWeekNumber;
     title: string;
     tasks: RecurringTask[];
   };
 };
 
-const dayNames: { [key in DayOfWeek]: string } = {
-  monday: "Segunda-feira",
-  tuesday: "Terça-feira",
-  wednesday: "Quarta-feira",
-  thursday: "Quinta-feira",
-  friday: "Sexta-feira",
-  saturday: "Sábado",
-  sunday: "Domingo",
+const dayNames: { [key in DayOfWeekNumber]: string } = {
+  1: "Segunda-feira",
+  2: "Terça-feira",
+  3: "Quarta-feira",
+  4: "Quinta-feira",
+  5: "Sexta-feira",
+  6: "Sábado",
+  7: "Domingo",
 };
 
 const initialColumns: Columns = {
-  monday: { id: "monday", title: dayNames.monday, tasks: [] },
-  tuesday: { id: "tuesday", title: dayNames.tuesday, tasks: [] },
-  wednesday: { id: "wednesday", title: dayNames.wednesday, tasks: [] },
-  thursday: { id: "thursday", title: dayNames.thursday, tasks: [] },
-  friday: { id: "friday", title: dayNames.friday, tasks: [] },
-  saturday: { id: "saturday", title: dayNames.saturday, tasks: [] },
-  sunday: { id: "sunday", title: dayNames.sunday, tasks: [] },
+  1: { id: 1, title: dayNames[1], tasks: [] },
+  2: { id: 2, title: dayNames[2], tasks: [] },
+  3: { id: 3, title: dayNames[3], tasks: [] },
+  4: { id: 4, title: dayNames[4], tasks: [] },
+  5: { id: 5, title: dayNames[5], tasks: [] },
+  6: { id: 6, title: dayNames[6], tasks: [] },
+  7: { id: 7, title: dayNames[7], tasks: [] },
 };
 
 export default function RecurringTasks() {
@@ -100,8 +100,8 @@ export default function RecurringTasks() {
     const { source, destination, draggableId } = result;
     if (!destination) return;
 
-    const sourceDay = source.droppableId as DayOfWeek;
-    const destDay = destination.droppableId as DayOfWeek;
+    const sourceDay = parseInt(source.droppableId, 10) as DayOfWeekNumber;
+    const destDay = parseInt(destination.droppableId, 10) as DayOfWeekNumber;
 
     const startColumn = columns[sourceDay];
     const endColumn = columns[destDay];
@@ -184,7 +184,7 @@ export default function RecurringTasks() {
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 items-start">
           {Object.values(columns).map((column) => (
-            <Droppable key={column.id} droppableId={column.id}>
+            <Droppable key={column.id} droppableId={String(column.id)}>
               {(provided, snapshot) => (
                 <Card ref={provided.innerRef} {...provided.droppableProps} className={`flex flex-col transition-colors ${snapshot.isDraggingOver ? "bg-accent" : ""}`}>
                   <CardHeader><CardTitle>{column.title} ({column.tasks.length})</CardTitle></CardHeader>

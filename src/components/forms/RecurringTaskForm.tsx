@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { MultiSelect } from "@/components/ui/multi-select";
-import type { RecurringTask, NewRecurringTask, DayOfWeek } from "@/types/recurringTask";
+import type { RecurringTask, NewRecurringTask, DayOfWeekNumber } from "@/types/recurringTask";
 import type { SelectOption } from "@/types/common";
 
 interface RecurringTaskFormProps {
@@ -23,14 +23,14 @@ interface RecurringTaskFormProps {
   isSubmitting: boolean;
 }
 
-const dayOptions: { value: DayOfWeek; label: string }[] = [
-    { value: 'monday', label: 'Segunda-feira' },
-    { value: 'tuesday', label: 'Terça-feira' },
-    { value: 'wednesday', label: 'Quarta-feira' },
-    { value: 'thursday', label: 'Quinta-feira' },
-    { value: 'friday', label: 'Sexta-feira' },
-    { value: 'saturday', label: 'Sábado' },
-    { value: 'sunday', label: 'Domingo' },
+const dayOptions: { value: DayOfWeekNumber; label: string }[] = [
+    { value: 1, label: 'Segunda-feira' },
+    { value: 2, label: 'Terça-feira' },
+    { value: 3, label: 'Quarta-feira' },
+    { value: 4, label: 'Quinta-feira' },
+    { value: 5, label: 'Sexta-feira' },
+    { value: 6, label: 'Sábado' },
+    { value: 7, label: 'Domingo' },
 ];
 
 const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, isSubmitting }: RecurringTaskFormProps) => {
@@ -41,7 +41,7 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
             responsibleId: task?.responsibleId || "",
             assistantIds: task?.assistantIds || [],
             clientId: task?.clientId || "",
-            dayOfWeek: task?.dayOfWeek || 'monday',
+            dayOfWeek: task?.dayOfWeek || 1,
             checklist: task?.checklist || [],
         },
     });
@@ -140,10 +140,13 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
                         control={control}
                         rules={{ required: true }}
                         render={({ field }) => (
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select 
+                                onValueChange={(value) => field.onChange(parseInt(value, 10))} 
+                                defaultValue={String(field.value)}
+                            >
                                 <SelectTrigger><SelectValue placeholder="Selecione o dia" /></SelectTrigger>
                                 <SelectContent>
-                                    {dayOptions.map(day => <SelectItem key={day.value} value={day.value}>{day.label}</SelectItem>)}
+                                    {dayOptions.map(day => <SelectItem key={day.value} value={String(day.value)}>{day.label}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         )}

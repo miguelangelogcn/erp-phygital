@@ -15,7 +15,7 @@ import { db } from "@/lib/firebase/config";
 import type {
   RecurringTask,
   NewRecurringTask,
-  DayOfWeek,
+  DayOfWeekNumber,
 } from "@/types/recurringTask";
 
 /**
@@ -98,11 +98,11 @@ export async function deleteRecurringTask(taskId: string): Promise<void> {
  */
 export async function updateRecurringTaskOrderAndDay(
   taskId: string,
-  newDay: DayOfWeek,
+  newDay: DayOfWeekNumber,
   sourceTasks: RecurringTask[],
   destTasks: RecurringTask[],
-  sourceDay: DayOfWeek,
-  destDay: DayOfWeek
+  sourceDay: DayOfWeekNumber,
+  destDay: DayOfWeekNumber
 ): Promise<void> {
   const batch = writeBatch(db);
 

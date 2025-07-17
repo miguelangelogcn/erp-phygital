@@ -1,7 +1,8 @@
 // src/types/recurringTask.ts
 import type { Timestamp } from "firebase/firestore";
 
-export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+// Monday = 1, Tuesday = 2, ..., Sunday = 7
+export type DayOfWeekNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 export interface RecurringChecklistItem {
   id: string;
@@ -13,7 +14,7 @@ export interface RecurringTask {
   id: string;
   title: string;
   description?: string;
-  dayOfWeek: DayOfWeek;
+  dayOfWeek: DayOfWeekNumber;
   order?: number;
   responsibleId?: string;
   assistantIds?: string[];
