@@ -300,7 +300,7 @@ export default function RecurringTasks() {
                          <Checkbox
                             id={`task-complete-${task.id}`}
                             checked={task.isCompleted}
-                            onCheckedChange={(e) => {
+                            onClick={(e) => {
                                 e.stopPropagation();
                                 handleToggleCompletion(task);
                             }}
