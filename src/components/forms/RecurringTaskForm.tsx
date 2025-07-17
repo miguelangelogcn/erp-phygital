@@ -1,7 +1,7 @@
 // src/components/forms/RecurringTaskForm.tsx
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { Plus, Trash2, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,9 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { MultiSelect } from "@/components/ui/multi-select";
-import type { RecurringTask, NewRecurringTask, DayOfWeekNumber, RecurringChecklistItem } from "@/types/recurringTask";
+import type { RecurringTask, NewRecurringTask, DayOfWeekNumber, RecurringChecklistItem, Feedback } from "@/types/recurringTask";
 import type { SelectOption } from "@/types/common";
-import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Separator } from "../ui/separator";
 import {
   Accordion,
@@ -23,6 +22,7 @@ import {
 } from "@/components/ui/accordion";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { AttachmentViewer } from "../modals/AttachmentViewer";
 
 interface RecurringTaskFormProps {
   task?: RecurringTask | null;
@@ -46,6 +46,14 @@ const dayOptions: { value: DayOfWeekNumber; label: string }[] = [
 ];
 
 const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, onChecklistItemChange, isSubmitting }: RecurringTaskFormProps) => {
+    const [isViewerOpen, setIsViewerOpen] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<{ url: string; name: string } | null>(null);
+
+    const handleFileClick = (file: { url: string; name: string }) => {
+        setSelectedFile(file);
+        setIsViewerOpen(true);
+    };
+
     const { register, control, handleSubmit, getValues } = useForm<NewRecurringTask>({
         defaultValues: {
             title: task?.title || "",
@@ -93,7 +101,6 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
         onChecklistItemChange(task.id, updatedChecklist);
     }
     
-    // Ensure rejectionFeedback is an array and sort by date, most recent first
     const sortedFeedback = React.useMemo(() => {
         if (!task?.rejectionFeedback) {
             return [];
@@ -108,6 +115,7 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
     }, [task?.rejectionFeedback]);
 
   return (
+    <>
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-4">
 
@@ -250,9 +258,13 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
                                                 <ul className="list-disc list-inside space-y-1">
                                                     {feedbackItem.files.map((file, fileIndex) => (
                                                         <li key={fileIndex}>
-                                                            <a href={file.url} target="_blank" rel="noopener noreferrer" className="underline flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleFileClick(file)}
+                                                                className="underline flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300"
+                                                            >
                                                                 <FileText className="h-4 w-4" /> {file.name}
-                                                            </a>
+                                                            </button>
                                                         </li>
                                                     ))}
                                                 </ul>
@@ -283,6 +295,13 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
             </Button>
         </div>
     </form>
+     <AttachmentViewer
+        isOpen={isViewerOpen}
+        onClose={() => setIsViewerOpen(false)}
+        fileUrl={selectedFile?.url || null}
+        fileName={selectedFile?.name || null}
+      />
+    </>
   );
 };
 

@@ -1,7 +1,7 @@
 // src/components/forms/TaskForm.tsx
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { Timestamp } from "firebase/firestore";
 import { Calendar as CalendarIcon, Plus, Trash2, FileText } from "lucide-react";
@@ -18,9 +18,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { cn } from "@/lib/utils";
-import type { Task, NewTask, ChecklistItem } from "@/types/task";
+import type { Task, NewTask, ChecklistItem, Feedback } from "@/types/task";
 import type { SelectOption } from "@/types/common";
-import { Alert, AlertTitle, AlertDescription } from "../ui/alert";
 import { Separator } from "../ui/separator";
 import {
   Accordion,
@@ -28,6 +27,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { AttachmentViewer } from "../modals/AttachmentViewer";
 
 interface TaskFormProps {
   task?: Task | null;
@@ -45,6 +45,14 @@ type FormValues = Omit<NewTask, 'dueDate' | 'checklist'> & {
 }
 
 const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, isSubmitting }: TaskFormProps) => {
+    const [isViewerOpen, setIsViewerOpen] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<{ url: string; name: string } | null>(null);
+
+    const handleFileClick = (file: { url: string; name: string }) => {
+        setSelectedFile(file);
+        setIsViewerOpen(true);
+    };
+    
     const { register, control, handleSubmit, watch } = useForm<FormValues>({
         defaultValues: {
             title: task?.title || "",
@@ -86,12 +94,10 @@ const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, 
         onSave(submissionData);
     };
 
-    // Ensure rejectionFeedback is an array and sort by date, most recent first
     const sortedFeedback = React.useMemo(() => {
         if (!task?.rejectionFeedback) {
             return [];
         }
-        // Ensure we're always working with an array
         const feedbackArray = Array.isArray(task.rejectionFeedback)
             ? task.rejectionFeedback
             : [task.rejectionFeedback];
@@ -103,6 +109,7 @@ const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, 
 
 
   return (
+    <>
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-4">
             
@@ -149,7 +156,7 @@ const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, 
                             <MultiSelect
                                 options={users.filter(u => u.value)}
                                 selected={field.value || []}
-                                onChange={field.onChange}
+                                onChange={field.onChange as any}
                                 placeholder="Selecione assistentes"
                             />
                         )}
@@ -258,9 +265,13 @@ const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, 
                                                 <ul className="list-disc list-inside space-y-1">
                                                     {feedbackItem.files.map((file, fileIndex) => (
                                                         <li key={fileIndex}>
-                                                            <a href={file.url} target="_blank" rel="noopener noreferrer" className="underline flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleFileClick(file)}
+                                                                className="underline flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300"
+                                                            >
                                                                 <FileText className="h-4 w-4" /> {file.name}
-                                                            </a>
+                                                            </button>
                                                         </li>
                                                     ))}
                                                 </ul>
@@ -291,6 +302,13 @@ const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, 
             </Button>
         </div>
     </form>
+    <AttachmentViewer
+        isOpen={isViewerOpen}
+        onClose={() => setIsViewerOpen(false)}
+        fileUrl={selectedFile?.url || null}
+        fileName={selectedFile?.name || null}
+      />
+    </>
   );
 };
 
