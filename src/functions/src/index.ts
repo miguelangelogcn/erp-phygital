@@ -48,17 +48,19 @@ interface ReviewTaskData {
   taskId: string;
   taskType: "tasks" | "recurringTasks";
   decision: "approved" | "rejected";
+  feedback?: {
+    notes: string;
+    files?: { url: string; name: string }[];
+    audioUrl?: string;
+  };
 }
 
 export const createUser = onCall(
-  // Define a região e outras opções aqui
   { region: "southamerica-east1" },
   async (request) => {
-    // Tipa os dados recebidos
     const data: CreateUserData = request.data;
     logger.info("Função 'createUser' chamada com os dados:", data);
 
-    // Validação de dados de entrada
     const { name, email, password, roleId, teamId, permissions } = data;
     if (!name || !email || !password) {
       throw new HttpsError(
@@ -85,30 +87,23 @@ export const createUser = onCall(
       if (roleId) userData.roleId = roleId;
       if (teamId) userData.teamId = teamId;
 
-      logger.info(
-        `A criar documento no Firestore para UID: ${userRecord.uid}`
-      );
+
+      logger.info(`A criar documento no Firestore para UID: ${userRecord.uid}`);
       await db.collection("users").doc(userRecord.uid).set(userData);
       logger.info("Documento criado no Firestore com sucesso.");
 
-      return {
-        success: true,
-        message: "Utilizador criado com sucesso!",
-        uid: userRecord.uid,
-      };
+      return { success: true, message: "Utilizador criado com sucesso!", uid: userRecord.uid };
+
     } catch (error: any) {
       logger.error("ERRO DETALHADO dentro da função:", error);
-      if (error.code === "auth/email-already-exists") {
-        throw new HttpsError("already-exists", "Este e-mail já está em uso.");
+      if (error.code === 'auth/email-already-exists') {
+           throw new HttpsError('already-exists', 'Este e-mail já está em uso.');
       }
-      throw new HttpsError(
-        "internal",
-        "Ocorreu um erro inesperado no servidor.",
-        error.message
-      );
+      throw new HttpsError("internal", "Ocorreu um erro inesperado no servidor.", error.message);
     }
   }
 );
+
 
 export const updateUser = onCall(
   { region: "southamerica-east1" },
@@ -128,28 +123,25 @@ export const updateUser = onCall(
       const updatePayload: any = {
         name: name,
         permissions: permissions,
-        roleId: roleId,
-        teamId: teamId,
       };
-      if (teamId === 'none') {
-        updatePayload.teamId = null;
+
+      if (roleId) updatePayload.roleId = roleId;
+      if (teamId) {
+        updatePayload.teamId = teamId;
+      } else {
+        updatePayload.teamId = admin.firestore.FieldValue.delete();
       }
       
-      // Atualiza o documento no Firestore
       await db.collection("users").doc(uid).update(updatePayload);
 
-      // Opcional: Atualiza também o nome no Firebase Auth
       await auth.updateUser(uid, { displayName: name });
 
       logger.info(`Utilizador ${uid} atualizado com sucesso.`);
       return { success: true, message: "Utilizador atualizado com sucesso!" };
+
     } catch (error: any) {
       logger.error(`Erro ao atualizar o utilizador ${uid}:`, error);
-      throw new HttpsError(
-        "internal",
-        "Ocorreu um erro ao atualizar o utilizador.",
-        error.message
-      );
+      throw new HttpsError("internal", "Ocorreu um erro ao atualizar o utilizador.", error.message);
     }
   }
 );
@@ -162,61 +154,48 @@ export const deleteUser = onCall(
     logger.info(`A excluir o utilizador: ${uid}`);
 
     if (!uid) {
-      throw new HttpsError(
-        "invalid-argument",
-        "O UID do utilizador é obrigatório."
-      );
+      throw new HttpsError("invalid-argument", "O UID do utilizador é obrigatório.");
     }
 
     try {
-      // Exclui o utilizador do Firebase Authentication
       await auth.deleteUser(uid);
       logger.info(`Utilizador ${uid} excluído do Auth.`);
 
-      // Exclui o documento do utilizador do Firestore
       await db.collection("users").doc(uid).delete();
       logger.info(`Documento do utilizador ${uid} excluído do Firestore.`);
 
       return { success: true, message: "Utilizador excluído com sucesso!" };
+
     } catch (error: any) {
       logger.error(`Erro ao excluir o utilizador ${uid}:`, error);
-      throw new HttpsError(
-        "internal",
-        "Ocorreu um erro ao excluir o utilizador.",
-        error.message
-      );
+      throw new HttpsError("internal", "Ocorreu um erro ao excluir o utilizador.", error.message);
     }
   }
 );
 
+
 export const deleteTask = onCall(
   { region: "southamerica-east1" },
-  async (request) => {
+  async(request) => {
     const data: DeleteTaskData = request.data;
     const { taskId } = data;
     logger.info(`A excluir a tarefa: ${taskId}`);
 
     if (!taskId) {
-      throw new HttpsError(
-        "invalid-argument",
-        "O ID da tarefa é obrigatório."
-      );
+      throw new HttpsError("invalid-argument", "O ID da tarefa é obrigatório.");
     }
 
     try {
       await db.collection("tasks").doc(taskId).delete();
       logger.info(`Tarefa ${taskId} excluída do Firestore.`);
       return { success: true, message: "Tarefa excluída com sucesso!" };
-    } catch (error: any) {
+    } catch(error: any) {
       logger.error(`Erro ao excluir a tarefa ${taskId}:`, error);
-      throw new HttpsError(
-        "internal",
-        "Ocorreu um erro ao excluir a tarefa.",
-        error.message
-      );
+      throw new HttpsError("internal", "Ocorreu um erro ao excluir a tarefa.", error.message)
     }
   }
 );
+
 
 export const submitTaskForApproval = onCall(
   { region: "southamerica-east1" },
@@ -224,9 +203,7 @@ export const submitTaskForApproval = onCall(
     const data: SubmitForApprovalData = request.data;
     const { taskId, taskType, proofs, notes } = data;
 
-    logger.info(
-      `Submetendo tarefa para aprovação: ${taskId} do tipo ${taskType}`
-    );
+    logger.info(`Submetendo tarefa para aprovação: ${taskId} do tipo ${taskType}`);
 
     if (!taskId || !taskType || !proofs || proofs.length === 0) {
       throw new HttpsError(
@@ -235,26 +212,22 @@ export const submitTaskForApproval = onCall(
       );
     }
 
-    const collectionName = taskType === "tasks" ? "tasks" : "recurringTasks";
+    const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
 
     try {
       const taskDocRef = db.collection(collectionName).doc(taskId);
       await taskDocRef.update({
-        approvalStatus: "pending",
+        approvalStatus: 'pending',
         proofs: proofs,
         approvalNotes: notes || "",
-        submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+        submittedAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
       logger.info(`Tarefa ${taskId} atualizada para 'pending' com sucesso.`);
       return { success: true, message: "Tarefa submetida para aprovação!" };
     } catch (error: any) {
       logger.error(`Erro ao submeter a tarefa ${taskId}:`, error);
-      throw new HttpsError(
-        "internal",
-        "Ocorreu um erro ao submeter a tarefa.",
-        error.message
-      );
+      throw new HttpsError("internal", "Ocorreu um erro ao submeter a tarefa.", error.message);
     }
   }
 );
@@ -262,7 +235,7 @@ export const submitTaskForApproval = onCall(
 export const reviewTask = onCall(
   { region: "southamerica-east1" },
   async (request) => {
-    const { taskId, taskType, decision } = request.data as ReviewTaskData;
+    const { taskId, taskType, decision, feedback } = request.data as ReviewTaskData;
     const approverId = request.auth?.uid;
 
     if (!approverId) {
@@ -280,14 +253,27 @@ export const reviewTask = onCall(
       const updateData: any = {
         approvalStatus: decision,
         approverId: approverId,
+        reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
 
       if (decision === 'approved') {
         if (collectionName === 'tasks') {
           updateData.status = 'done';
+          updateData.completedAt = admin.firestore.FieldValue.serverTimestamp();
         } else {
           updateData.isCompleted = true;
         }
+        // Remove feedback on approval to clean up the document
+        updateData.feedback = admin.firestore.FieldValue.delete();
+      } else if (decision === 'rejected' && feedback) {
+         updateData.feedback = {
+            ...feedback,
+            rejectedBy: approverId,
+            rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
+         };
+         if(collectionName === 'tasks') {
+            updateData.status = 'todo'; // Move task back to 'todo'
+         }
       }
 
       await taskRef.update(updateData);
@@ -322,12 +308,13 @@ export const resetRecurringTasks = onSchedule(
     snapshot.forEach((doc) => {
       const task = doc.data();
       const taskRef = tasksCollectionRef.doc(doc.id);
-      const updatePayload: any = {
-        isCompleted: false,
-        approvalStatus: admin.firestore.FieldValue.delete(),
-        proofs: admin.firestore.FieldValue.delete(),
-        approvalNotes: admin.firestore.FieldValue.delete(),
-        submittedAt: admin.firestore.FieldValue.delete(),
+      const updatePayload: any = { 
+          isCompleted: false,
+          approvalStatus: admin.firestore.FieldValue.delete(),
+          proofs: admin.firestore.FieldValue.delete(),
+          approvalNotes: admin.firestore.FieldValue.delete(),
+          submittedAt: admin.firestore.FieldValue.delete(),
+          feedback: admin.firestore.FieldValue.delete(),
       };
 
       if (task.checklist && Array.isArray(task.checklist)) {
@@ -337,7 +324,7 @@ export const resetRecurringTasks = onSchedule(
         }));
         updatePayload.checklist = resetChecklist;
       }
-
+      
       batch.update(taskRef, updatePayload);
       logger.info(`A tarefa ${doc.id} foi agendada para reset no batch.`);
     });

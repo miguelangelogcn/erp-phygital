@@ -1,6 +1,6 @@
 // src/types/recurringTask.ts
 import type { Timestamp } from "firebase/firestore";
-import type { ApprovalStatus, TaskProof } from './task';
+import type { ApprovalStatus, TaskProof, Feedback } from './task';
 
 // Monday = 1, Tuesday = 2, ..., Sunday = 7
 export type DayOfWeekNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -27,6 +27,8 @@ export interface RecurringTask {
   proofs?: TaskProof[];
   approvalNotes?: string;
   submittedAt?: Timestamp;
+  approverId?: string;
+  feedback?: Feedback;
 }
 
 export type NewRecurringTask = Omit<RecurringTask, "id" | "createdAt">;

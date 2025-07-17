@@ -25,7 +25,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Popover,
   PopoverContent,
@@ -33,18 +32,20 @@ import {
 } from "@/components/ui/popover";
 import { Loader2, Check, X, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { FeedbackModal } from "@/components/modals/FeedbackModal";
 
 import type { Team } from "@/types/team";
 import type { User } from "@/types/user";
 import type { ApprovalTask } from "@/types/task";
 
 export default function ApprovalsPage() {
-  const { user: authUser, userData } = useAuth();
+  const { user: authUser } = useAuth();
   const [tasks, setTasks] = useState<ApprovalTask[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [isLeader, setIsLeader] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState<string | null>(null);
+  const [taskForFeedback, setTaskForFeedback] = useState<ApprovalTask | null>(null);
   const { toast } = useToast();
 
   const functions = getFunctions(auth.app, "southamerica-east1");
@@ -60,7 +61,6 @@ export default function ApprovalsPage() {
 
       if (myTeam) {
         setIsLeader(true);
-        // Ensure the leader's own submissions are included.
         const [pendingTasks, allUsers] = await Promise.all([
           getTasksForApproval(myTeam.memberIds, authUser.uid),
           getUsers()
@@ -87,12 +87,8 @@ export default function ApprovalsPage() {
       fetchData();
     }
   }, [authUser, fetchData]);
-
-  const handleReview = async (
-    taskId: string,
-    taskType: "tasks" | "recurringTasks",
-    decision: "approved" | "rejected"
-  ) => {
+  
+  const handleApprove = async (taskId: string, taskType: "tasks" | "recurringTasks") => {
     if (!authUser) return;
     setIsSubmitting(taskId);
 
@@ -100,7 +96,7 @@ export default function ApprovalsPage() {
       const result: any = await reviewTaskCallable({
         taskId,
         taskType,
-        decision,
+        decision: "approved",
       });
 
       toast({
@@ -108,18 +104,25 @@ export default function ApprovalsPage() {
         description: result.data.message,
       });
 
-      // Optimistically remove the task from the list
-      setTasks((prev) => prev.filter((task) => task.id !== taskId));
+      fetchData(); // Refetch data
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Erro ao processar",
-        description:
-          error.message || "Ocorreu um erro ao processar a sua decisão.",
+        title: "Erro ao aprovar",
+        description: error.message || "Ocorreu um erro ao processar a aprovação.",
       });
     } finally {
       setIsSubmitting(null);
     }
+  };
+
+  const handleRejectClick = (task: ApprovalTask) => {
+    setTaskForFeedback(task);
+  };
+  
+  const handleFeedbackSubmitted = () => {
+    setTaskForFeedback(null);
+    fetchData(); // Refetch data to show updated task list
   };
 
   const getUserName = (userId: string) =>
@@ -212,7 +215,7 @@ export default function ApprovalsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleReview(task.id, task.type, "approved")}
+                          onClick={() => handleApprove(task.id, task.type)}
                           disabled={isSubmitting === task.id}
                         >
                           {isSubmitting === task.id ? <Loader2 className="animate-spin h-4 w-4"/> : <Check className="h-4 w-4 text-green-600" />}
@@ -220,7 +223,7 @@ export default function ApprovalsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleReview(task.id, task.type, "rejected")}
+                          onClick={() => handleRejectClick(task)}
                           disabled={isSubmitting === task.id}
                         >
                           {isSubmitting === task.id ? <Loader2 className="animate-spin h-4 w-4"/> : <X className="h-4 w-4 text-red-600" />}
@@ -240,6 +243,15 @@ export default function ApprovalsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {taskForFeedback && (
+        <FeedbackModal
+          isOpen={!!taskForFeedback}
+          onClose={() => setTaskForFeedback(null)}
+          task={taskForFeedback}
+          onSubmitted={handleFeedbackSubmitted}
+        />
+      )}
     </main>
   );
 }
