@@ -38,11 +38,12 @@ import { useToast } from "@/hooks/use-toast";
 import { onTasksUpdate, updateTaskStatus, addTask, updateTask, deleteTask } from "@/lib/firebase/services/tasks";
 import { getUsers } from "@/lib/firebase/services/users";
 import { getClients } from "@/lib/firebase/services/clients";
-import type { Task, TaskStatus, NewTask, ChecklistItem } from "@/types/task";
+import type { Task, TaskStatus, NewTask } from "@/types/task";
 import type { SelectOption } from "@/types/common";
 
 import TaskForm from "@/components/forms/TaskForm";
 import TaskDetailsModal from "@/components/modals/TaskDetailsModal";
+import { CreateTaskModal } from "@/components/modals/CreateTaskModal";
 
 
 type Columns = {
@@ -60,7 +61,7 @@ export default function TasksPage() {
   const [clients, setClients] = useState<SelectOption[]>([]);
   const { toast } = useToast();
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,7 +74,8 @@ export default function TasksPage() {
   } | null>(null);
 
   useEffect(() => {
-    const fetchData = async () => {
+    // This fetch is now for the modals that need the data pre-loaded
+    const fetchDataForModals = async () => {
         try {
             const [usersData, clientsData] = await Promise.all([getUsers(), getClients()]);
             setUsers(usersData.map(u => ({ value: u.id, label: u.name })));
@@ -82,7 +84,7 @@ export default function TasksPage() {
             toast({ variant: "destructive", title: "Erro ao carregar dados", description: "Não foi possível buscar usuários ou clientes." });
         }
     };
-    fetchData();
+    fetchDataForModals();
 
     const unsubscribe = onTasksUpdate(
       (tasks) => {
@@ -112,7 +114,7 @@ export default function TasksPage() {
         setViewingTask(task);
     } else if (task.status === 'doing') {
         setEditingTask(task);
-        setIsModalOpen(true);
+        setIsEditModalOpen(true);
     }
   };
   
@@ -124,7 +126,8 @@ export default function TasksPage() {
     const destColumnId = destination.droppableId as TaskStatus;
     if (sourceColumnId === destColumnId && source.index === destination.index) return;
     
-    const task = columns?.[sourceColumnId]?.tasks.find(t => t.id === draggableId);
+    if (!columns) return;
+    const task = columns[sourceColumnId]?.tasks.find(t => t.id === draggableId);
     if (!task) return;
 
     if (destColumnId === 'done' && task.checklist && !task.checklist.every(item => item.isCompleted)) {
@@ -138,20 +141,18 @@ export default function TasksPage() {
     
     const confirmAction = () => {
         // Optimistic UI update
-        if (columns) {
-            const sourceColumn = columns[sourceColumnId];
-            const destColumn = columns[destColumnId];
-            const sourceTasks = [...sourceColumn.tasks];
-            const [movedTask] = sourceTasks.splice(source.index, 1);
-            movedTask.status = destColumnId;
+        const sourceColumn = columns[sourceColumnId];
+        const destColumn = columns[destColumnId];
+        const sourceTasks = [...sourceColumn.tasks];
+        const [movedTask] = sourceTasks.splice(source.index, 1);
+        movedTask.status = destColumnId;
 
-            const newColumns = {...columns};
-            const destTasks = sourceColumnId === destColumnId ? sourceTasks : [...destColumn.tasks];
-            destTasks.splice(destination.index, 0, movedTask);
-            newColumns[sourceColumnId] = { ...sourceColumn, tasks: sourceTasks };
-            newColumns[destColumnId] = { ...destColumn, tasks: destTasks };
-            setColumns(newColumns);
-        }
+        const newColumns = {...columns};
+        const destTasks = sourceColumnId === destColumnId ? sourceTasks : [...destColumn.tasks];
+        destTasks.splice(destination.index, 0, movedTask);
+        newColumns[sourceColumnId] = { ...sourceColumn, tasks: sourceTasks };
+        newColumns[destColumnId] = { ...destColumn, tasks: destTasks };
+        setColumns(newColumns);
 
         updateTaskStatus(draggableId, destColumnId).catch(error => {
             toast({ variant: "destructive", title: "Erro ao mover tarefa", description: "Não foi possível atualizar o status." });
@@ -168,18 +169,13 @@ export default function TasksPage() {
     }
   };
 
-  const handleSaveTask = async (data: NewTask | Partial<Task>) => {
+  const handleUpdateTask = async (data: Partial<Task>) => {
+    if (!editingTask) return;
     setIsSubmitting(true);
     try {
-        if (editingTask) {
-            await updateTask(editingTask.id, data);
-            toast({ title: "Sucesso", description: "Tarefa atualizada." });
-        } else {
-            const newTaskData: NewTask = { status: 'todo', ...data };
-            await addTask(newTaskData);
-            toast({ title: "Sucesso", description: "Nova tarefa criada." });
-        }
-        setIsModalOpen(false);
+        await updateTask(editingTask.id, data);
+        toast({ title: "Sucesso", description: "Tarefa atualizada." });
+        setIsEditModalOpen(false);
         setEditingTask(null);
     } catch (error) {
         toast({ variant: "destructive", title: "Erro ao salvar", description: "Não foi possível salvar a tarefa." });
@@ -198,7 +194,7 @@ export default function TasksPage() {
             try {
                 await deleteTask(taskId);
                 toast({ title: "Sucesso", description: "Tarefa excluída." });
-                setIsModalOpen(false);
+                setIsEditModalOpen(false);
                 setEditingTask(null);
             } catch (error) {
                  toast({ variant: "destructive", title: "Erro ao excluir", description: "Não foi possível excluir a tarefa." });
@@ -218,9 +214,11 @@ export default function TasksPage() {
             <h1 className="text-3xl font-bold">Painel de Tarefas</h1>
             <p className="text-muted-foreground">Gerencie o fluxo de trabalho da sua equipe.</p>
         </div>
-        <Button onClick={() => { setEditingTask(null); setIsModalOpen(true); }}>
-            <PlusCircle className="mr-2" /> Criar Nova Tarefa
-        </Button>
+        <CreateTaskModal>
+            <Button>
+                <PlusCircle className="mr-2" /> Criar Nova Tarefa
+            </Button>
+        </CreateTaskModal>
       </div>
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
@@ -260,18 +258,18 @@ export default function TasksPage() {
         </div>
       </DragDropContext>
        
-       <Dialog open={isModalOpen} onOpenChange={(isOpen) => { if (!isOpen) { setIsModalOpen(false); setEditingTask(null); } else { setIsModalOpen(true); } }}>
+       <Dialog open={isEditModalOpen} onOpenChange={(isOpen) => { if (!isOpen) { setIsEditModalOpen(false); setEditingTask(null); } else { setIsEditModalOpen(true); } }}>
          <DialogContent className="sm:max-w-3xl">
            <DialogHeader>
-             <DialogTitle>{editingTask ? 'Editar Tarefa' : 'Criar Nova Tarefa'}</DialogTitle>
-             <DialogDescription>Preencha os detalhes da tarefa abaixo.</DialogDescription>
+             <DialogTitle>Editar Tarefa</DialogTitle>
+             <DialogDescription>Atualize os detalhes da tarefa abaixo.</DialogDescription>
            </DialogHeader>
            <TaskForm
                 task={editingTask}
                 users={users}
                 clients={clients}
-                onSave={handleSaveTask}
-                onCancel={() => { setIsModalOpen(false); setEditingTask(null); }}
+                onSave={handleUpdateTask}
+                onCancel={() => { setIsEditModalOpen(false); setEditingTask(null); }}
                 onDelete={editingTask ? handleDeleteTask : undefined}
                 isSubmitting={isSubmitting}
            />

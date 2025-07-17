@@ -35,8 +35,8 @@ type FormValues = Omit<NewTask, 'dueDate' | 'checklist'> & {
     checklist?: (Omit<ChecklistItem, 'dueDate'> & { dueDate?: Date | null })[];
 }
 
-const TaskForm = ({ task, users, clients, onSave, onCancel, onDelete, isSubmitting }: TaskFormProps) => {
-    const { register, control, handleSubmit, reset, watch } = useForm<FormValues>({
+const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, isSubmitting }: TaskFormProps) => {
+    const { register, control, handleSubmit, watch } = useForm<FormValues>({
         defaultValues: {
             title: task?.title || "",
             description: task?.description || "",
@@ -52,7 +52,7 @@ const TaskForm = ({ task, users, clients, onSave, onCancel, onDelete, isSubmitti
         },
     });
 
-    const { fields, append, remove, update } = useFieldArray({
+    const { fields, append, remove } = useFieldArray({
         control,
         name: "checklist",
     });
@@ -69,9 +69,6 @@ const TaskForm = ({ task, users, clients, onSave, onCancel, onDelete, isSubmitti
         };
         onSave(submissionData);
     };
-
-    const validUsers = users.filter(user => user && user.value);
-    const validClients = clients.filter(client => client && client.value);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -103,7 +100,7 @@ const TaskForm = ({ task, users, clients, onSave, onCancel, onDelete, isSubmitti
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <SelectTrigger><SelectValue placeholder="Selecione um responsável" /></SelectTrigger>
                                 <SelectContent>
-                                    {validUsers.map(user => <SelectItem key={user.value} value={user.value}>{user.label}</SelectItem>)}
+                                    {users.map(user => <SelectItem key={user.value} value={user.value}>{user.label}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         )}
@@ -116,7 +113,7 @@ const TaskForm = ({ task, users, clients, onSave, onCancel, onDelete, isSubmitti
                         control={control}
                         render={({ field }) => (
                             <MultiSelect
-                                options={validUsers}
+                                options={users}
                                 selected={field.value || []}
                                 onChange={field.onChange}
                                 placeholder="Selecione assistentes"
@@ -137,7 +134,7 @@ const TaskForm = ({ task, users, clients, onSave, onCancel, onDelete, isSubmitti
                                 <SelectTrigger><SelectValue placeholder="Selecione um cliente (opcional)" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="">Nenhum</SelectItem>
-                                    {validClients.map(client => <SelectItem key={client.value} value={client.value}>{client.label}</SelectItem>)}
+                                    {clients.map(client => <SelectItem key={client.value} value={client.value}>{client.label}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         )}
