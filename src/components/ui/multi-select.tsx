@@ -32,6 +32,7 @@ interface MultiSelectProps {
   onChange: React.Dispatch<React.SetStateAction<string[]>>;
   className?: string;
   placeholder?: string;
+  disabled?: boolean;
 }
 
 function MultiSelect({
@@ -40,6 +41,7 @@ function MultiSelect({
   onChange,
   className,
   placeholder = "Selecione opções...",
+  disabled = false,
 }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -66,6 +68,7 @@ function MultiSelect({
           aria-expanded={open}
           className={cn("w-full justify-between h-auto", className)}
           onClick={() => setOpen(!open)}
+          disabled={disabled}
         >
           <div className="flex gap-1 flex-wrap">
             {selectedLabels.length > 0 ? (
@@ -96,20 +99,24 @@ function MultiSelect({
            <CommandList>
                 <CommandEmpty>Nenhuma opção encontrada.</CommandEmpty>
                 <CommandGroup>
-                {options.map((option) => (
-                    <CommandItem
-                    key={option.value}
-                    onSelect={() => handleSelect(option.value)}
-                    >
-                    <Check
-                        className={cn(
-                        "mr-2 h-4 w-4",
-                        selected.includes(option.value) ? "opacity-100" : "opacity-0"
-                        )}
-                    />
-                    {option.label}
-                    </CommandItem>
-                ))}
+                {options.length === 0 && disabled ? (
+                    <CommandItem disabled>A carregar...</CommandItem>
+                ) : (
+                    options.map((option) => (
+                        <CommandItem
+                        key={option.value}
+                        onSelect={() => handleSelect(option.value)}
+                        >
+                        <Check
+                            className={cn(
+                            "mr-2 h-4 w-4",
+                            selected.includes(option.value) ? "opacity-100" : "opacity-0"
+                            )}
+                        />
+                        {option.label}
+                        </CommandItem>
+                    ))
+                )}
                 </CommandGroup>
             </CommandList>
         </Command>
