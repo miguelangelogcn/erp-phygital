@@ -1,7 +1,7 @@
 // src/app/dashboard/approvals/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { getTeams } from "@/lib/firebase/services/teams";
 import { getTasksForApproval } from "@/lib/firebase/services/tasks";
@@ -50,19 +50,20 @@ export default function ApprovalsPage() {
   const functions = getFunctions(auth.app, "southamerica-east1");
   const reviewTaskCallable = httpsCallable(functions, "reviewTask");
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!authUser) return;
     setLoading(true);
-
+    
     try {
       const allTeams = await getTeams();
       const myTeam = allTeams.find((team) => team.leaderId === authUser.uid);
 
       if (myTeam) {
         setIsLeader(true);
+        // Ensure the leader's own submissions are included.
         const [pendingTasks, allUsers] = await Promise.all([
-            getTasksForApproval(myTeam.memberIds),
-            getUsers()
+          getTasksForApproval(myTeam.memberIds, authUser.uid),
+          getUsers()
         ]);
         setTasks(pendingTasks);
         setUsers(allUsers);
@@ -79,11 +80,13 @@ export default function ApprovalsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [authUser, toast]);
 
   useEffect(() => {
-    fetchData();
-  }, [authUser]);
+    if (authUser) {
+      fetchData();
+    }
+  }, [authUser, fetchData]);
 
   const handleReview = async (
     taskId: string,
@@ -106,6 +109,7 @@ export default function ApprovalsPage() {
         description: result.data.message,
       });
 
+      // Optimistically remove the task from the list
       setTasks((prev) => prev.filter((task) => task.id !== taskId));
     } catch (error: any) {
       toast({
@@ -195,6 +199,12 @@ export default function ApprovalsPage() {
                                 ) : (
                                     <p className="text-sm text-muted-foreground">Nenhum ficheiro.</p>
                                 )}
+                                 {task.approvalNotes && (
+                                    <div className="pt-2 border-t mt-2">
+                                        <h4 className="font-medium">Notas</h4>
+                                        <p className="text-sm text-muted-foreground">{task.approvalNotes}</p>
+                                    </div>
+                                )}
                             </div>
                           </PopoverContent>
                         </Popover>
@@ -206,8 +216,7 @@ export default function ApprovalsPage() {
                           onClick={() => handleReview(task.id, task.type, "approved")}
                           disabled={isSubmitting === task.id}
                         >
-                          {isSubmitting === task.id && <Loader2 className="animate-spin"/>}
-                          {isSubmitting !== task.id && <Check className="h-4 w-4 text-green-600" />}
+                          {isSubmitting === task.id ? <Loader2 className="animate-spin h-4 w-4"/> : <Check className="h-4 w-4 text-green-600" />}
                         </Button>
                         <Button
                           variant="ghost"
@@ -215,8 +224,7 @@ export default function ApprovalsPage() {
                           onClick={() => handleReview(task.id, task.type, "rejected")}
                           disabled={isSubmitting === task.id}
                         >
-                          {isSubmitting === task.id && <Loader2 className="animate-spin"/>}
-                          {isSubmitting !== task.id && <X className="h-4 w-4 text-red-600" />}
+                          {isSubmitting === task.id ? <Loader2 className="animate-spin h-4 w-4"/> : <X className="h-4 w-4 text-red-600" />}
                         </Button>
                       </TableCell>
                     </TableRow>

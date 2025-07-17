@@ -54,12 +54,16 @@ export function onTasksUpdate(
 
 
 /**
- * Fetches all tasks requiring approval for a given set of team members.
+ * Fetches all tasks requiring approval for a given set of team members and their leader.
  * @param {string[]} memberIds - An array of user IDs for the team members.
+ * @param {string} leaderId - The user ID of the team leader.
  * @returns {Promise<ApprovalTask[]>} A promise that resolves to an array of tasks for approval.
  */
-export async function getTasksForApproval(memberIds: string[]): Promise<ApprovalTask[]> {
-    if (memberIds.length === 0) return [];
+export async function getTasksForApproval(memberIds: string[], leaderId: string): Promise<ApprovalTask[]> {
+    // Combine memberIds and leaderId, and remove duplicates to form the full team list.
+    const fullTeamIds = [...new Set([...memberIds, leaderId])];
+
+    if (fullTeamIds.length === 0) return [];
     
     const tasksRef = collection(db, "tasks");
     const recurringTasksRef = collection(db, "recurringTasks");
@@ -67,12 +71,12 @@ export async function getTasksForApproval(memberIds: string[]): Promise<Approval
     const qTasks = query(
         tasksRef,
         where("approvalStatus", "==", "pending"),
-        where("responsibleId", "in", memberIds)
+        where("responsibleId", "in", fullTeamIds)
     );
     const qRecurringTasks = query(
         recurringTasksRef,
         where("approvalStatus", "==", "pending"),
-        where("responsibleId", "in", memberIds)
+        where("responsibleId", "in", fullTeamIds)
     );
 
     try {
