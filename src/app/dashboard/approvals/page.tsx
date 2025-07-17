@@ -122,9 +122,27 @@ export default function ApprovalsPage() {
     setTaskForFeedback(task);
   };
   
-  const handleFeedbackSubmitted = () => {
-    setTaskForFeedback(null);
-    fetchData(); // Refetch data to show updated task list
+  const handleFeedbackSubmit = async (feedback: { notes: string; audioUrl?: string; attachments: any[] }) => {
+    if (!taskForFeedback) return;
+    setIsSubmitting(taskForFeedback.id);
+
+    try {
+      await reviewTaskCallable({
+        taskId: taskForFeedback.id,
+        taskType: taskForFeedback.type,
+        decision: 'rejected',
+        feedback: feedback,
+      });
+
+      toast({ title: "Feedback Enviado", description: "A tarefa foi marcada como rejeitada." });
+      setTaskForFeedback(null);
+      fetchData(); // Refetch data
+    } catch (error: any) {
+      console.error("Error sending feedback:", error);
+      toast({ variant: "destructive", title: "Erro ao Enviar", description: error.message || "Não foi possível enviar o feedback." });
+    } finally {
+      setIsSubmitting(null);
+    }
   };
 
   const getUserName = (userId: string) =>
@@ -250,8 +268,9 @@ export default function ApprovalsPage() {
         <FeedbackModal
           isOpen={!!taskForFeedback}
           onClose={() => setTaskForFeedback(null)}
+          onSubmit={handleFeedbackSubmit}
+          isSubmitting={isSubmitting === taskForFeedback.id}
           task={taskForFeedback}
-          onSubmitted={handleFeedbackSubmitted}
         />
       )}
     </main>
