@@ -1,12 +1,11 @@
 // src/components/forms/TaskForm.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { Timestamp } from "firebase/firestore";
 import { Calendar as CalendarIcon, Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useForm, useFieldArray, Controller } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -29,7 +28,6 @@ interface TaskFormProps {
   onCancel: () => void;
   onDelete?: (taskId: string) => void;
   isSubmitting: boolean;
-  isDataLoading: boolean;
 }
 
 type FormValues = Omit<NewTask, 'dueDate' | 'checklist'> & {
@@ -37,7 +35,7 @@ type FormValues = Omit<NewTask, 'dueDate' | 'checklist'> & {
     checklist?: (Omit<ChecklistItem, 'dueDate'> & { dueDate?: Date | null })[];
 }
 
-const TaskForm = ({ task, users, clients, onSave, onCancel, onDelete, isSubmitting, isDataLoading }: TaskFormProps) => {
+const TaskForm = ({ task, users, clients, onSave, onCancel, onDelete, isSubmitting }: TaskFormProps) => {
     const { register, control, handleSubmit, reset, watch } = useForm<FormValues>({
         defaultValues: {
             title: task?.title || "",
@@ -72,6 +70,9 @@ const TaskForm = ({ task, users, clients, onSave, onCancel, onDelete, isSubmitti
         onSave(submissionData);
     };
 
+    const validUsers = users.filter(user => user && user.value);
+    const validClients = clients.filter(client => client && client.value);
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-4">
@@ -99,14 +100,10 @@ const TaskForm = ({ task, users, clients, onSave, onCancel, onDelete, isSubmitti
                         name="responsibleId"
                         control={control}
                         render={({ field }) => (
-                            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isDataLoading}>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <SelectTrigger><SelectValue placeholder="Selecione um responsável" /></SelectTrigger>
                                 <SelectContent>
-                                    {isDataLoading ? (
-                                        <SelectItem value="loading" disabled>A carregar...</SelectItem>
-                                    ) : (
-                                        users.filter(user => user.value).map(user => <SelectItem key={user.value} value={user.value}>{user.label}</SelectItem>)
-                                    )}
+                                    {validUsers.map(user => <SelectItem key={user.value} value={user.value}>{user.label}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         )}
@@ -119,11 +116,10 @@ const TaskForm = ({ task, users, clients, onSave, onCancel, onDelete, isSubmitti
                         control={control}
                         render={({ field }) => (
                             <MultiSelect
-                                options={users.filter(user => user.value)}
+                                options={validUsers}
                                 selected={field.value || []}
                                 onChange={field.onChange}
                                 placeholder="Selecione assistentes"
-                                disabled={isDataLoading}
                             />
                         )}
                     />
@@ -137,15 +133,11 @@ const TaskForm = ({ task, users, clients, onSave, onCancel, onDelete, isSubmitti
                         name="clientId"
                         control={control}
                         render={({ field }) => (
-                            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isDataLoading}>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <SelectTrigger><SelectValue placeholder="Selecione um cliente (opcional)" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="">Nenhum</SelectItem>
-                                    {isDataLoading ? (
-                                        <SelectItem value="loading" disabled>A carregar...</SelectItem>
-                                     ) : (
-                                        clients.filter(client => client.value).map(client => <SelectItem key={client.value} value={client.value}>{client.label}</SelectItem>)
-                                     )}
+                                    {validClients.map(client => <SelectItem key={client.value} value={client.value}>{client.label}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         )}
@@ -214,7 +206,7 @@ const TaskForm = ({ task, users, clients, onSave, onCancel, onDelete, isSubmitti
 
         <div className="flex justify-end gap-2 pt-4 border-t">
             <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting || isDataLoading}>
+            <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? 'Salvando...' : 'Salvar Tarefa'}
             </Button>
         </div>

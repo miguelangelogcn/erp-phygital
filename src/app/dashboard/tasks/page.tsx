@@ -56,7 +56,6 @@ type Columns = {
 export default function TasksPage() {
   const [columns, setColumns] = useState<Columns | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isDataLoading, setIsDataLoading] = useState(true);
   const [users, setUsers] = useState<SelectOption[]>([]);
   const [clients, setClients] = useState<SelectOption[]>([]);
   const { toast } = useToast();
@@ -75,15 +74,12 @@ export default function TasksPage() {
 
   useEffect(() => {
     const fetchData = async () => {
-        setIsDataLoading(true);
         try {
             const [usersData, clientsData] = await Promise.all([getUsers(), getClients()]);
             setUsers(usersData.map(u => ({ value: u.id, label: u.name })));
             setClients(clientsData.map(c => ({ value: c.id, label: c.name })));
         } catch (error) {
             toast({ variant: "destructive", title: "Erro ao carregar dados", description: "Não foi possível buscar usuários ou clientes." });
-        } finally {
-            setIsDataLoading(false);
         }
     };
     fetchData();
@@ -278,7 +274,6 @@ export default function TasksPage() {
                 onCancel={() => { setIsModalOpen(false); setEditingTask(null); }}
                 onDelete={editingTask ? handleDeleteTask : undefined}
                 isSubmitting={isSubmitting}
-                isDataLoading={isDataLoading}
            />
          </DialogContent>
        </Dialog>
