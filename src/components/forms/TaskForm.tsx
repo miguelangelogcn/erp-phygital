@@ -85,10 +85,19 @@ const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, 
         onSave(submissionData);
     };
 
-    // Sort feedback by date, most recent first
-    const sortedFeedback = task?.rejectionFeedback?.slice().sort((a, b) => 
-        b.rejectedAt.toDate().getTime() - a.rejectedAt.toDate().getTime()
-    );
+    // Ensure rejectionFeedback is an array and sort by date, most recent first
+    const sortedFeedback = React.useMemo(() => {
+        if (!task?.rejectionFeedback) {
+            return [];
+        }
+        const feedbackArray = Array.isArray(task.rejectionFeedback) 
+            ? task.rejectionFeedback 
+            : [task.rejectionFeedback];
+        
+        return feedbackArray.slice().sort((a, b) => 
+            b.rejectedAt.toDate().getTime() - a.rejectedAt.toDate().getTime()
+        );
+    }, [task?.rejectionFeedback]);
 
 
   return (
@@ -284,5 +293,3 @@ const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, 
 };
 
 export default TaskForm;
-
-    

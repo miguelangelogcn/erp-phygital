@@ -1,6 +1,7 @@
 // src/components/forms/RecurringTaskForm.tsx
 "use client";
 
+import React from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { Plus, Trash2, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -92,10 +93,19 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
         onChecklistItemChange(task.id, updatedChecklist);
     }
     
-    // Sort feedback by date, most recent first
-    const sortedFeedback = task?.rejectionFeedback?.slice().sort((a, b) => 
-        b.rejectedAt.toDate().getTime() - a.rejectedAt.toDate().getTime()
-    );
+    // Ensure rejectionFeedback is an array and sort by date, most recent first
+    const sortedFeedback = React.useMemo(() => {
+        if (!task?.rejectionFeedback) {
+            return [];
+        }
+        const feedbackArray = Array.isArray(task.rejectionFeedback)
+            ? task.rejectionFeedback
+            : [task.rejectionFeedback];
+
+        return feedbackArray.slice().sort((a, b) => 
+            b.rejectedAt.toDate().getTime() - a.rejectedAt.toDate().getTime()
+        );
+    }, [task?.rejectionFeedback]);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -277,5 +287,3 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
 };
 
 export default RecurringTaskForm;
-
-    
