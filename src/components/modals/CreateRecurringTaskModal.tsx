@@ -19,6 +19,7 @@ import { addRecurringTask } from '@/lib/firebase/services/recurringTasks';
 import type { SelectOption } from '@/types/common';
 import type { NewRecurringTask } from '@/types/recurringTask';
 import RecurringTaskForm from '../forms/RecurringTaskForm';
+import type { User } from '@/types/user';
 
 interface CreateRecurringTaskModalProps {
   children: ReactNode;
@@ -44,17 +45,17 @@ export function CreateRecurringTaskModal({ children }: CreateRecurringTaskModalP
             getClients(),
           ]);
 
-          const allUsers = usersData.map((u) => ({ value: u.id, label: u.name }));
-          setAllUserOptions(allUsers);
-          
-          let filteredResponsibles = usersData;
+          const allUsersAsOptions = usersData.map((u: User) => ({ value: u.id, label: u.name }));
+          setAllUserOptions(allUsersAsOptions);
+
+          let filteredResponsibles: User[];
           if (userData.isLeader && userData.teamMemberIds) {
-            filteredResponsibles = usersData.filter(u => userData.teamMemberIds!.includes(u.id));
+            filteredResponsibles = usersData.filter((u: User) => userData.teamMemberIds!.includes(u.id));
           } else {
-            filteredResponsibles = usersData.filter(u => u.id === userData.id);
+            filteredResponsibles = usersData.filter((u: User) => u.id === userData.id);
           }
 
-          setResponsibleOptions(filteredResponsibles.map((u) => ({ value: u.id, label: u.name })));
+          setResponsibleOptions(filteredResponsibles.map((u: User) => ({ value: u.id, label: u.name })));
           setClients(clientsData.map((c) => ({ value: c.id, label: c.name })));
         } catch (error) {
           toast({

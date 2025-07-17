@@ -19,6 +19,7 @@ import { addTask } from '@/lib/firebase/services/tasks';
 import type { SelectOption } from '@/types/common';
 import type { NewTask } from '@/types/task';
 import TaskForm from '../forms/TaskForm';
+import type { User } from '@/types/user';
 
 interface CreateTaskModalProps {
   children: ReactNode; // The trigger button
@@ -28,8 +29,8 @@ export function CreateTaskModal({ children }: CreateTaskModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [responsibleOptions, setResponsibleOptions] = useState<SelectOption[]>([]);
   const [allUserOptions, setAllUserOptions] = useState<SelectOption[]>([]);
+  const [responsibleOptions, setResponsibleOptions] = useState<SelectOption[]>([]);
   const [clients, setClients] = useState<SelectOption[]>([]);
   const { userData } = useAuth();
   const { toast } = useToast();
@@ -45,19 +46,19 @@ export function CreateTaskModal({ children }: CreateTaskModalProps) {
             getClients(),
           ]);
 
-          const allUsers = usersData.map((u) => ({ value: u.id, label: u.name }));
-          setAllUserOptions(allUsers);
+          const allUsersAsOptions = usersData.map((u: User) => ({ value: u.id, label: u.name }));
+          setAllUserOptions(allUsersAsOptions);
 
-          let filteredResponsibles = usersData;
+          let filteredResponsibles: User[];
           if (userData.isLeader && userData.teamMemberIds) {
             // Leader can assign to team members
-            filteredResponsibles = usersData.filter(u => userData.teamMemberIds!.includes(u.id));
+            filteredResponsibles = usersData.filter((u: User) => userData.teamMemberIds!.includes(u.id));
           } else {
             // Employee can only assign to themselves
-            filteredResponsibles = usersData.filter(u => u.id === userData.id);
+            filteredResponsibles = usersData.filter((u: User) => u.id === userData.id);
           }
           
-          setResponsibleOptions(filteredResponsibles.map((u) => ({ value: u.id, label: u.name })));
+          setResponsibleOptions(filteredResponsibles.map((u: User) => ({ value: u.id, label: u.name })));
           setClients(clientsData.map((c) => ({ value: c.id, label: c.name })));
 
         } catch (error) {
