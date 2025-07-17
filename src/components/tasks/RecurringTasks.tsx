@@ -1,14 +1,14 @@
 // src/components/tasks/RecurringTasks.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { onRecurringTasksUpdate, updateRecurringTask, deleteRecurringTask, updateRecurringTaskChecklist, updateRecurringTaskCompletion } from "@/lib/firebase/services/recurringTasks";
 import { getUsers } from "@/lib/firebase/services/users";
 import { getClients } from "@/lib/firebase/services/clients";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 
 import { CreateRecurringTaskModal } from "@/components/modals/CreateRecurringTaskModal";
 import RecurringTaskForm from "@/components/forms/RecurringTaskForm";
+import { MultiSelect } from "@/components/ui/multi-select";
 
 import type { RecurringTask, RecurringChecklistItem } from "@/types/recurringTask";
 import type { SelectOption } from "@/types/common";
@@ -38,6 +39,7 @@ const initialDays: DayColumn[] = [
 ];
 
 export default function RecurringTasks() {
+  const [allTasks, setAllTasks] = useState<RecurringTask[]>([]);
   const [dayColumns, setDayColumns] = useState<DayColumn[]>(initialDays);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -48,6 +50,8 @@ export default function RecurringTasks() {
   const [users, setUsers] = useState<SelectOption[]>([]);
   const [clients, setClients] = useState<SelectOption[]>([]);
   const { toast } = useToast();
+
+  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -63,14 +67,7 @@ export default function RecurringTasks() {
 
     const unsubscribe = onRecurringTasksUpdate(
       (tasks) => {
-        const newDayColumns: DayColumn[] = JSON.parse(JSON.stringify(initialDays));
-        tasks.forEach((task) => {
-          const targetColumn = newDayColumns.find(col => col.id === task.dayOfWeek);
-          if (targetColumn) {
-            targetColumn.tasks.push(task);
-          }
-        });
-        setDayColumns(newDayColumns);
+        setAllTasks(tasks);
         setLoading(false);
       },
       (error) => {
@@ -81,6 +78,31 @@ export default function RecurringTasks() {
 
     return () => unsubscribe();
   }, [toast]);
+
+  const filteredTasks = useMemo(() => {
+    return allTasks.filter(task => {
+        const employeeMatch = selectedEmployees.length === 0 || 
+            selectedEmployees.includes(task.responsibleId || "") || 
+            task.assistantIds?.some(id => selectedEmployees.includes(id));
+        
+        return employeeMatch;
+    });
+  }, [allTasks, selectedEmployees]);
+
+  useEffect(() => {
+      const newDayColumns: DayColumn[] = JSON.parse(JSON.stringify(initialDays));
+      filteredTasks.forEach((task) => {
+          const targetColumn = newDayColumns.find(col => col.id === task.dayOfWeek);
+          if (targetColumn) {
+            targetColumn.tasks.push(task);
+          }
+      });
+      setDayColumns(newDayColumns);
+  }, [filteredTasks]);
+
+  const clearFilters = () => {
+    setSelectedEmployees([]);
+  };
 
   const handleCardClick = (task: RecurringTask) => {
     setEditingTask(task);
@@ -160,6 +182,28 @@ export default function RecurringTasks() {
           <Button>Criar Tarefa Recorrente</Button>
         </CreateRecurringTaskModal>
       </div>
+
+       <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Filtros</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col md:flex-row gap-4 items-center">
+            <div className="flex-1 w-full">
+                <MultiSelect
+                    options={users}
+                    selected={selectedEmployees}
+                    onChange={setSelectedEmployees as any}
+                    placeholder="Filtrar por funcionários..."
+                    className="w-full"
+                />
+            </div>
+            <Button variant="ghost" onClick={clearFilters}>
+                <X className="mr-2 h-4 w-4" />
+                Limpar Filtros
+            </Button>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4 items-start">
         {dayColumns.map((column) => (
           <Card key={column.id} className="flex flex-col min-h-[150px]">
