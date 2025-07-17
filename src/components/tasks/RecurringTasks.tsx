@@ -2,28 +2,24 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Loader2, PlusCircle, MoreHorizontal, Trash2, CheckSquare, Square } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import {
-  onRecurringTasksUpdate,
-  updateRecurringTask,
-  deleteRecurringTask,
-  updateRecurringTaskOrderAndDay,
-} from "@/lib/firebase/services/recurringTasks";
+import { onRecurringTasksUpdate, updateRecurringTask, deleteRecurringTask, updateRecurringTaskOrderAndDay } from "@/lib/firebase/services/recurringTasks";
 import { getUsers } from "@/lib/firebase/services/users";
 import { getClients } from "@/lib/firebase/services/clients";
 import type { RecurringTask, DayOfWeekNumber, RecurringChecklistItem } from "@/types/recurringTask";
 import type { SelectOption } from "@/types/common";
+import { useToast } from "@/hooks/use-toast";
+
+import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Loader2, PlusCircle, MoreHorizontal, Trash2, CheckSquare, Square } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { CreateRecurringTaskModal } from "../modals/CreateRecurringTaskModal";
 import RecurringTaskForm from "../forms/RecurringTaskForm";
 
-interface Column {
+interface DayColumn {
   id: DayOfWeekNumber;
   title: string;
   tasks: RecurringTask[];
@@ -39,18 +35,19 @@ const dayNames: { [key in DayOfWeekNumber]: string } = {
   7: "Domingo",
 };
 
-const initialColumns: Column[] = [
-  { id: 1, title: dayNames[1], tasks: [] },
-  { id: 2, title: dayNames[2], tasks: [] },
-  { id: 3, title: dayNames[3], tasks: [] },
-  { id: 4, title: dayNames[4], tasks: [] },
-  { id: 5, title: dayNames[5], tasks: [] },
-  { id: 6, title: dayNames[6], tasks: [] },
-  { id: 7, title: dayNames[7], tasks: [] },
+const initialDays: DayColumn[] = [
+  { id: 1, title: 'Segunda-feira', tasks: [] },
+  { id: 2, title: 'Terça-feira', tasks: [] },
+  { id: 3, title: 'Quarta-feira', tasks: [] },
+  { id: 4, title: 'Quinta-feira', tasks: [] },
+  { id: 5, title: 'Sexta-feira', tasks: [] },
+  { id: 6, title: 'Sábado', tasks: [] },
+  { id: 7, title: 'Domingo', tasks: [] },
 ];
 
+
 export default function RecurringTasks() {
-  const [columns, setColumns] = useState<Column[]>(initialColumns);
+  const [columns, setColumns] = useState<DayColumn[]>(initialDays);
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<SelectOption[]>([]);
   const [clients, setClients] = useState<SelectOption[]>([]);
@@ -75,7 +72,7 @@ export default function RecurringTasks() {
 
     const unsubscribe = onRecurringTasksUpdate(
       (tasks) => {
-        const newColumnsState: Column[] = JSON.parse(JSON.stringify(initialColumns)); // Deep copy to reset tasks
+        const newColumnsState: DayColumn[] = JSON.parse(JSON.stringify(initialDays));
         
         tasks.forEach((task) => {
             const column = newColumnsState.find(c => c.id === task.dayOfWeek);
