@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { onRecurringTasksUpdate, updateRecurringTask, deleteRecurringTask, updateRecurringTaskChecklist, updateRecurringTaskCompletion } from "@/lib/firebase/services/recurringTasks";
+import { onRecurringTasksUpdate, updateRecurringTask, deleteRecurringTask, updateRecurringTaskChecklist } from "@/lib/firebase/services/recurringTasks";
 import { getUsers } from "@/lib/firebase/services/users";
 import { getClients } from "@/lib/firebase/services/clients";
 
@@ -208,30 +208,24 @@ export default function RecurringTasks() {
   const handleChecklistItemChange = async (taskId: string, checklist: RecurringChecklistItem[]) => {
       try {
           await updateRecurringTaskChecklist(taskId, checklist);
-      } catch (error) {
+      } catch (error)
+ {
            toast({ variant: "destructive", title: "Erro no Checklist", description: "Não foi possível atualizar o item." });
       }
   }
 
   const handleToggleCompletion = async (task: RecurringTask) => {
-      if (task.approvalRequired && task.approvalStatus !== 'approved') {
-          if (task.checklist && !task.checklist.every(item => item.isCompleted)) {
-              toast({
-                  variant: "destructive",
-                  title: "Não é possível submeter",
-                  description: "Todos os itens do checklist devem ser concluídos."
-              });
-              return;
-          }
-          setTaskForApproval(task);
-          setIsApprovalModalOpen(true);
-      } else {
-        try {
-            await updateRecurringTaskCompletion(task.id, !task.isCompleted);
-        } catch (error) {
-            toast({ variant: "destructive", title: "Erro ao atualizar", description: "Não foi possível marcar a tarefa." });
-        }
+      // Logic changed: always open approval modal
+      if (task.checklist && !task.checklist.every(item => item.isCompleted)) {
+          toast({
+              variant: "destructive",
+              title: "Não é possível submeter",
+              description: "Todos os itens do checklist devem ser concluídos."
+          });
+          return;
       }
+      setTaskForApproval(task);
+      setIsApprovalModalOpen(true);
   };
 
 

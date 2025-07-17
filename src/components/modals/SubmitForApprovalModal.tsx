@@ -1,7 +1,7 @@
 // src/components/modals/SubmitForApprovalModal.tsx
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
@@ -48,6 +48,15 @@ export function SubmitForApprovalModal({
 
   const functions = getFunctions(auth.app, "southamerica-east1");
   const submitTaskForApproval = httpsCallable(functions, "submitTaskForApproval");
+
+  // Reset state when modal is closed
+  useEffect(() => {
+      if (!isOpen) {
+          setFiles([]);
+          setNotes("");
+          setIsSubmitting(false);
+      }
+  }, [isOpen]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
