@@ -112,7 +112,11 @@ export const updateUser = onCall(
       };
 
       if (roleId) updatePayload.roleId = roleId;
-      if (teamId) updatePayload.teamId = teamId;
+      if (teamId) {
+        updatePayload.teamId = teamId;
+      } else {
+        updatePayload.teamId = admin.firestore.FieldValue.delete();
+      }
       
       // Atualiza o documento no Firestore
       await db.collection("users").doc(uid).update(updatePayload);
