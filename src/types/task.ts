@@ -47,7 +47,7 @@ export interface Task {
   approverId?: string;
   reviewedAt?: Timestamp;
   completedAt?: Timestamp;
-  rejectionFeedback?: Feedback;
+  rejectionFeedback?: Feedback[];
 }
 
 // Para criar uma nova tarefa, omitimos o 'id' e tornamos os Timestamps opcionais
@@ -61,3 +61,5 @@ export type NewTask = Omit<Task, "id" | "createdAt" | "updatedAt"> & {
 export type ApprovalTask = (Task | Omit<any, 'status'>) & {
   type: 'tasks' | 'recurringTasks';
 }
+
+    

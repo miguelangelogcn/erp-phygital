@@ -14,6 +14,14 @@ import type { RecurringTask, NewRecurringTask, DayOfWeekNumber, RecurringCheckli
 import type { SelectOption } from "@/types/common";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Separator } from "../ui/separator";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface RecurringTaskFormProps {
   task?: RecurringTask | null;
@@ -68,6 +76,11 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
         if (task && task.id) {
             (submissionData as Partial<RecurringTask>).id = task.id;
         }
+
+        if (task?.approvalStatus === 'rejected') {
+            (submissionData as Partial<RecurringTask>).approvalStatus = 'pending';
+        }
+        
         onSave(submissionData);
     };
 
@@ -78,44 +91,15 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
         updatedChecklist[index].isCompleted = checked;
         onChecklistItemChange(task.id, updatedChecklist);
     }
+    
+    // Sort feedback by date, most recent first
+    const sortedFeedback = task?.rejectionFeedback?.slice().sort((a, b) => 
+        b.rejectedAt.toDate().getTime() - a.rejectedAt.toDate().getTime()
+    );
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-4">
-             {task?.approvalStatus === 'rejected' && task.rejectionFeedback && (
-                <Alert variant="destructive" className="mb-6">
-                    <AlertTitle className="mb-2">Histórico de Feedback</AlertTitle>
-                    <AlertDescription className="space-y-4">
-                        <div>
-                            <p className="text-sm font-semibold">Observações:</p>
-                            <p className="text-sm">{task.rejectionFeedback.notes}</p>
-                        </div>
-                        {task.rejectionFeedback.files && task.rejectionFeedback.files.length > 0 && (
-                            <div>
-                                <p className="text-sm font-semibold">Ficheiros:</p>
-                                <ul className="list-disc list-inside">
-                                    {task.rejectionFeedback.files.map((file, index) => (
-                                        <li key={index}>
-                                            <a href={file.url} target="_blank" rel="noopener noreferrer" className="underline flex items-center gap-1 text-sm">
-                                                <FileText className="h-4 w-4" /> {file.name}
-                                            </a>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-                         {task.rejectionFeedback.audioUrl && (
-                             <div>
-                                <p className="text-sm font-semibold">Áudio:</p>
-                                <audio controls src={task.rejectionFeedback.audioUrl} className="w-full mt-1">
-                                    O seu navegador não suporta o elemento de áudio.
-                                </audio>
-                            </div>
-                        )}
-                    </AlertDescription>
-                     <Separator className="my-4 bg-destructive/30"/>
-                </Alert>
-            )}
 
             {onDelete && task && (
                  <div className="flex justify-end">
@@ -230,6 +214,56 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
                     </div>
                 ))}
             </div>
+
+            {task?.approvalStatus === 'rejected' && sortedFeedback && sortedFeedback.length > 0 && (
+                <>
+                <Separator />
+                <div className="space-y-4">
+                    <h3 className="font-semibold text-lg">Histórico de Feedback</h3>
+                     <Accordion type="single" collapsible className="w-full">
+                        {sortedFeedback.map((feedbackItem, index) => (
+                            <AccordionItem value={`item-${index}`} key={index}>
+                                <AccordionTrigger>
+                                    Feedback de {format(feedbackItem.rejectedAt.toDate(), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <Alert variant="destructive" className="mb-6">
+                                        <AlertDescription className="space-y-4">
+                                            <div>
+                                                <p className="text-sm font-semibold">Observações:</p>
+                                                <p className="text-sm">{feedbackItem.notes}</p>
+                                            </div>
+                                            {feedbackItem.files && feedbackItem.files.length > 0 && (
+                                                <div>
+                                                    <p className="text-sm font-semibold">Ficheiros:</p>
+                                                    <ul className="list-disc list-inside">
+                                                        {feedbackItem.files.map((file, fileIndex) => (
+                                                            <li key={fileIndex}>
+                                                                <a href={file.url} target="_blank" rel="noopener noreferrer" className="underline flex items-center gap-1 text-sm">
+                                                                    <FileText className="h-4 w-4" /> {file.name}
+                                                                </a>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
+                                            {feedbackItem.audioUrl && (
+                                                <div>
+                                                    <p className="text-sm font-semibold">Áudio:</p>
+                                                    <audio controls src={feedbackItem.audioUrl} className="w-full mt-1">
+                                                        O seu navegador não suporta o elemento de áudio.
+                                                    </audio>
+                                                </div>
+                                            )}
+                                        </AlertDescription>
+                                    </Alert>
+                                </AccordionContent>
+                            </AccordionItem>
+                        ))}
+                    </Accordion>
+                </div>
+                </>
+            )}
         </div>
 
         <div className="flex justify-end gap-2 pt-4 border-t">
@@ -243,3 +277,5 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
 };
 
 export default RecurringTaskForm;
+
+    
