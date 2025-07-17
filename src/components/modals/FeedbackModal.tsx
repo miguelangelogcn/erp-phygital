@@ -20,8 +20,7 @@ import { Loader2, UploadCloud, File as FileIcon, X, Mic, Square, Pause, Play, Tr
 import { useToast } from "@/hooks/use-toast";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { auth } from "@/lib/firebase/config";
-import type { ApprovalTask } from "@/types/task";
-import type { TaskProof } from "@/types/task";
+import type { ApprovalTask, TaskProof } from "@/types/task";
 
 interface FeedbackModalProps {
   isOpen: boolean;
@@ -123,7 +122,7 @@ export function FeedbackModal({ isOpen, onClose, task, onSubmitted }: FeedbackMo
         });
 
       toast({ title: "Feedback Enviado", description: "A tarefa foi marcada como rejeitada." });
-      onSubmitted(); // This will trigger a refetch and close the modal
+      onSubmitted(); 
     } catch (error: any) {
       console.error("Error sending feedback:", error);
       toast({ variant: "destructive", title: "Erro ao Enviar", description: error.message || "Não foi possível enviar o feedback." });

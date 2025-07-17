@@ -1,3 +1,4 @@
+
 // src/app/dashboard/approvals/page.tsx
 "use client";
 
@@ -6,8 +7,6 @@ import { useAuth } from "@/context/AuthContext";
 import { getTeams } from "@/lib/firebase/services/teams";
 import { getTasksForApproval } from "@/lib/firebase/services/tasks";
 import { getUsers } from "@/lib/firebase/services/users";
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { auth } from "@/lib/firebase/config";
 
 import {
   Table,
@@ -33,6 +32,9 @@ import {
 import { Loader2, Check, X, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { FeedbackModal } from "@/components/modals/FeedbackModal";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { auth } from "@/lib/firebase/config";
+
 
 import type { Team } from "@/types/team";
 import type { User } from "@/types/user";
