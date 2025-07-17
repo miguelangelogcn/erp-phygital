@@ -27,7 +27,7 @@ export interface Task {
   createdAt: Timestamp;
   updatedAt?: Timestamp;
   dueDate?: Timestamp | null;
-  responsibleId?: string;
+  responsibleId: string; // Made mandatory for approval flow
   assistantIds?: string[];
   clientId?: string;
   checklist?: ChecklistItem[];
@@ -35,6 +35,9 @@ export interface Task {
   proofs?: TaskProof[];
   approvalNotes?: string;
   submittedAt?: Timestamp;
+  reviewedBy?: string;
+  reviewedAt?: Timestamp;
+  completedAt?: Timestamp;
 }
 
 // Para criar uma nova tarefa, omitimos o 'id' e tornamos os Timestamps opcionais
@@ -42,3 +45,9 @@ export type NewTask = Omit<Task, "id" | "createdAt" | "updatedAt"> & {
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 };
+
+
+// Combined type for the approvals page
+export type ApprovalTask = (Task | Omit<any, 'status'>) & {
+  type: 'tasks' | 'recurringTasks';
+}

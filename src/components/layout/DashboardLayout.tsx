@@ -15,7 +15,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { Briefcase, Users, ListTodo, Shield, UserSquare } from "lucide-react";
+import { Briefcase, Users, ListTodo, Shield, UserSquare, CheckSquare } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 export default function DashboardLayoutComponent({
@@ -27,6 +27,7 @@ export default function DashboardLayoutComponent({
   const canManageEmployees = userData?.permissions?.includes("manage_employees");
   const canManageRoles = userData?.permissions?.includes("manage_roles");
   const canManageTeams = userData?.permissions?.includes("manage_teams");
+  const isLeader = userData?.isLeader || false; // Assume isLeader is part of userData
 
   return (
     <SidebarProvider>
@@ -65,6 +66,16 @@ export default function DashboardLayoutComponent({
                       <SidebarMenuButton>
                         <UserSquare />
                         Gerenciar Equipas
+                      </SidebarMenuButton>
+                    </Link>
+                  </SidebarMenuItem>
+                )}
+                {isLeader && (
+                   <SidebarMenuItem>
+                    <Link href="/dashboard/approvals">
+                      <SidebarMenuButton>
+                        <CheckSquare />
+                        Aprovações Pendentes
                       </SidebarMenuButton>
                     </Link>
                   </SidebarMenuItem>

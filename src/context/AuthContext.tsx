@@ -1,9 +1,9 @@
-
+// src/context/AuthContext.tsx
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/config";
 import type { User as FirebaseUser } from "firebase/auth";
 import type { User as AppUser } from "@/types/user";
@@ -32,10 +32,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (user) {
         try {
           const userDocRef = doc(db, "users", user.uid);
-          const userDocSnap = await getDoc(userDocRef);
+          const teamsCollectionRef = collection(db, "teams");
+
+          const userDocPromise = getDoc(userDocRef);
+          const teamQuery = query(teamsCollectionRef, where("leaderId", "==", user.uid));
+          const teamQueryPromise = getDocs(teamQuery);
+          
+          const [userDocSnap, teamSnapshot] = await Promise.all([userDocPromise, teamQueryPromise]);
 
           if (userDocSnap.exists()) {
-            setUserData({ id: userDocSnap.id, ...userDocSnap.data() } as AppUser);
+              const appUser = { id: userDocSnap.id, ...userDocSnap.data() } as AppUser;
+              appUser.isLeader = !teamSnapshot.empty; // User is a leader if they lead at least one team
+              setUserData(appUser);
           } else {
             setError(new Error("Dados do usuário não encontrados no Firestore."));
             setUserData(null);

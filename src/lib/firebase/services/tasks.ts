@@ -10,9 +10,10 @@ import {
   deleteDoc,
   writeBatch,
   getDocs,
+  where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
-import type { Task, TaskStatus, NewTask } from "@/types/task";
+import type { Task, TaskStatus, NewTask, ApprovalTask } from "@/types/task";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { auth } from "../config";
 
@@ -50,6 +51,53 @@ export function onTasksUpdate(
 
   return unsubscribe;
 }
+
+
+/**
+ * Fetches all tasks requiring approval for a given set of team members.
+ * @param {string[]} memberIds - An array of user IDs for the team members.
+ * @returns {Promise<ApprovalTask[]>} A promise that resolves to an array of tasks for approval.
+ */
+export async function getTasksForApproval(memberIds: string[]): Promise<ApprovalTask[]> {
+    if (memberIds.length === 0) return [];
+    
+    const tasksRef = collection(db, "tasks");
+    const recurringTasksRef = collection(db, "recurringTasks");
+    
+    const qTasks = query(
+        tasksRef,
+        where("approvalStatus", "==", "pending"),
+        where("responsibleId", "in", memberIds)
+    );
+    const qRecurringTasks = query(
+        recurringTasksRef,
+        where("approvalStatus", "==", "pending"),
+        where("responsibleId", "in", memberIds)
+    );
+
+    try {
+        const [tasksSnapshot, recurringTasksSnapshot] = await Promise.all([
+            getDocs(qTasks),
+            getDocs(qRecurringTasks),
+        ]);
+
+        const approvalTasks: ApprovalTask[] = [];
+
+        tasksSnapshot.forEach(doc => {
+            approvalTasks.push({ ...(doc.data() as Task), id: doc.id, type: 'tasks' });
+        });
+        recurringTasksSnapshot.forEach(doc => {
+            approvalTasks.push({ ...(doc.data() as any), id: doc.id, type: 'recurringTasks' });
+        });
+
+        return approvalTasks;
+
+    } catch (error) {
+        console.error("Error fetching tasks for approval:", error);
+        throw new Error("Failed to fetch tasks for approval.");
+    }
+}
+
 
 /**
  * Adds a new task to the 'tasks' collection.
