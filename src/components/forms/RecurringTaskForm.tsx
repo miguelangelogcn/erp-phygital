@@ -237,36 +237,36 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
                                     Feedback de {format(feedbackItem.rejectedAt.toDate(), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
                                 </AccordionTrigger>
                                 <AccordionContent>
-                                    <Alert variant="destructive" className="mb-6">
-                                        <AlertDescription className="space-y-4">
-                                            <div>
-                                                <p className="text-sm font-semibold">Observações:</p>
-                                                <p className="text-sm">{feedbackItem.notes}</p>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <p className="text-sm font-semibold mb-2">Observações:</p>
+                                            <div className="text-sm p-3 rounded-md bg-secondary text-foreground">
+                                               {feedbackItem.notes || "Nenhuma observação."}
                                             </div>
-                                            {feedbackItem.files && feedbackItem.files.length > 0 && (
-                                                <div>
-                                                    <p className="text-sm font-semibold">Ficheiros:</p>
-                                                    <ul className="list-disc list-inside">
-                                                        {feedbackItem.files.map((file, fileIndex) => (
-                                                            <li key={fileIndex}>
-                                                                <a href={file.url} target="_blank" rel="noopener noreferrer" className="underline flex items-center gap-1 text-sm">
-                                                                    <FileText className="h-4 w-4" /> {file.name}
-                                                                </a>
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
-                                            )}
-                                            {feedbackItem.audioUrl && (
-                                                <div>
-                                                    <p className="text-sm font-semibold">Áudio:</p>
-                                                    <audio controls src={feedbackItem.audioUrl} className="w-full mt-1">
-                                                        O seu navegador não suporta o elemento de áudio.
-                                                    </audio>
-                                                </div>
-                                            )}
-                                        </AlertDescription>
-                                    </Alert>
+                                        </div>
+                                        {feedbackItem.files && feedbackItem.files.length > 0 && (
+                                            <div>
+                                                <p className="text-sm font-semibold mb-2">Ficheiros:</p>
+                                                <ul className="list-disc list-inside space-y-1">
+                                                    {feedbackItem.files.map((file, fileIndex) => (
+                                                        <li key={fileIndex}>
+                                                            <a href={file.url} target="_blank" rel="noopener noreferrer" className="underline flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300">
+                                                                <FileText className="h-4 w-4" /> {file.name}
+                                                            </a>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                        {feedbackItem.audioUrl && (
+                                            <div>
+                                                <p className="text-sm font-semibold mb-2">Áudio:</p>
+                                                <audio controls src={feedbackItem.audioUrl} className="w-full mt-1">
+                                                    O seu navegador não suporta o elemento de áudio.
+                                                </audio>
+                                            </div>
+                                        )}
+                                    </div>
                                 </AccordionContent>
                             </AccordionItem>
                         ))}
