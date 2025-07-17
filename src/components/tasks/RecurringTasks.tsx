@@ -136,8 +136,9 @@ export default function RecurringTasks() {
     if (!editingTask) return;
     setIsSubmitting(true);
     
-    let updateData = { ...data };
-    // If the task was rejected, saving it again should send it back for approval.
+    const updateData = { ...data };
+    
+    // Se a tarefa foi rejeitada, enviá-la novamente para aprovação.
     if (editingTask.approvalStatus === 'rejected') {
       updateData.approvalStatus = 'pending';
     }
