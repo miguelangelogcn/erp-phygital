@@ -23,6 +23,7 @@ export interface RecurringTask {
   clientId?: string;
   checklist?: RecurringChecklistItem[];
   createdAt: Timestamp;
+  approvalRequired?: boolean; // Does this task need approval?
   approvalStatus?: ApprovalStatus;
   proofs?: TaskProof[];
   approvalNotes?: string;

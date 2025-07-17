@@ -8,7 +8,7 @@ import { getClients } from "@/lib/firebase/services/clients";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, PlusCircle, X, AlertCircle } from "lucide-react";
+import { Loader2, PlusCircle, X, AlertCircle, Clock, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import type { RecurringTask, RecurringChecklistItem } from "@/types/recurringTask";
 import type { SelectOption } from "@/types/common";
 import { cn } from "@/lib/utils";
+import { SubmitForApprovalModal } from "../modals/SubmitForApprovalModal";
 
 interface DayColumn {
   id: number;
@@ -44,6 +45,8 @@ export default function RecurringTasks() {
   const [dayColumns, setDayColumns] = useState<DayColumn[]>(initialDays);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
+  const [taskForApproval, setTaskForApproval] = useState<RecurringTask | null>(null);
   const [editingTask, setEditingTask] = useState<RecurringTask | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
@@ -105,6 +108,20 @@ export default function RecurringTasks() {
     setSelectedEmployees([]);
   };
 
+  const getApprovalBadge = (status?: 'pending' | 'approved' | 'rejected') => {
+    switch (status) {
+        case 'pending':
+            return <Badge variant="secondary" className="flex items-center gap-1 bg-orange-400/20 text-orange-400 border-orange-400/30"><Clock className="h-3 w-3" /> Pendente</Badge>;
+        case 'rejected':
+            return <Badge variant="destructive" className="flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Rejeitado</Badge>;
+        case 'approved':
+             return <Badge variant="secondary" className="flex items-center gap-1 bg-green-400/20 text-green-400 border-green-400/30"><CheckCircle className="h-3 w-3" /> Aprovado</Badge>;
+        default:
+            return null;
+    }
+  }
+
+
   const handleCardClick = (task: RecurringTask) => {
     setEditingTask(task);
     setIsModalOpen(true);
@@ -159,11 +176,26 @@ export default function RecurringTasks() {
   }
 
   const handleToggleCompletion = async (task: RecurringTask) => {
-    try {
-        await updateRecurringTaskCompletion(task.id, !task.isCompleted);
-    } catch (error) {
-        toast({ variant: "destructive", title: "Erro ao atualizar", description: "Não foi possível marcar a tarefa." });
-    }
+      // If task requires approval and isn't approved yet, open submission modal instead
+      if (task.approvalRequired && task.approvalStatus !== 'approved') {
+          if (task.checklist && !task.checklist.every(item => item.isCompleted)) {
+              toast({
+                  variant: "destructive",
+                  title: "Não é possível submeter",
+                  description: "Todos os itens do checklist devem ser concluídos."
+              });
+              return;
+          }
+          setTaskForApproval(task);
+          setIsApprovalModalOpen(true);
+      } else {
+        // Otherwise, just toggle completion
+        try {
+            await updateRecurringTaskCompletion(task.id, !task.isCompleted);
+        } catch (error) {
+            toast({ variant: "destructive", title: "Erro ao atualizar", description: "Não foi possível marcar a tarefa." });
+        }
+      }
   };
 
 
@@ -233,17 +265,12 @@ export default function RecurringTasks() {
                             className="mt-1"
                           />
                         <div className="flex-1 cursor-pointer" onClick={() => handleCardClick(task)}>
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-start justify-between gap-2">
                                 <p className={cn(
-                                    "font-semibold",
+                                    "font-semibold pr-2",
                                     task.isCompleted && "line-through text-muted-foreground"
                                 )}>{task.title}</p>
-                                {task.approvalStatus === 'rejected' && (
-                                     <Badge variant="destructive" className="flex items-center gap-1">
-                                        <AlertCircle className="h-3 w-3" />
-                                        Rejeitado
-                                    </Badge>
-                                )}
+                                {getApprovalBadge(task.approvalStatus)}
                             </div>
                             {task.description && <p className="text-sm text-muted-foreground truncate">{task.description}</p>}
                         </div>
@@ -281,6 +308,18 @@ export default function RecurringTasks() {
           )}
         </DialogContent>
       </Dialog>
+
+       {taskForApproval && (
+        <SubmitForApprovalModal
+            isOpen={isApprovalModalOpen}
+            onClose={() => {
+                setIsApprovalModalOpen(false);
+                setTaskForApproval(null);
+            }}
+            task={taskForApproval}
+            taskType="recurringTasks"
+        />
+      )}
       
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <AlertDialogContent>

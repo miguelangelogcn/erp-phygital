@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Loader2, PlusCircle, Calendar as CalendarIcon, X, MoreHorizontal, Trash2, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Loader2, PlusCircle, Calendar as CalendarIcon, X, MoreHorizontal, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -158,13 +158,14 @@ export default function PontualTasks() {
     setDateRange(undefined);
   };
 
-  const getApprovalIcon = (status?: 'pending' | 'approved' | 'rejected') => {
+  const getApprovalBadge = (status?: 'pending' | 'approved' | 'rejected') => {
     switch (status) {
         case 'pending':
-            return <Clock className="h-4 w-4 text-orange-500" />;
+            return <Badge variant="secondary" className="flex items-center gap-1 bg-orange-400/20 text-orange-400 border-orange-400/30"><Clock className="h-3 w-3" /> Pendente</Badge>;
+        case 'rejected':
+            return <Badge variant="destructive" className="flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Rejeitado</Badge>;
         case 'approved':
-            return <CheckCircle className="h-4 w-4 text-green-500" />;
-        // This is handled separately below for rejected status
+             return <Badge variant="secondary" className="flex items-center gap-1 bg-green-400/20 text-green-400 border-green-400/30"><CheckCircle className="h-3 w-3" /> Aprovado</Badge>;
         default:
             return null;
     }
@@ -190,7 +191,6 @@ export default function PontualTasks() {
     const task = columns[sourceColumnId]?.tasks.find(t => t.id === draggableId);
     if (!task) return;
 
-    // Intercept drop on "Done" column to open approval modal
     if (destColumnId === 'done' && task.approvalStatus !== 'approved') {
         if (task.checklist && !task.checklist.every(item => item.isCompleted)) {
             toast({
@@ -202,7 +202,7 @@ export default function PontualTasks() {
         }
         setTaskForApproval(task);
         setIsApprovalModalOpen(true);
-        return; // Prevents the regular dnd logic
+        return;
     }
 
 
@@ -376,16 +376,11 @@ export default function PontualTasks() {
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
                             >
-                              <Card className={`hover:shadow-md group relative ${snapshot.isDragging ? "shadow-lg" : ""}`}>
-                                <CardContent className="p-4 cursor-pointer" onClick={() => handleCardClick(task)}>
-                                    <div className="flex items-center justify-between mb-2">
-                                        <p className="font-semibold text-base">{task.title}</p>
-                                        {task.approvalStatus === 'rejected' ? (
-                                             <Badge variant="destructive" className="flex items-center gap-1">
-                                                <AlertCircle className="h-3 w-3" />
-                                                Rejeitado
-                                            </Badge>
-                                        ) : getApprovalIcon(task.approvalStatus)}
+                              <Card className={`hover:shadow-md group relative ${snapshot.isDragging ? "shadow-lg" : ""}`} onClick={() => handleCardClick(task)}>
+                                <CardContent className="p-4 cursor-pointer">
+                                    <div className="flex items-start justify-between mb-2 gap-2">
+                                        <p className="font-semibold text-base pr-4">{task.title}</p>
+                                        {getApprovalBadge(task.approvalStatus)}
                                     </div>
                                     {task.description && 
                                         <p className="text-sm text-muted-foreground line-clamp-2">{task.description}</p>
@@ -394,7 +389,7 @@ export default function PontualTasks() {
                                 <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                      <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
                                                 <MoreHorizontal className="h-4 w-4" />
                                             </Button>
                                         </DropdownMenuTrigger>

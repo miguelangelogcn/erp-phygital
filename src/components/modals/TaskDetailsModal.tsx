@@ -53,7 +53,7 @@ const TaskDetailsModal = ({ task, isOpen, onClose, users, clients }: TaskDetails
         </DialogHeader>
         <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
           
-          {task.feedback && (
+          {task.approvalStatus === 'rejected' && task.feedback && (
             <Alert variant="destructive">
               <AlertTitle>Feedback de Rejeição</AlertTitle>
               <AlertDescription className="space-y-4">
