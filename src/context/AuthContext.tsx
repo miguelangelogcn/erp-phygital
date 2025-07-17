@@ -34,21 +34,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const userDocRef = doc(db, "users", user.uid);
           const teamsCollectionRef = collection(db, "teams");
 
-          const userDocPromise = getDoc(userDocRef);
+          // Query to check if the user is a leader of any team
           const teamQuery = query(teamsCollectionRef, where("leaderId", "==", user.uid));
-          const teamQueryPromise = getDocs(teamQuery);
           
-          const [userDocSnap, teamSnapshot] = await Promise.all([userDocPromise, teamQueryPromise]);
+          // Fetch user document and team leadership status in parallel
+          const [userDocSnap, teamSnapshot] = await Promise.all([
+            getDoc(userDocRef),
+            getDocs(teamQuery)
+          ]);
 
           if (userDocSnap.exists()) {
               const appUser = { id: userDocSnap.id, ...userDocSnap.data() } as AppUser;
-              appUser.isLeader = !teamSnapshot.empty; // User is a leader if they lead at least one team
+              // User is a leader if they lead at least one team
+              appUser.isLeader = !teamSnapshot.empty; 
               setUserData(appUser);
           } else {
             setError(new Error("Dados do usuário não encontrados no Firestore."));
             setUserData(null);
           }
         } catch (e: any) {
+          console.error("Error fetching user data:", e);
           setError(new Error("Falha ao buscar dados do usuário."));
           setUserData(null);
         }
