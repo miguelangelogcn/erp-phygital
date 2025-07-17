@@ -15,7 +15,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { Briefcase, Users, ListTodo } from "lucide-react";
+import { Briefcase, Users, ListTodo, Shield, UserSquare } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 export default function DashboardLayoutComponent({
@@ -25,6 +25,8 @@ export default function DashboardLayoutComponent({
 }) {
   const { userData } = useAuth();
   const canManageEmployees = userData?.permissions?.includes("manage_employees");
+  const canManageRoles = userData?.permissions?.includes("manage_roles");
+  const canManageTeams = userData?.permissions?.includes("manage_teams");
 
   return (
     <SidebarProvider>
@@ -43,6 +45,26 @@ export default function DashboardLayoutComponent({
                       <SidebarMenuButton>
                         <Users />
                         Gerenciar Funcionários
+                      </SidebarMenuButton>
+                    </Link>
+                  </SidebarMenuItem>
+                )}
+                {canManageRoles && (
+                  <SidebarMenuItem>
+                    <Link href="/dashboard/roles">
+                      <SidebarMenuButton>
+                        <Shield />
+                        Gerenciar Cargos
+                      </SidebarMenuButton>
+                    </Link>
+                  </SidebarMenuItem>
+                )}
+                 {canManageTeams && (
+                  <SidebarMenuItem>
+                    <Link href="/dashboard/teams">
+                      <SidebarMenuButton>
+                        <UserSquare />
+                        Gerenciar Equipas
                       </SidebarMenuButton>
                     </Link>
                   </SidebarMenuItem>

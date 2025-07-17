@@ -16,14 +16,16 @@ interface CreateUserData {
   name: string;
   email: string;
   password: string;
-  role: string;
+  roleId?: string;
+  teamId?: string;
   permissions?: string[];
 }
 
 interface UpdateUserData {
   uid: string;
   name: string;
-  role: string;
+  roleId?: string;
+  teamId?: string;
   permissions: string[];
 }
 
@@ -45,11 +47,11 @@ export const createUser = onCall(
     logger.info("Função 'createUser' chamada com os dados:", data);
 
     // Validação de dados de entrada
-    const { name, email, password, role, permissions } = data;
-    if (!name || !email || !password || !role) {
+    const { name, email, password, roleId, teamId, permissions } = data;
+    if (!name || !email || !password) {
       throw new HttpsError(
         "invalid-argument",
-        "Faltam dados essenciais (nome, email, senha, cargo)."
+        "Faltam dados essenciais (nome, email, senha)."
       );
     }
 
@@ -62,13 +64,18 @@ export const createUser = onCall(
       });
       logger.info(`Utilizador criado no Auth com UID: ${userRecord.uid}`);
 
-      logger.info(`A criar documento no Firestore para UID: ${userRecord.uid}`);
-      await db.collection("users").doc(userRecord.uid).set({
+      const userData: any = {
         name: name,
         email: email,
-        role: role,
-        permissions: permissions || [], // Usa as permissões recebidas ou um array vazio
-      });
+        permissions: permissions || [],
+      };
+
+      if (roleId) userData.roleId = roleId;
+      if (teamId) userData.teamId = teamId;
+
+
+      logger.info(`A criar documento no Firestore para UID: ${userRecord.uid}`);
+      await db.collection("users").doc(userRecord.uid).set(userData);
       logger.info("Documento criado no Firestore com sucesso.");
 
       return { success: true, message: "Utilizador criado com sucesso!", uid: userRecord.uid };
@@ -88,23 +95,27 @@ export const updateUser = onCall(
   { region: "southamerica-east1" },
   async (request) => {
     const data: UpdateUserData = request.data;
-    const { uid, name, role, permissions } = data;
+    const { uid, name, roleId, teamId, permissions } = data;
     logger.info(`A atualizar o utilizador: ${uid}`, data);
 
-    if (!uid || !name || !role || !Array.isArray(permissions)) {
+    if (!uid || !name || !Array.isArray(permissions)) {
       throw new HttpsError(
         "invalid-argument",
-        "Faltam dados essenciais (uid, nome, cargo, permissões)."
+        "Faltam dados essenciais (uid, nome, permissões)."
       );
     }
 
     try {
-      // Atualiza o documento no Firestore
-      await db.collection("users").doc(uid).update({
+      const updatePayload: any = {
         name: name,
-        role: role,
         permissions: permissions,
-      });
+      };
+
+      if (roleId) updatePayload.roleId = roleId;
+      if (teamId) updatePayload.teamId = teamId;
+      
+      // Atualiza o documento no Firestore
+      await db.collection("users").doc(uid).update(updatePayload);
 
       // Opcional: Atualiza também o nome no Firebase Auth
       await auth.updateUser(uid, { displayName: name });

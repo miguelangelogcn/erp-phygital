@@ -4,7 +4,13 @@
 import { useEffect, useState } from "react";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { getUsers } from "@/lib/firebase/services/users";
+import { getRoles } from "@/lib/firebase/services/roles";
+import { getTeams } from "@/lib/firebase/services/teams";
+
 import type { User } from "@/types/user";
+import type { Role } from "@/types/role";
+import type { Team } from "@/types/team";
+
 import {
   Table,
   TableBody,
@@ -59,10 +65,14 @@ const ALL_PERMISSIONS = [
   { id: "manage_clients", label: "Gerenciar Clientes" },
   { id: "manage_tasks", label: "Gerenciar Tarefas" },
   { id: "view_reports", label: "Ver Relatórios" },
+  { id: "manage_roles", label: "Gerenciar Cargos" },
+  { id: "manage_teams", label: "Gerenciar Equipas" },
 ];
 
 export default function EmployeesPage() {
   const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -77,18 +87,24 @@ export default function EmployeesPage() {
   const updateUserCallable = httpsCallable(functions, "updateUser");
   const deleteUserCallable = httpsCallable(functions, "deleteUser");
 
-  const fetchUsers = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const usersData = await getUsers();
+      const [usersData, rolesData, teamsData] = await Promise.all([
+          getUsers(),
+          getRoles(),
+          getTeams()
+      ]);
       setUsers(usersData);
+      setRoles(rolesData);
+      setTeams(teamsData);
       setError(null);
     } catch (err) {
-      setError("Falha ao buscar funcionários. Tente novamente mais tarde.");
+      setError("Falha ao buscar dados. Tente novamente mais tarde.");
       toast({
         variant: "destructive",
-        title: "Erro ao buscar funcionários",
-        description: "Ocorreu um erro ao carregar a lista de funcionários.",
+        title: "Erro ao buscar dados",
+        description: "Ocorreu um erro ao carregar os dados necessários.",
       });
     } finally {
       setLoading(false);
@@ -96,7 +112,7 @@ export default function EmployeesPage() {
   };
 
   useEffect(() => {
-    fetchUsers();
+    fetchData();
   }, []);
 
   const handleOpenModalForCreate = () => {
@@ -121,33 +137,30 @@ export default function EmployeesPage() {
     const formData = new FormData(e.currentTarget);
     const data: any = Object.fromEntries(formData.entries());
 
-    // Collect permissions from checkboxes
     const permissions = ALL_PERMISSIONS.map(p => p.id).filter(id => formData.has(id));
-    data.permissions = permissions;
-
+    
+    const payload = {
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        roleId: data.roleId,
+        teamId: data.teamId,
+        permissions: permissions
+    }
 
     try {
       if (editingUser) {
-        // Update existing user
-        const result: any = await updateUserCallable({
-          uid: editingUser.id,
-          name: data.name,
-          role: data.role,
-          permissions: data.permissions
-        });
+        const updatePayload = { uid: editingUser.id, ...payload };
+        delete updatePayload.password; // Don't send password on update
+        delete updatePayload.email; // Don't send email on update
+
+        const result: any = await updateUserCallable(updatePayload);
         toast({
           title: "Sucesso!",
           description: result.data.message,
         });
       } else {
-        // Create new user, including permissions
-        const result: any = await createUserCallable({
-          name: data.name,
-          email: data.email,
-          password: data.password,
-          role: data.role,
-          permissions: data.permissions
-        });
+        const result: any = await createUserCallable(payload);
         toast({
           title: "Sucesso!",
           description: result.data.message,
@@ -156,7 +169,7 @@ export default function EmployeesPage() {
 
       setIsModalOpen(false);
       setEditingUser(null);
-      await fetchUsers(); // Re-fetch users to update the table
+      await fetchData(); 
     } catch (err: any) {
       console.error("Erro ao chamar a função:", err);
       toast({
@@ -179,7 +192,7 @@ export default function EmployeesPage() {
         title: "Sucesso!",
         description: result.data.message,
       });
-      await fetchUsers(); // Refresh the user list
+      await fetchData();
     } catch (err: any) {
       console.error("Erro ao excluir o funcionário:", err);
       toast({
@@ -194,8 +207,10 @@ export default function EmployeesPage() {
     }
   };
 
+  const getRoleName = (roleId?: string) => roles.find(r => r.id === roleId)?.name || 'N/A';
+
   return (
-    <main className="p-4">
+    <main className="p-4 md:p-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
@@ -234,7 +249,7 @@ export default function EmployeesPage() {
                           {user.name}
                         </TableCell>
                         <TableCell>{user.email}</TableCell>
-                        <TableCell>{user.role}</TableCell>
+                        <TableCell>{getRoleName(user.roleId)}</TableCell>
                         <TableCell className="flex items-center gap-2">
                           <Button
                             variant="ghost"
@@ -284,60 +299,39 @@ export default function EmployeesPage() {
           <form onSubmit={handleFormSubmit}>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">
-                  Nome
-                </Label>
-                <Input
-                  id="name"
-                  name="name"
-                  placeholder="Nome Completo"
-                  className="col-span-3"
-                  defaultValue={editingUser?.name || ""}
-                  required
-                />
+                <Label htmlFor="name" className="text-right">Nome</Label>
+                <Input id="name" name="name" placeholder="Nome Completo" className="col-span-3" defaultValue={editingUser?.name || ""} required />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="email" className="text-right">
-                  Email
-                </Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="email@empresa.com"
-                  className="col-span-3"
-                  defaultValue={editingUser?.email || ""}
-                  disabled={!!editingUser} // Desabilita edição de email
-                  required
-                />
+                <Label htmlFor="email" className="text-right">Email</Label>
+                <Input id="email" name="email" type="email" placeholder="email@empresa.com" className="col-span-3" defaultValue={editingUser?.email || ""} disabled={!!editingUser} required />
               </div>
               {!editingUser && (
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="password" className="text-right">
-                    Senha
-                  </Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    placeholder="Senha Provisória"
-                    className="col-span-3"
-                    required
-                  />
+                  <Label htmlFor="password" className="text-right">Senha</Label>
+                  <Input id="password" name="password" type="password" placeholder="Senha Provisória" className="col-span-3" required />
                 </div>
               )}
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="role" className="text-right">
-                  Cargo
-                </Label>
-                <Select name="role" defaultValue={editingUser?.role} required>
+                <Label htmlFor="roleId" className="text-right">Cargo</Label>
+                <Select name="roleId" defaultValue={editingUser?.roleId}>
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Selecione o cargo" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Admin">Admin</SelectItem>
-                    <SelectItem value="Manager">Manager</SelectItem>
-                    <SelectItem value="Employee">Employee</SelectItem>
+                    {roles.map(role => <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="teamId" className="text-right">Equipa</Label>
+                <Select name="teamId" defaultValue={editingUser?.teamId}>
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Selecione a equipa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                     <SelectItem value="">Nenhuma</SelectItem>
+                     {teams.map(team => <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -345,7 +339,7 @@ export default function EmployeesPage() {
               <Separator className="my-2" />
 
               <div className="grid grid-cols-4 items-start gap-4">
-                  <Label className="text-right pt-2">Permissões</Label>
+                  <Label className="text-right pt-2">Permissões Individuais</Label>
                   <div className="col-span-3 grid gap-2">
                     {ALL_PERMISSIONS.map((permission) => (
                        <div key={permission.id} className="flex items-center space-x-2">
@@ -362,18 +356,9 @@ export default function EmployeesPage() {
 
             </div>
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsModalOpen(false)}
-                disabled={isSubmitting}
-              >
-                Cancelar
-              </Button>
+              <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} disabled={isSubmitting}>Cancelar</Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Salvar
               </Button>
             </DialogFooter>
