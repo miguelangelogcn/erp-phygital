@@ -135,8 +135,15 @@ export default function RecurringTasks() {
   const handleSaveTask = async (data: Partial<RecurringTask>) => {
     if (!editingTask) return;
     setIsSubmitting(true);
+    
+    let updateData = { ...data };
+    // If the task was rejected, saving it again should send it back for approval.
+    if (editingTask.approvalStatus === 'rejected') {
+      updateData.approvalStatus = 'pending';
+    }
+
     try {
-        await updateRecurringTask(editingTask.id, data);
+        await updateRecurringTask(editingTask.id, updateData);
         toast({ title: "Sucesso!", description: "Tarefa recorrente atualizada." });
         handleCloseModal();
     } catch (error) {
@@ -253,7 +260,7 @@ export default function RecurringTasks() {
                     <Card
                       key={task.id}
                       className={cn(
-                          "p-3 transition-shadow hover:shadow-md",
+                          "p-3 transition-shadow hover:shadow-md cursor-pointer",
                           task.isCompleted && "bg-muted/50"
                       )}
                       onClick={() => handleCardClick(task)}
@@ -268,7 +275,7 @@ export default function RecurringTasks() {
                             }}
                             className="mt-1"
                           />
-                        <div className="flex-1 cursor-pointer">
+                        <div className="flex-1">
                             <div className="flex items-start justify-between gap-2">
                                 <p className={cn(
                                     "font-semibold pr-2",

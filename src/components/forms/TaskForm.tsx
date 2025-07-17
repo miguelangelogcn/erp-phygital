@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import type { Task, NewTask, ChecklistItem } from "@/types/task";
 import type { SelectOption } from "@/types/common";
 import { Alert, AlertTitle, AlertDescription } from "../ui/alert";
+import { Separator } from "../ui/separator";
 
 interface TaskFormProps {
   task?: Task | null;
@@ -77,7 +78,7 @@ const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, 
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-4">
              {task?.approvalStatus === 'rejected' && task.feedback && (
-                <Alert variant="destructive">
+                <Alert variant="destructive" className="mb-6">
                     <AlertTitle className="mb-2">Histórico de Feedback</AlertTitle>
                     <AlertDescription className="space-y-4">
                         <div>
@@ -107,6 +108,7 @@ const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, 
                             </div>
                         )}
                     </AlertDescription>
+                    <Separator className="my-4 bg-destructive/30"/>
                 </Alert>
             )}
 

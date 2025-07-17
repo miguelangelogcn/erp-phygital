@@ -13,6 +13,7 @@ import { MultiSelect } from "@/components/ui/multi-select";
 import type { RecurringTask, NewRecurringTask, DayOfWeekNumber, RecurringChecklistItem } from "@/types/recurringTask";
 import type { SelectOption } from "@/types/common";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { Separator } from "../ui/separator";
 
 interface RecurringTaskFormProps {
   task?: RecurringTask | null;
@@ -82,19 +83,20 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-4">
              {task?.approvalStatus === 'rejected' && task.feedback && (
-                <Alert variant="destructive">
-                    <AlertTitle>Feedback de Rejeição</AlertTitle>
+                <Alert variant="destructive" className="mb-6">
+                    <AlertTitle className="mb-2">Histórico de Feedback</AlertTitle>
                     <AlertDescription className="space-y-4">
-                        <p className="text-sm">
-                            <strong>Notas:</strong> {task.feedback.notes}
-                        </p>
+                        <div>
+                            <p className="text-sm font-semibold">Observações:</p>
+                            <p className="text-sm">{task.feedback.notes}</p>
+                        </div>
                         {task.feedback.files && task.feedback.files.length > 0 && (
                             <div>
-                                <strong>Ficheiros:</strong>
+                                <p className="text-sm font-semibold">Ficheiros:</p>
                                 <ul className="list-disc list-inside">
                                     {task.feedback.files.map((file, index) => (
                                         <li key={index}>
-                                            <a href={file.url} target="_blank" rel="noopener noreferrer" className="underline flex items-center gap-1">
+                                            <a href={file.url} target="_blank" rel="noopener noreferrer" className="underline flex items-center gap-1 text-sm">
                                                 <FileText className="h-4 w-4" /> {file.name}
                                             </a>
                                         </li>
@@ -104,13 +106,14 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
                         )}
                          {task.feedback.audioUrl && (
                              <div>
-                                <strong>Áudio:</strong>
+                                <p className="text-sm font-semibold">Áudio:</p>
                                 <audio controls src={task.feedback.audioUrl} className="w-full mt-1">
                                     O seu navegador não suporta o elemento de áudio.
                                 </audio>
                             </div>
                         )}
                     </AlertDescription>
+                     <Separator className="my-4 bg-destructive/30"/>
                 </Alert>
             )}
 

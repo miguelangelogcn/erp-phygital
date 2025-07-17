@@ -228,6 +228,7 @@ export default function PontualTasks() {
     setIsSubmitting(true);
     
     let updateData = { ...data };
+    // If the task was rejected, saving it again should send it back for approval.
     if (editingTask.approvalStatus === 'rejected') {
       updateData.approvalStatus = 'pending';
     }
