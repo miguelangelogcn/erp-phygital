@@ -264,11 +264,11 @@ export const reviewTask = onCall(
     const approverId = request.auth?.uid;
 
     if (!approverId) {
-      throw new HttpsError("unauthenticated", "O utilizador deve estar autenticado.");
+      throw new HttpsError("unauthenticated", "O utilizador deve estar autenticado para rever tarefas.");
     }
 
-    if (!taskId || !taskType || !decision) {
-      throw new HttpsError("invalid-argument", "Faltam dados essenciais.");
+    if (!taskId || !taskType || (decision !== 'approved' && decision !== 'rejected')) {
+      throw new HttpsError("invalid-argument", "Faltam dados essenciais ou a decisão é inválida.");
     }
 
     const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
@@ -276,23 +276,19 @@ export const reviewTask = onCall(
 
     try {
       const updateData: any = {
-        approvalStatus: decision, // 'approved' ou 'rejected'
-        reviewedBy: approverId,
-        reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+        approvalStatus: decision,
+        approverId: approverId,
       };
 
-      // Se a tarefa for aprovada, marque-a como concluída
       if (decision === 'approved') {
         if (collectionName === 'tasks') {
           updateData.status = 'done';
-          updateData.completedAt = admin.firestore.FieldValue.serverTimestamp();
-        } else { // recurringTasks
+        } else {
           updateData.isCompleted = true;
         }
       }
 
       await taskRef.update(updateData);
-
       return { success: true, message: "Revisão da tarefa concluída." };
 
     } catch (error: any) {
