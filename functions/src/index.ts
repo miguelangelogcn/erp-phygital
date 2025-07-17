@@ -38,22 +38,24 @@ interface DeleteTaskData {
 }
 
 interface SubmitForApprovalData {
-    taskId: string;
-    taskType: 'tasks' | 'recurringTasks';
-    proofs: { url: string; name: string }[];
-    notes: string;
+  taskId: string;
+  taskType: "tasks" | "recurringTasks";
+  proofs: { url: string; name: string }[];
+  notes: string;
 }
 
+interface ReviewTaskData {
+  taskId: string;
+  taskType: "tasks" | "recurringTasks";
+  decision: "approved" | "rejected";
+}
 
 export const createUser = onCall(
-  // Define a região e outras opções aqui
   { region: "southamerica-east1" },
   async (request) => {
-    // Tipa os dados recebidos
     const data: CreateUserData = request.data;
     logger.info("Função 'createUser' chamada com os dados:", data);
 
-    // Validação de dados de entrada
     const { name, email, password, roleId, teamId, permissions } = data;
     if (!name || !email || !password) {
       throw new HttpsError(
@@ -125,10 +127,8 @@ export const updateUser = onCall(
         updatePayload.teamId = admin.firestore.FieldValue.delete();
       }
       
-      // Atualiza o documento no Firestore
       await db.collection("users").doc(uid).update(updatePayload);
 
-      // Opcional: Atualiza também o nome no Firebase Auth
       await auth.updateUser(uid, { displayName: name });
 
       logger.info(`Utilizador ${uid} atualizado com sucesso.`);
@@ -153,11 +153,9 @@ export const deleteUser = onCall(
     }
 
     try {
-      // Exclui o utilizador do Firebase Authentication
       await auth.deleteUser(uid);
       logger.info(`Utilizador ${uid} excluído do Auth.`);
 
-      // Exclui o documento do utilizador do Firestore
       await db.collection("users").doc(uid).delete();
       logger.info(`Documento do utilizador ${uid} excluído do Firestore.`);
 
@@ -229,6 +227,46 @@ export const submitTaskForApproval = onCall(
   }
 );
 
+export const reviewTask = onCall(
+  { region: "southamerica-east1" },
+  async (request) => {
+    const { taskId, taskType, decision } = request.data as ReviewTaskData;
+    const approverId = request.auth?.uid;
+
+    if (!approverId) {
+      throw new HttpsError("unauthenticated", "O utilizador deve estar autenticado para rever tarefas.");
+    }
+
+    if (!taskId || !taskType || (decision !== 'approved' && decision !== 'rejected')) {
+      throw new HttpsError("invalid-argument", "Faltam dados essenciais ou a decisão é inválida.");
+    }
+
+    const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
+    const taskRef = db.collection(collectionName).doc(taskId);
+
+    try {
+      const updateData: any = {
+        approvalStatus: decision,
+        approverId: approverId,
+      };
+
+      if (decision === 'approved') {
+        if (collectionName === 'tasks') {
+          updateData.status = 'done';
+        } else {
+          updateData.isCompleted = true;
+        }
+      }
+
+      await taskRef.update(updateData);
+      return { success: true, message: "Revisão da tarefa concluída." };
+
+    } catch (error: any) {
+      logger.error(`Erro ao rever a tarefa ${taskId}:`, error);
+      throw new HttpsError("internal", "Ocorreu um erro ao processar a sua revisão.");
+    }
+  }
+);
 
 export const resetRecurringTasks = onSchedule(
   {
