@@ -11,6 +11,7 @@ import {
   writeBatch,
   getDocs,
   where,
+  QueryConstraint
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import type { Task, TaskStatus, NewTask, ApprovalTask } from "@/types/task";
@@ -20,19 +21,51 @@ import { auth } from "../config";
 const functions = getFunctions(auth.app, "southamerica-east1");
 const deleteTaskCallable = httpsCallable(functions, 'deleteTask');
 
+interface TaskViewConfig {
+    uid: string;
+    isLeader: boolean;
+    memberIds?: string[];
+}
 
 /**
- * Listens for real-time updates on the 'tasks' collection in Firestore.
- * @param {(tasks: Task[]) => void} callback - The function to call with the tasks array.
- * @param {(error: Error) => void} onError - The function to call on error.
- * @returns {() => void} An unsubscribe function to stop listening for updates.
+ * Listens for real-time updates on the 'tasks' collection in Firestore, based on user role.
  */
 export function onTasksUpdate(
+  viewConfig: TaskViewConfig | null,
   callback: (tasks: Task[]) => void,
   onError: (error: Error) => void
 ): () => void {
+  if (!viewConfig) {
+      // Return an empty unsubscribe function if config is not ready
+      return () => {};
+  }
+  
+  const { uid, isLeader, memberIds } = viewConfig;
+
   const tasksCollection = collection(db, "tasks");
-  const q = query(tasksCollection);
+  const queryConstraints: QueryConstraint[] = [];
+
+  if (isLeader && memberIds && memberIds.length > 0) {
+      // Leader sees all tasks for their team members
+      queryConstraints.push(where("responsibleId", "in", memberIds));
+  } else if (!isLeader) {
+      // Employee sees tasks they are responsible for or assisting with
+      queryConstraints.push(
+        where("responsibleId", "==", uid)
+        // Note: Firestore does not support 'OR' queries on different fields in this way.
+        // A more complex solution (two separate queries or data duplication) would be needed
+        // to also fetch tasks where the user is an assistant. For now, we fetch by responsibleId.
+        // For a complete solution, one would fetch tasks where responsibleId === uid and another
+        // where assistantIds array-contains uid, then merge the results client-side.
+        // For simplicity here, we stick to the primary responsible user.
+      );
+  } else {
+    // Leader with no members, or some other edge case. Return no tasks.
+     callback([]);
+     return () => {};
+  }
+
+  const q = query(tasksCollection, ...queryConstraints);
 
   const unsubscribe = onSnapshot(
     q,

@@ -8,6 +8,8 @@ import { auth, db } from "@/lib/firebase/config";
 import type { User as FirebaseUser } from "firebase/auth";
 import type { User as AppUser } from "@/types/user";
 import { Loader2 } from "lucide-react";
+import type { Team } from "@/types/team";
+
 
 interface AuthContextType {
   user: FirebaseUser | null;
@@ -34,10 +36,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const userDocRef = doc(db, "users", user.uid);
           const teamsCollectionRef = collection(db, "teams");
 
-          // Query to check if the user is a leader of any team
           const teamQuery = query(teamsCollectionRef, where("leaderId", "==", user.uid));
           
-          // Fetch user document and team leadership status in parallel
           const [userDocSnap, teamSnapshot] = await Promise.all([
             getDoc(userDocRef),
             getDocs(teamQuery)
@@ -45,8 +45,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
           if (userDocSnap.exists()) {
               const appUser = { id: userDocSnap.id, ...userDocSnap.data() } as AppUser;
-              // User is a leader if they lead at least one team
-              appUser.isLeader = !teamSnapshot.empty; 
+              
+              if (!teamSnapshot.empty) {
+                appUser.isLeader = true;
+                const myTeam = teamSnapshot.docs[0].data() as Team;
+                // Include the leader in the list of members for filtering purposes
+                appUser.teamMemberIds = [...new Set([myTeam.leaderId, ...myTeam.memberIds])];
+              } else {
+                appUser.isLeader = false;
+              }
               setUserData(appUser);
           } else {
             setError(new Error("Dados do usuário não encontrados no Firestore."));

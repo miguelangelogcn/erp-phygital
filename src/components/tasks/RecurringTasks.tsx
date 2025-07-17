@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useAuth } from "@/context/AuthContext";
 import { onRecurringTasksUpdate, updateRecurringTask, deleteRecurringTask, updateRecurringTaskChecklist, updateRecurringTaskCompletion } from "@/lib/firebase/services/recurringTasks";
 import { getUsers } from "@/lib/firebase/services/users";
 import { getClients } from "@/lib/firebase/services/clients";
@@ -21,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 
 import type { RecurringTask, RecurringChecklistItem } from "@/types/recurringTask";
 import type { SelectOption } from "@/types/common";
+import type { User } from "@/types/user";
 import { cn } from "@/lib/utils";
 import { SubmitForApprovalModal } from "../modals/SubmitForApprovalModal";
 
@@ -41,6 +43,7 @@ const initialDays: DayColumn[] = [
 ];
 
 export default function RecurringTasks() {
+  const { userData } = useAuth();
   const [allTasks, setAllTasks] = useState<RecurringTask[]>([]);
   const [dayColumns, setDayColumns] = useState<DayColumn[]>(initialDays);
   const [loading, setLoading] = useState(true);
@@ -51,25 +54,46 @@ export default function RecurringTasks() {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [users, setUsers] = useState<SelectOption[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [clients, setClients] = useState<SelectOption[]>([]);
   const { toast } = useToast();
 
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  
+  const userOptions = useMemo(() => {
+    if (userData?.isLeader && userData.teamMemberIds) {
+      // For leaders, show only their team members
+      return users
+        .filter(u => userData.teamMemberIds?.includes(u.id))
+        .map(u => ({ value: u.id, label: u.name }));
+    }
+    // For regular users, the filter is not shown
+    return [];
+  }, [users, userData]);
+
 
   useEffect(() => {
     const fetchData = async () => {
         try {
             const [usersData, clientsData] = await Promise.all([getUsers(), getClients()]);
-            setUsers(usersData.map(u => ({ value: u.id, label: u.name })));
+            setUsers(usersData);
             setClients(clientsData.map(c => ({ value: c.id, label: c.name })));
         } catch (error) {
             toast({ variant: "destructive", title: "Erro ao carregar dados", description: "Não foi possível buscar usuários ou clientes." });
         }
     };
     fetchData();
+  }, [toast]);
+  
+  useEffect(() => {
+    const viewConfig = userData ? { 
+      uid: userData.id, 
+      isLeader: !!userData.isLeader, 
+      memberIds: userData.teamMemberIds 
+    } : null;
 
     const unsubscribe = onRecurringTasksUpdate(
+      viewConfig,
       (tasks) => {
         setAllTasks(tasks);
         setLoading(false);
@@ -81,17 +105,20 @@ export default function RecurringTasks() {
     );
 
     return () => unsubscribe();
-  }, [toast]);
+  }, [toast, userData]);
 
   const filteredTasks = useMemo(() => {
-    return allTasks.filter(task => {
-        const employeeMatch = selectedEmployees.length === 0 || 
-            selectedEmployees.includes(task.responsibleId || "") || 
-            task.assistantIds?.some(id => selectedEmployees.includes(id));
-        
-        return employeeMatch;
-    });
-  }, [allTasks, selectedEmployees]);
+     if (userData?.isLeader) {
+        return allTasks.filter(task => {
+            const employeeMatch = selectedEmployees.length === 0 || 
+                selectedEmployees.includes(task.responsibleId || "") || 
+                task.assistantIds?.some(id => selectedEmployees.includes(id));
+            
+            return employeeMatch;
+        });
+     }
+     return allTasks;
+  }, [allTasks, selectedEmployees, userData?.isLeader]);
 
   useEffect(() => {
       const newDayColumns: DayColumn[] = JSON.parse(JSON.stringify(initialDays));
@@ -138,7 +165,6 @@ export default function RecurringTasks() {
     
     const updateData = { ...data };
     
-    // Se a tarefa foi rejeitada, enviá-la novamente para aprovação.
     if (editingTask.approvalStatus === 'rejected') {
       updateData.approvalStatus = 'pending';
     }
@@ -184,7 +210,6 @@ export default function RecurringTasks() {
   }
 
   const handleToggleCompletion = async (task: RecurringTask) => {
-      // If task requires approval and isn't approved yet, open submission modal instead
       if (task.approvalRequired && task.approvalStatus !== 'approved') {
           if (task.checklist && !task.checklist.every(item => item.isCompleted)) {
               toast({
@@ -197,7 +222,6 @@ export default function RecurringTasks() {
           setTaskForApproval(task);
           setIsApprovalModalOpen(true);
       } else {
-        // Otherwise, just toggle completion
         try {
             await updateRecurringTaskCompletion(task.id, !task.isCompleted);
         } catch (error) {
@@ -227,26 +251,28 @@ export default function RecurringTasks() {
         </CreateRecurringTaskModal>
       </div>
 
-       <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Filtros</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col md:flex-row gap-4 items-center">
-            <div className="flex-1 w-full">
-                <MultiSelect
-                    options={users}
-                    selected={selectedEmployees}
-                    onChange={setSelectedEmployees as any}
-                    placeholder="Filtrar por funcionários..."
-                    className="w-full"
-                />
-            </div>
-            <Button variant="ghost" onClick={clearFilters}>
-                <X className="mr-2 h-4 w-4" />
-                Limpar Filtros
-            </Button>
-        </CardContent>
-      </Card>
+       {userData?.isLeader && (
+        <Card className="mb-6">
+            <CardHeader>
+                <CardTitle>Filtros</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col md:flex-row gap-4 items-center">
+                <div className="flex-1 w-full">
+                    <MultiSelect
+                        options={userOptions}
+                        selected={selectedEmployees}
+                        onChange={setSelectedEmployees as any}
+                        placeholder="Filtrar por funcionários..."
+                        className="w-full"
+                    />
+                </div>
+                <Button variant="ghost" onClick={clearFilters}>
+                    <X className="mr-2 h-4 w-4" />
+                    Limpar Filtros
+                </Button>
+            </CardContent>
+        </Card>
+       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4 items-start">
         {dayColumns.map((column) => (
@@ -309,7 +335,7 @@ export default function RecurringTasks() {
           {editingTask && (
              <RecurringTaskForm
                 task={editingTask}
-                users={users}
+                users={userOptions}
                 clients={clients}
                 onSave={handleSaveTask}
                 onCancel={handleCloseModal}

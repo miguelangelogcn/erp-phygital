@@ -36,11 +36,14 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 
+import { useAuth } from "@/context/AuthContext";
 import { onTasksUpdate, updateTask, deleteTask as deleteTaskService, updateTaskStatusAndOrder } from "@/lib/firebase/services/tasks";
 import { getUsers } from "@/lib/firebase/services/users";
 import { getClients } from "@/lib/firebase/services/clients";
 import type { Task, TaskStatus } from "@/types/task";
 import type { SelectOption } from "@/types/common";
+import type { User } from "@/types/user";
+
 
 import TaskForm from "@/components/forms/TaskForm";
 import { CreateTaskModal } from "@/components/modals/CreateTaskModal";
@@ -64,10 +67,11 @@ const initialColumns: Columns = {
 }
 
 export default function PontualTasks() {
+  const { userData } = useAuth();
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [columns, setColumns] = useState<Columns>(initialColumns);
   const [loading, setLoading] = useState(true);
-  const [users, setUsers] = useState<SelectOption[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [clients, setClients] = useState<SelectOption[]>([]);
   const { toast } = useToast();
 
@@ -89,46 +93,71 @@ export default function PontualTasks() {
       onConfirm: () => void;
   } | null>(null);
 
+  const userOptions = useMemo(() => {
+    if (userData?.isLeader && userData.teamMemberIds) {
+      // For leaders, show only their team members
+      return users
+        .filter(u => userData.teamMemberIds?.includes(u.id))
+        .map(u => ({ value: u.id, label: u.name }));
+    }
+    // For regular users, the filter is not shown, but we can default to all users
+    return users.map(u => ({ value: u.id, label: u.name }));
+  }, [users, userData]);
+  
   useEffect(() => {
-    const fetchDataForModals = async () => {
+    const fetchAuxiliaryData = async () => {
         try {
             const [usersData, clientsData] = await Promise.all([getUsers(), getClients()]);
-            setUsers(usersData.map(u => ({ value: u.id, label: u.name })));
+            setUsers(usersData);
             setClients(clientsData.map(c => ({ value: c.id, label: c.name })));
         } catch (error) {
             toast({ variant: "destructive", title: "Erro ao carregar dados", description: "Não foi possível buscar usuários ou clientes." });
         }
     };
-    fetchDataForModals();
-
-    const unsubscribe = onTasksUpdate(
-      (tasks) => {
-        setAllTasks(tasks);
-        setLoading(false);
-      },
-      (error) => {
-        setLoading(false);
-        toast({ variant: "destructive", title: "Erro ao carregar tarefas", description: "Não foi possível buscar as tarefas." });
-      }
-    );
-
-    return () => unsubscribe();
+    fetchAuxiliaryData();
   }, [toast]);
+
+  useEffect(() => {
+      const viewConfig = userData ? { 
+        uid: userData.id, 
+        isLeader: !!userData.isLeader, 
+        memberIds: userData.teamMemberIds 
+      } : null;
+
+      const unsubscribe = onTasksUpdate(
+        viewConfig,
+        (tasks) => {
+          setAllTasks(tasks);
+          setLoading(false);
+        },
+        (error) => {
+          setLoading(false);
+          toast({ variant: "destructive", title: "Erro ao carregar tarefas", description: "Não foi possível buscar as tarefas." });
+        }
+      );
+
+      return () => unsubscribe();
+  }, [toast, userData]);
+
 
   const filteredTasks = useMemo(() => {
     return allTasks.filter(task => {
-        const employeeMatch = selectedEmployees.length === 0 || 
-            selectedEmployees.includes(task.responsibleId || "") || 
-            task.assistantIds?.some(id => selectedEmployees.includes(id));
+        // Leader-specific filters
+        if (userData?.isLeader) {
+          const employeeMatch = selectedEmployees.length === 0 || 
+              selectedEmployees.includes(task.responsibleId || "") || 
+              task.assistantIds?.some(id => selectedEmployees.includes(id));
 
-        const dateMatch = !dateRange || !dateRange.from || !task.dueDate || (
-            task.dueDate.toDate() >= dateRange.from &&
-            task.dueDate.toDate() <= (dateRange.to || dateRange.from)
-        );
-        
-        return employeeMatch && dateMatch;
+          const dateMatch = !dateRange || !dateRange.from || !task.dueDate || (
+              task.dueDate.toDate() >= dateRange.from &&
+              task.dueDate.toDate() <= (dateRange.to || dateRange.from)
+          );
+          return employeeMatch && dateMatch;
+        }
+        // If not a leader, all fetched tasks are relevant, so no client-side filtering needed
+        return true;
     });
-  }, [allTasks, selectedEmployees, dateRange]);
+  }, [allTasks, selectedEmployees, dateRange, userData?.isLeader]);
 
   useEffect(() => {
     const newColumns: Columns = {
@@ -229,7 +258,6 @@ export default function PontualTasks() {
     
     const updateData = { ...data };
     
-    // Se a tarefa foi rejeitada, enviá-la novamente para aprovação.
     if (editingTask.approvalStatus === 'rejected') {
       updateData.approvalStatus = 'pending';
     }
@@ -280,65 +308,67 @@ export default function PontualTasks() {
             </CreateTaskModal>
         </div>
 
-       <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Filtros</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-                <MultiSelect
-                    options={users}
-                    selected={selectedEmployees}
-                    onChange={setSelectedEmployees as any}
-                    placeholder="Filtrar por funcionários..."
-                    className="w-full"
-                />
-            </div>
-            <div className="flex-1">
-                <Popover>
-                    <PopoverTrigger asChild>
-                    <Button
-                        id="date"
-                        variant={"outline"}
-                        className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !dateRange && "text-muted-foreground"
-                        )}
-                    >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateRange?.from ? (
-                        dateRange.to ? (
-                            <>
-                            {format(dateRange.from, "LLL dd, y", { locale: ptBR })} -{" "}
-                            {format(dateRange.to, "LLL dd, y", { locale: ptBR })}
-                            </>
-                        ) : (
-                            format(dateRange.from, "LLL dd, y", { locale: ptBR })
-                        )
-                        ) : (
-                        <span>Selecione um intervalo de datas</span>
-                        )}
-                    </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                        initialFocus
-                        mode="range"
-                        defaultMonth={dateRange?.from}
-                        selected={dateRange}
-                        onSelect={setDateRange}
-                        numberOfMonths={2}
-                        locale={ptBR}
+       {userData?.isLeader && (
+        <Card className="mb-6">
+            <CardHeader>
+            <CardTitle>Filtros</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1">
+                    <MultiSelect
+                        options={userOptions}
+                        selected={selectedEmployees}
+                        onChange={setSelectedEmployees as any}
+                        placeholder="Filtrar por funcionários..."
+                        className="w-full"
                     />
-                    </PopoverContent>
-                </Popover>
-            </div>
-            <Button variant="ghost" onClick={clearFilters}>
-                <X className="mr-2 h-4 w-4" />
-                Limpar Filtros
-            </Button>
-        </CardContent>
-      </Card>
+                </div>
+                <div className="flex-1">
+                    <Popover>
+                        <PopoverTrigger asChild>
+                        <Button
+                            id="date"
+                            variant={"outline"}
+                            className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !dateRange && "text-muted-foreground"
+                            )}
+                        >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {dateRange?.from ? (
+                            dateRange.to ? (
+                                <>
+                                {format(dateRange.from, "LLL dd, y", { locale: ptBR })} -{" "}
+                                {format(dateRange.to, "LLL dd, y", { locale: ptBR })}
+                                </>
+                            ) : (
+                                format(dateRange.from, "LLL dd, y", { locale: ptBR })
+                            )
+                            ) : (
+                            <span>Selecione um intervalo de datas</span>
+                            )}
+                        </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                            initialFocus
+                            mode="range"
+                            defaultMonth={dateRange?.from}
+                            selected={dateRange}
+                            onSelect={setDateRange}
+                            numberOfMonths={2}
+                            locale={ptBR}
+                        />
+                        </PopoverContent>
+                    </Popover>
+                </div>
+                <Button variant="ghost" onClick={clearFilters}>
+                    <X className="mr-2 h-4 w-4" />
+                    Limpar Filtros
+                </Button>
+            </CardContent>
+        </Card>
+       )}
 
 
       <DragDropContext onDragEnd={onDragEnd}>
@@ -386,7 +416,7 @@ export default function PontualTasks() {
           {editingTask && (
             <TaskForm
               task={editingTask}
-              users={users}
+              users={userOptions}
               clients={clients}
               onSave={handleUpdateTask}
               onCancel={() => { setIsEditModalOpen(false); setEditingTask(null); }}

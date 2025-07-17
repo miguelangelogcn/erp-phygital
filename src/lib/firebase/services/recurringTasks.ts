@@ -9,6 +9,8 @@ import {
   addDoc,
   deleteDoc,
   writeBatch,
+  where,
+  QueryConstraint
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import type {
@@ -18,15 +20,42 @@ import type {
   RecurringChecklistItem,
 } from "@/types/recurringTask";
 
+interface TaskViewConfig {
+    uid: string;
+    isLeader: boolean;
+    memberIds?: string[];
+}
+
 /**
- * Listens for real-time updates on the 'recurringTasks' collection.
+ * Listens for real-time updates on the 'recurringTasks' collection, based on user role.
  */
 export function onRecurringTasksUpdate(
+  viewConfig: TaskViewConfig | null,
   callback: (tasks: RecurringTask[]) => void,
   onError: (error: Error) => void
 ): () => void {
+   if (!viewConfig) {
+      // Return an empty unsubscribe function if config is not ready
+      return () => {};
+  }
+  
+  const { uid, isLeader, memberIds } = viewConfig;
+
   const tasksCollection = collection(db, "recurringTasks");
-  const q = query(tasksCollection);
+  const queryConstraints: QueryConstraint[] = [];
+
+  if (isLeader && memberIds && memberIds.length > 0) {
+      // Leader sees all tasks for their team members
+      queryConstraints.push(where("responsibleId", "in", memberIds));
+  } else if (!isLeader) {
+      // Employee sees tasks they are responsible for
+      queryConstraints.push(where("responsibleId", "==", uid));
+  } else {
+      callback([]);
+      return () => {};
+  }
+
+  const q = query(tasksCollection, ...queryConstraints);
 
   const unsubscribe = onSnapshot(
     q,

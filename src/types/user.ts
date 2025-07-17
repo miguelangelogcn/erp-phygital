@@ -6,4 +6,5 @@ export interface User {
   teamId?: string; // Adicionado teamId
   permissions?: string[];
   isLeader?: boolean;
+  teamMemberIds?: string[];
 }
