@@ -139,25 +139,19 @@ export default function EmployeesPage() {
 
     const permissions = ALL_PERMISSIONS.map(p => p.id).filter(id => formData.has(id));
     
-    const payload: any = {
-        name: data.name,
-        email: data.email,
-        password: data.password,
-        roleId: data.roleId,
-        teamId: data.teamId,
-        permissions: permissions
-    }
-    
-    if (payload.teamId === 'none') {
-        delete payload.teamId;
-    }
-
-
     try {
       if (editingUser) {
-        const updatePayload = { uid: editingUser.id, ...payload };
-        delete updatePayload.password; // Don't send password on update
-        delete updatePayload.email; // Don't send email on update
+        // Lógica de Atualização
+        const updatePayload: any = {
+            uid: editingUser.id,
+            name: data.name,
+            roleId: data.roleId,
+            teamId: data.teamId,
+            permissions: permissions
+        };
+        if (updatePayload.teamId === 'none') {
+            delete updatePayload.teamId;
+        }
 
         const result: any = await updateUserCallable(updatePayload);
         toast({
@@ -165,7 +159,20 @@ export default function EmployeesPage() {
           description: result.data.message,
         });
       } else {
-        const result: any = await createUserCallable(payload);
+        // Lógica de Criação
+        const createPayload: any = {
+            name: data.name,
+            email: data.email,
+            password: data.password,
+            roleId: data.roleId,
+            teamId: data.teamId,
+            permissions: permissions
+        };
+        if (createPayload.teamId === 'none') {
+            delete createPayload.teamId;
+        }
+
+        const result: any = await createUserCallable(createPayload);
         toast({
           title: "Sucesso!",
           description: result.data.message,
