@@ -262,7 +262,7 @@ export const submitTaskForApproval = onCall(
 export const reviewTask = onCall(
   { region: "southamerica-east1" },
   async (request) => {
-    const { taskId, taskType, decision } = request.data;
+    const { taskId, taskType, decision } = request.data as ReviewTaskData;
     const approverId = request.auth?.uid;
 
     if (!approverId) {
@@ -285,7 +285,7 @@ export const reviewTask = onCall(
       if (decision === 'approved') {
         if (collectionName === 'tasks') {
           updateData.status = 'done';
-        } else { // recurringTasks
+        } else {
           updateData.isCompleted = true;
         }
       }
@@ -299,7 +299,6 @@ export const reviewTask = onCall(
     }
   }
 );
-
 
 export const resetRecurringTasks = onSchedule(
   {
