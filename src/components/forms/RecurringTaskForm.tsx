@@ -1,0 +1,192 @@
+// src/components/forms/RecurringTaskForm.tsx
+"use client";
+
+import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { Plus, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { MultiSelect } from "@/components/ui/multi-select";
+import type { RecurringTask, NewRecurringTask, DayOfWeek } from "@/types/recurringTask";
+import type { SelectOption } from "@/types/common";
+
+interface RecurringTaskFormProps {
+  task?: RecurringTask | null;
+  users: SelectOption[];
+  clients: SelectOption[];
+  onSave: (data: NewRecurringTask | Partial<RecurringTask>) => void;
+  onCancel: () => void;
+  onDelete?: (taskId: string) => void;
+  isSubmitting: boolean;
+}
+
+const dayOptions: { value: DayOfWeek; label: string }[] = [
+    { value: 'monday', label: 'Segunda-feira' },
+    { value: 'tuesday', label: 'Terça-feira' },
+    { value: 'wednesday', label: 'Quarta-feira' },
+    { value: 'thursday', label: 'Quinta-feira' },
+    { value: 'friday', label: 'Sexta-feira' },
+    { value: 'saturday', label: 'Sábado' },
+    { value: 'sunday', label: 'Domingo' },
+];
+
+const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, isSubmitting }: RecurringTaskFormProps) => {
+    const { register, control, handleSubmit } = useForm<NewRecurringTask>({
+        defaultValues: {
+            title: task?.title || "",
+            description: task?.description || "",
+            responsibleId: task?.responsibleId || "",
+            assistantIds: task?.assistantIds || [],
+            clientId: task?.clientId || "",
+            dayOfWeek: task?.dayOfWeek || 'monday',
+            checklist: task?.checklist || [],
+        },
+    });
+
+    const { fields, append, remove } = useFieldArray({
+        control,
+        name: "checklist",
+    });
+
+    const onSubmit = (data: NewRecurringTask) => {
+        const submissionData: NewRecurringTask | Partial<RecurringTask> = {
+            ...data,
+            assistantIds: Array.isArray(data.assistantIds) ? data.assistantIds : [],
+            checklist: data.checklist?.map(item => ({
+                ...item,
+                id: item.id || crypto.randomUUID(),
+                isCompleted: item.isCompleted || false,
+            }))
+        };
+        onSave(submissionData);
+    };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-4">
+            {onDelete && task && (
+                 <div className="flex justify-end">
+                    <Button type="button" variant="destructive" size="sm" onClick={() => onDelete(task.id)} disabled={isSubmitting}>
+                        <Trash2 className="mr-2 h-4 w-4" /> Excluir Tarefa
+                    </Button>
+                </div>
+            )}
+            <div className="space-y-2">
+                <Label htmlFor="title">Título</Label>
+                <Input id="title" {...register("title", { required: true })} placeholder="Título da tarefa recorrente" />
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor="description">Descrição</Label>
+                <Textarea id="description" {...register("description")} placeholder="Descrição detalhada" />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label>Responsável</Label>
+                    <Controller
+                        name="responsibleId"
+                        control={control}
+                        render={({ field }) => (
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <SelectTrigger><SelectValue placeholder="Selecione um responsável" /></SelectTrigger>
+                                <SelectContent>
+                                    {users.filter(u => u.value).map(user => <SelectItem key={user.value} value={user.value}>{user.label}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label>Assistentes</Label>
+                    <Controller
+                        name="assistantIds"
+                        control={control}
+                        render={({ field }) => (
+                            <MultiSelect
+                                options={users.filter(u => u.value)}
+                                selected={field.value || []}
+                                onChange={field.onChange as any}
+                                placeholder="Selecione assistentes"
+                            />
+                        )}
+                    />
+                </div>
+            </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label>Cliente</Label>
+                     <Controller
+                        name="clientId"
+                        control={control}
+                        render={({ field }) => (
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <SelectTrigger><SelectValue placeholder="Selecione um cliente (opcional)" /></SelectTrigger>
+                                <SelectContent>
+                                     {clients.filter(c => c.value).map(client => <SelectItem key={client.value} value={client.value}>{client.label}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    />
+                </div>
+                 <div className="space-y-2">
+                    <Label>Dia da Semana</Label>
+                     <Controller
+                        name="dayOfWeek"
+                        control={control}
+                        rules={{ required: true }}
+                        render={({ field }) => (
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <SelectTrigger><SelectValue placeholder="Selecione o dia" /></SelectTrigger>
+                                <SelectContent>
+                                    {dayOptions.map(day => <SelectItem key={day.value} value={day.value}>{day.label}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    />
+                </div>
+            </div>
+
+            <div className="space-y-4">
+                 <div>
+                    <Label>Checklist</Label>
+                     <Button type="button" size="sm" variant="ghost" onClick={() => append({ id: crypto.randomUUID(), text: '', isCompleted: false })}>
+                         <Plus className="mr-2 h-4 w-4" /> Adicionar item
+                    </Button>
+                 </div>
+                {fields.map((field, index) => (
+                    <div key={field.id} className="flex items-center gap-2 p-2 border rounded-md">
+                        <Controller
+                            name={`checklist.${index}.isCompleted`}
+                            control={control}
+                            render={({ field: checkField }) => (
+                                <Checkbox
+                                    checked={checkField.value}
+                                    onCheckedChange={checkField.onChange}
+                                />
+                            )}
+                        />
+                        <Input {...register(`checklist.${index}.text`)} placeholder="Descrição da subtarefa" className="flex-grow" />
+                        <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </div>
+                ))}
+            </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>Cancelar</Button>
+            <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Salvando...' : 'Salvar Tarefa'}
+            </Button>
+        </div>
+    </form>
+  );
+};
+
+export default RecurringTaskForm;
