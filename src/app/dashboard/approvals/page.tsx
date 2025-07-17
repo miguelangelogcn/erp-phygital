@@ -34,6 +34,7 @@ import { useToast } from "@/hooks/use-toast";
 import { FeedbackModal } from "@/components/modals/FeedbackModal";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { auth } from "@/lib/firebase/config";
+import { AttachmentViewer } from "@/components/modals/AttachmentViewer";
 
 
 import type { Team } from "@/types/team";
@@ -49,6 +50,8 @@ export default function ApprovalsPage() {
   const [isSubmitting, setIsSubmitting] = useState<string | null>(null);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [taskForFeedback, setTaskForFeedback] = useState<ApprovalTask | null>(null);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<{ url: string; name: string } | null>(null);
   const { toast } = useToast();
 
   const functions = getFunctions(auth.app, "southamerica-east1");
@@ -123,12 +126,34 @@ export default function ApprovalsPage() {
     setTaskForFeedback(task);
     setIsFeedbackModalOpen(true);
   };
-  
-  const handleFeedbackSubmitSuccess = () => {
-    setIsFeedbackModalOpen(false);
-    setTaskForFeedback(null);
-    fetchData(); // Refetch data
+
+  const handleFileClick = (file: { url: string; name: string }) => {
+    setSelectedFile(file);
+    setIsViewerOpen(true);
   };
+  
+  const handleFeedbackSubmit = async (feedback: { notes: string; audioUrl?: string; attachments: any[] }) => {
+    if (!taskForFeedback) return;
+    setIsSubmitting(taskForFeedback.id);
+    
+    try {
+      await reviewTaskCallable({
+          taskId: taskForFeedback.id,
+          taskType: taskForFeedback.type,
+          decision: 'rejected',
+          feedback: feedback,
+      });
+      
+      toast({ title: "Feedback Enviado", description: "A tarefa foi marcada como rejeitada." });
+      setIsFeedbackModalOpen(false);
+      fetchData();
+    } catch (error: any) {
+        toast({ variant: "destructive", title: "Erro ao Enviar", description: error.message || "Não foi possível enviar o feedback." });
+    } finally {
+        setIsSubmitting(null);
+    }
+  };
+
 
   const getUserName = (userId: string) =>
     users.find((u) => u.id === userId)?.name || "Desconhecido";
@@ -196,11 +221,15 @@ export default function ApprovalsPage() {
                                 {task.proofs && task.proofs.length > 0 ? (
                                     <ul className="text-sm list-disc list-inside">
                                         {task.proofs.map((proof, index) => (
-                                            <li key={index}>
-                                                <a href={proof.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                                                    {proof.name}
-                                                </a>
-                                            </li>
+                                          <li key={index}>
+                                              <button
+                                                  type="button"
+                                                  onClick={() => handleFileClick(proof)}
+                                                  className="underline flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300"
+                                              >
+                                                  {proof.name}
+                                              </button>
+                                          </li>
                                         ))}
                                     </ul>
                                 ) : (
@@ -253,12 +282,17 @@ export default function ApprovalsPage() {
         <FeedbackModal
           isOpen={isFeedbackModalOpen}
           onClose={() => setIsFeedbackModalOpen(false)}
-          onSubmitSuccess={handleFeedbackSubmitSuccess}
+          onSubmit={handleFeedbackSubmit}
           isSubmitting={!!isSubmitting}
-          setIsSubmitting={(submitting) => setIsSubmitting(submitting ? taskForFeedback.id : null)}
-          task={taskForFeedback}
         />
       )}
+
+      <AttachmentViewer
+        isOpen={isViewerOpen}
+        onClose={() => setIsViewerOpen(false)}
+        fileUrl={selectedFile?.url || null}
+        fileName={selectedFile?.name || null}
+      />
     </main>
   );
 }
