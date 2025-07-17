@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Loader2, PlusCircle, Calendar as CalendarIcon, X, MoreHorizontal, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Loader2, PlusCircle, Calendar as CalendarIcon, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -31,12 +31,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -52,9 +46,9 @@ import TaskForm from "@/components/forms/TaskForm";
 import TaskDetailsModal from "@/components/modals/TaskDetailsModal";
 import { CreateTaskModal } from "@/components/modals/CreateTaskModal";
 import { SubmitForApprovalModal } from '@/components/modals/SubmitForApprovalModal';
+import { TaskCard } from "@/components/tasks/TaskCard";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { cn } from "@/lib/utils";
-import { Badge } from '../ui/badge';
 
 type Columns = {
   [key in TaskStatus]: {
@@ -158,22 +152,12 @@ export default function PontualTasks() {
     setDateRange(undefined);
   };
 
-  const getApprovalBadge = (status?: 'pending' | 'approved' | 'rejected') => {
-    switch (status) {
-        case 'pending':
-            return <Badge variant="secondary" className="flex items-center gap-1 bg-orange-400/20 text-orange-400 border-orange-400/30"><Clock className="h-3 w-3" /> Pendente</Badge>;
-        case 'rejected':
-            return <Badge variant="destructive" className="flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Rejeitado</Badge>;
-        case 'approved':
-             return <Badge variant="secondary" className="flex items-center gap-1 bg-green-400/20 text-green-400 border-green-400/30"><CheckCircle className="h-3 w-3" /> Aprovado</Badge>;
-        default:
-            return null;
-    }
-  }
-
-
   const handleCardClick = (task: Task) => {
-    setViewingTask(task);
+    // The new TaskCard component will handle its own modal for feedback
+    // This function now only opens the details/edit modal for non-rejected tasks
+    if (task.approvalStatus !== 'rejected') {
+        setViewingTask(task);
+    }
   };
 
   const handleEditClick = (task: Task) => {
@@ -370,38 +354,13 @@ export default function PontualTasks() {
                     {column.tasks.length > 0 ? (
                       column.tasks.map((task, index) => (
                         <Draggable key={task.id} draggableId={task.id} index={index}>
-                          {(provided, snapshot) => (
+                          {(provided) => (
                             <div
                               ref={provided.innerRef}
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
                             >
-                              <Card className={`hover:shadow-md group relative ${snapshot.isDragging ? "shadow-lg" : ""}`} onClick={() => handleCardClick(task)}>
-                                <CardContent className="p-4 cursor-pointer">
-                                    <div className="flex items-start justify-between mb-2 gap-2">
-                                        <p className="font-semibold text-base pr-4">{task.title}</p>
-                                        {getApprovalBadge(task.approvalStatus)}
-                                    </div>
-                                    {task.description && 
-                                        <p className="text-sm text-muted-foreground line-clamp-2">{task.description}</p>
-                                    }
-                                </CardContent>
-                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                     <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
-                                                <MoreHorizontal className="h-4 w-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onSelect={() => handleEditClick(task)}>Editar</DropdownMenuItem>
-                                            <DropdownMenuItem onSelect={() => handleDeleteTask(task.id)} className="text-destructive">
-                                                Excluir
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </div>
-                              </Card>
+                              <TaskCard task={task} onEdit={handleCardClick} />
                             </div>
                           )}
                         </Draggable>

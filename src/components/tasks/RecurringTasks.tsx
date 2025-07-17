@@ -253,18 +253,22 @@ export default function RecurringTasks() {
                     <Card
                       key={task.id}
                       className={cn(
-                          "p-3 transition-shadow",
+                          "p-3 transition-shadow hover:shadow-md",
                           task.isCompleted && "bg-muted/50"
                       )}
+                      onClick={() => handleCardClick(task)}
                     >
                       <div className="flex items-start gap-3">
                          <Checkbox
                             id={`task-complete-${task.id}`}
                             checked={task.isCompleted}
-                            onCheckedChange={() => handleToggleCompletion(task)}
+                            onCheckedChange={(e) => {
+                                e.stopPropagation();
+                                handleToggleCompletion(task);
+                            }}
                             className="mt-1"
                           />
-                        <div className="flex-1 cursor-pointer" onClick={() => handleCardClick(task)}>
+                        <div className="flex-1 cursor-pointer">
                             <div className="flex items-start justify-between gap-2">
                                 <p className={cn(
                                     "font-semibold pr-2",
