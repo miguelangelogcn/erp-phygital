@@ -43,6 +43,7 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
             assistantIds: task?.assistantIds || [],
             clientId: task?.clientId || "",
             dayOfWeek: task?.dayOfWeek || 1,
+            isCompleted: task?.isCompleted || false,
             checklist: task?.checklist || [],
         },
     });

@@ -9,7 +9,6 @@ import {
   addDoc,
   deleteDoc,
   writeBatch,
-  orderBy,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import type {
@@ -56,6 +55,7 @@ export async function addRecurringTask(
   try {
     const docRef = await addDoc(collection(db, "recurringTasks"), {
       ...taskData,
+      isCompleted: false, // Default value on creation
       createdAt: serverTimestamp(),
     });
     return docRef.id;
@@ -90,9 +90,25 @@ export async function updateRecurringTaskChecklist(taskId: string, checklist: Re
   try {
     const taskDocRef = doc(db, "recurringTasks", taskId);
     await updateDoc(taskDocRef, { checklist: checklist });
-  } catch (error) {
+  } catch (error)
+ {
     console.error("Error updating recurring task checklist: ", error);
     throw new Error("Failed to update checklist.");
+  }
+}
+
+/**
+ * Updates the completion status of a recurring task.
+ * @param taskId The ID of the task.
+ * @param isCompleted The new completion status.
+ */
+export async function updateRecurringTaskCompletion(taskId: string, isCompleted: boolean): Promise<void> {
+  try {
+    const taskDocRef = doc(db, "recurringTasks", taskId);
+    await updateDoc(taskDocRef, { isCompleted });
+  } catch (error) {
+    console.error("Error updating task completion: ", error);
+    throw new Error("Failed to update task completion.");
   }
 }
 

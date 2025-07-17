@@ -2,12 +2,13 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { onRecurringTasksUpdate, updateRecurringTask, deleteRecurringTask, updateRecurringTaskChecklist } from "@/lib/firebase/services/recurringTasks";
+import { onRecurringTasksUpdate, updateRecurringTask, deleteRecurringTask, updateRecurringTaskChecklist, updateRecurringTaskCompletion } from "@/lib/firebase/services/recurringTasks";
 import { getUsers } from "@/lib/firebase/services/users";
 import { getClients } from "@/lib/firebase/services/clients";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Loader2, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -18,6 +19,7 @@ import RecurringTaskForm from "@/components/forms/RecurringTaskForm";
 
 import type { RecurringTask, RecurringChecklistItem } from "@/types/recurringTask";
 import type { SelectOption } from "@/types/common";
+import { cn } from "@/lib/utils";
 
 interface DayColumn {
   id: number;
@@ -128,11 +130,19 @@ export default function RecurringTasks() {
   const handleChecklistItemChange = async (taskId: string, checklist: RecurringChecklistItem[]) => {
       try {
           await updateRecurringTaskChecklist(taskId, checklist);
-          // Opcional: toast de sucesso, mas pode ser "barulhento"
       } catch (error) {
            toast({ variant: "destructive", title: "Erro no Checklist", description: "Não foi possível atualizar o item." });
       }
   }
+
+  const handleToggleCompletion = async (task: RecurringTask) => {
+    try {
+        await updateRecurringTaskCompletion(task.id, !task.isCompleted);
+    } catch (error) {
+        toast({ variant: "destructive", title: "Erro ao atualizar", description: "Não foi possível marcar a tarefa." });
+    }
+  };
+
 
   if (loading) {
     return (
@@ -162,11 +172,26 @@ export default function RecurringTasks() {
                   {column.tasks.map((task) => (
                     <Card
                       key={task.id}
-                      className="p-3 cursor-pointer hover:shadow-md transition-shadow"
-                      onClick={() => handleCardClick(task)}
+                      className={cn(
+                          "p-3 transition-shadow",
+                          task.isCompleted && "bg-muted/50"
+                      )}
                     >
-                      <p className="font-semibold">{task.title}</p>
-                      {task.description && <p className="text-sm text-muted-foreground truncate">{task.description}</p>}
+                      <div className="flex items-start gap-3">
+                         <Checkbox
+                            id={`task-complete-${task.id}`}
+                            checked={task.isCompleted}
+                            onCheckedChange={() => handleToggleCompletion(task)}
+                            className="mt-1"
+                          />
+                        <div className="flex-1 cursor-pointer" onClick={() => handleCardClick(task)}>
+                            <p className={cn(
+                                "font-semibold",
+                                task.isCompleted && "line-through text-muted-foreground"
+                            )}>{task.title}</p>
+                            {task.description && <p className="text-sm text-muted-foreground truncate">{task.description}</p>}
+                        </div>
+                      </div>
                     </Card>
                   ))}
                 </div>

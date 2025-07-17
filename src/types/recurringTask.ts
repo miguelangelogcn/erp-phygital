@@ -15,6 +15,7 @@ export interface RecurringTask {
   title: string;
   description?: string;
   dayOfWeek: DayOfWeekNumber;
+  isCompleted: boolean; // Campo adicionado
   order?: number;
   responsibleId?: string;
   assistantIds?: string[];

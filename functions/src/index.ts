@@ -192,16 +192,19 @@ export const resetRecurringTasks = onSchedule(
 
     snapshot.forEach((doc) => {
       const task = doc.data();
+      const taskRef = tasksCollectionRef.doc(doc.id);
+      const updatePayload: any = { isCompleted: false };
+
       if (task.checklist && Array.isArray(task.checklist)) {
         const resetChecklist = task.checklist.map((item: any) => ({
           ...item,
           isCompleted: false,
         }));
-
-        const taskRef = tasksCollectionRef.doc(doc.id);
-        batch.update(taskRef, { checklist: resetChecklist });
-        logger.info(`A tarefa ${doc.id} foi agendada para reset no batch.`);
+        updatePayload.checklist = resetChecklist;
       }
+      
+      batch.update(taskRef, updatePayload);
+      logger.info(`A tarefa ${doc.id} foi agendada para reset no batch.`);
     });
 
     try {
