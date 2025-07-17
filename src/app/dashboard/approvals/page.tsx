@@ -141,7 +141,7 @@ export default function ApprovalsPage() {
             <CardTitle>Acesso Negado</CardTitle>
           </CardHeader>
           <CardContent>
-            <p>Você não é líder de nenhuma equipa.</p>
+            <p>Você não é líder de nenhuma equipe.</p>
           </CardContent>
         </Card>
       </main>
@@ -154,7 +154,7 @@ export default function ApprovalsPage() {
         <CardHeader>
           <CardTitle>Aprovações Pendentes</CardTitle>
           <CardDescription>
-            Reveja as tarefas submetidas pelos membros da sua equipa.
+            Reveja as tarefas submetidas pelos membros da sua equipe.
           </CardDescription>
         </CardHeader>
         <CardContent>

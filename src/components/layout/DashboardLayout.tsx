@@ -65,7 +65,7 @@ export default function DashboardLayoutComponent({
                     <Link href="/dashboard/teams">
                       <SidebarMenuButton>
                         <UserSquare />
-                        Gerenciar Equipas
+                        Gerenciar Equipes
                       </SidebarMenuButton>
                     </Link>
                   </SidebarMenuItem>

@@ -66,7 +66,7 @@ const ALL_PERMISSIONS = [
   { id: "manage_tasks", label: "Gerenciar Tarefas" },
   { id: "view_reports", label: "Ver Relatórios" },
   { id: "manage_roles", label: "Gerenciar Cargos" },
-  { id: "manage_teams", label: "Gerenciar Equipas" },
+  { id: "manage_teams", label: "Gerenciar Equipes" },
 ];
 
 export default function EmployeesPage() {
@@ -336,10 +336,10 @@ export default function EmployeesPage() {
                 </Select>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="teamId" className="text-right">Equipa</Label>
+                <Label htmlFor="teamId" className="text-right">Equipe</Label>
                 <Select name="teamId" defaultValue={editingUser?.teamId || 'none'}>
                   <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Selecione a equipa" />
+                    <SelectValue placeholder="Selecione a equipe" />
                   </SelectTrigger>
                   <SelectContent>
                      <SelectItem value="none">Nenhuma</SelectItem>

@@ -52,7 +52,7 @@ const ALL_PERMISSIONS = [
   { id: "manage_tasks", label: "Gerenciar Tarefas" },
   { id: "view_reports", label: "Ver Relatórios" },
   { id: "manage_roles", label: "Gerenciar Cargos" },
-  { id: "manage_teams", label: "Gerenciar Equipas" },
+  { id: "manage_teams", label: "Gerenciar Equipes" },
 ];
 
 export default function RolesPage() {

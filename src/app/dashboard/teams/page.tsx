@@ -70,7 +70,7 @@ export default function TeamsPage() {
       toast({
         variant: "destructive",
         title: "Erro ao buscar dados",
-        description: "Ocorreu um erro ao carregar equipas ou funcionários.",
+        description: "Ocorreu um erro ao carregar equipes ou funcionários.",
       });
     } finally {
       setLoading(false);
@@ -103,10 +103,10 @@ export default function TeamsPage() {
     try {
       if (editingTeam) {
         await updateTeam(editingTeam.id, teamData);
-        toast({ title: "Sucesso!", description: "Equipa atualizada." });
+        toast({ title: "Sucesso!", description: "Equipe atualizada." });
       } else {
         await addTeam(teamData);
-        toast({ title: "Sucesso!", description: "Nova equipa criada." });
+        toast({ title: "Sucesso!", description: "Nova equipe criada." });
       }
       setIsModalOpen(false);
       setEditingTeam(null);
@@ -114,7 +114,7 @@ export default function TeamsPage() {
     } catch (err: any) {
       toast({
         variant: "destructive",
-        title: `Erro ao ${editingTeam ? "atualizar" : "salvar"} equipa`,
+        title: `Erro ao ${editingTeam ? "atualizar" : "salvar"} equipe`,
         description: err.message,
       });
     } finally {
@@ -127,7 +127,7 @@ export default function TeamsPage() {
     setIsSubmitting(true);
     try {
       await deleteTeam(deletingTeam.id);
-      toast({ title: "Sucesso!", description: "Equipa excluída." });
+      toast({ title: "Sucesso!", description: "Equipe excluída." });
       await fetchData();
     } catch (err: any) {
         toast({ variant: "destructive", title: "Erro ao excluir", description: err.message });
@@ -144,12 +144,12 @@ export default function TeamsPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Gerenciar Equipas</CardTitle>
-            <CardDescription>Crie e organize as equipas de trabalho.</CardDescription>
+            <CardTitle>Gerenciar Equipes</CardTitle>
+            <CardDescription>Crie e organize as equipes de trabalho.</CardDescription>
           </div>
           <Button onClick={() => handleOpenModal()}>
             <PlusCircle className="mr-2" />
-            Adicionar Equipa
+            Adicionar Equipe
           </Button>
         </CardHeader>
         <CardContent>
@@ -160,7 +160,7 @@ export default function TeamsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Nome da Equipa</TableHead>
+                    <TableHead>Nome da Equipe</TableHead>
                     <TableHead>Líder</TableHead>
                     <TableHead>Membros</TableHead>
                     <TableHead>Ações</TableHead>
@@ -185,7 +185,7 @@ export default function TeamsPage() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={4} className="h-24 text-center">Nenhuma equipa encontrada.</TableCell>
+                      <TableCell colSpan={4} className="h-24 text-center">Nenhuma equipe encontrada.</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
@@ -198,7 +198,7 @@ export default function TeamsPage() {
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingTeam ? "Editar Equipa" : "Adicionar Nova Equipa"}</DialogTitle>
+            <DialogTitle>{editingTeam ? "Editar Equipe" : "Adicionar Nova Equipe"}</DialogTitle>
           </DialogHeader>
           <TeamForm
             key={editingTeam?.id || 'new'}
@@ -215,7 +215,7 @@ export default function TeamsPage() {
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Tem a certeza?</AlertDialogTitle>
-                <AlertDialogDescription>Esta ação não pode ser desfeita. Isto irá excluir a equipa permanentemente.</AlertDialogDescription>
+                <AlertDialogDescription>Esta ação não pode ser desfeita. Isto irá excluir a equipe permanentemente.</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setDeletingTeam(null)}>Cancelar</AlertDialogCancel>
@@ -244,11 +244,11 @@ function TeamForm({ team, userOptions, onSubmit, onCancel, isSubmitting }: {
         <form onSubmit={onSubmit}>
             <div className="grid gap-4 py-4">
               <div>
-                <Label htmlFor="name">Nome da Equipa</Label>
+                <Label htmlFor="name">Nome da Equipe</Label>
                 <Input id="name" name="name" defaultValue={team?.name} required />
               </div>
               <div>
-                <Label>Líder da Equipa</Label>
+                <Label>Líder da Equipe</Label>
                 <Select name="leaderId" defaultValue={team?.leaderId} required>
                     <SelectTrigger><SelectValue placeholder="Selecione um líder" /></SelectTrigger>
                     <SelectContent>
@@ -257,7 +257,7 @@ function TeamForm({ team, userOptions, onSubmit, onCancel, isSubmitting }: {
                 </Select>
               </div>
               <div>
-                <Label>Membros da Equipa</Label>
+                <Label>Membros da Equipe</Label>
                 <MultiSelect
                     options={userOptions}
                     selected={selectedMembers}
