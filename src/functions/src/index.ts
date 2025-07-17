@@ -48,7 +48,6 @@ interface ReviewTaskData {
   taskId: string;
   taskType: "tasks" | "recurringTasks";
   decision: "approved" | "rejected";
-  leaderId: string;
 }
 
 export const createUser = onCall(
@@ -130,8 +129,11 @@ export const updateUser = onCall(
         name: name,
         permissions: permissions,
         roleId: roleId,
-        teamId: teamId
+        teamId: teamId,
       };
+      if (teamId === 'none') {
+        updatePayload.teamId = null;
+      }
       
       // Atualiza o documento no Firestore
       await db.collection("users").doc(uid).update(updatePayload);
@@ -283,7 +285,7 @@ export const reviewTask = onCall(
       if (decision === 'approved') {
         if (collectionName === 'tasks') {
           updateData.status = 'done';
-        } else {
+        } else { // recurringTasks
           updateData.isCompleted = true;
         }
       }
