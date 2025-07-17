@@ -65,6 +65,7 @@ const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, 
             checklist: data.checklist?.map(item => ({
                 ...item,
                 id: item.id || crypto.randomUUID(),
+                isCompleted: item.isCompleted || false,
                 dueDate: item.dueDate ? Timestamp.fromDate(item.dueDate) : null
             }))
         };
