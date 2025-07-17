@@ -23,7 +23,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -38,11 +38,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-import { addDays, format } from "date-fns";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 
-import { onTasksUpdate, updateTask, deleteTask, updateTaskStatus } from "@/lib/firebase/services/tasks";
+import { onTasksUpdate, updateTask, deleteTask, updateTaskStatusAndOrder } from "@/lib/firebase/services/tasks";
 import { getUsers } from "@/lib/firebase/services/users";
 import { getClients } from "@/lib/firebase/services/clients";
 import type { Task, TaskStatus } from "@/types/task";
@@ -191,39 +191,32 @@ export default function TasksPage() {
     const startTasks = Array.from(startColumn.tasks);
     const [movedTask] = startTasks.splice(source.index, 1);
     
-    let newColumnsState = { ...columns };
-
+    let endTasks: Task[];
     if (startColumn.id === endColumn.id) {
-        // Moving within the same column
-        startTasks.splice(destination.index, 0, movedTask);
-        newColumnsState = {
-            ...columns,
-            [startColumn.id]: {
-                ...startColumn,
-                tasks: startTasks
-            }
-        };
-    } else {
-        // Moving to a different column
-        const endTasks = Array.from(endColumn.tasks);
+        endTasks = startTasks; // same array
         endTasks.splice(destination.index, 0, movedTask);
-        newColumnsState = {
-            ...columns,
-            [startColumn.id]: {
-                ...startColumn,
-                tasks: startTasks
-            },
-            [endColumn.id]: {
-                ...endColumn,
-                tasks: endTasks
-            }
-        };
+    } else {
+        endTasks = Array.from(endColumn.tasks);
+        endTasks.splice(destination.index, 0, movedTask);
     }
+
+    const newColumnsState: Columns = {
+      ...columns,
+      [startColumn.id]: { ...startColumn, tasks: startTasks },
+      [endColumn.id]: { ...endColumn, tasks: endTasks },
+    };
 
     // This is the action that will be confirmed
     const confirmAction = () => {
         setColumns(newColumnsState);
-        updateTaskStatus(draggableId, destColumnId).catch(error => {
+        updateTaskStatusAndOrder(
+            draggableId, 
+            destColumnId, 
+            startTasks, 
+            endTasks, 
+            sourceColumnId, 
+            destColumnId
+        ).catch(error => {
             toast({ variant: "destructive", title: "Erro ao mover tarefa", description: "Não foi possível atualizar o status." });
             setColumns(columns); // Revert optimistic update on error
         });
