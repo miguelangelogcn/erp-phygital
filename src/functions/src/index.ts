@@ -220,7 +220,9 @@ export const submitTaskForApproval = onCall(
         approvalStatus: 'pending',
         proofs: proofs,
         approvalNotes: notes || "",
-        submittedAt: admin.firestore.FieldValue.serverTimestamp()
+        submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+        // Limpar o feedback anterior ao resubmeter
+        feedback: admin.firestore.FieldValue.delete(),
       });
 
       logger.info(`Tarefa ${taskId} atualizada para 'pending' com sucesso.`);
@@ -264,20 +266,24 @@ export const reviewTask = onCall(
           updateData.isCompleted = true;
         }
         // Remove feedback on approval to clean up the document
-        updateData.rejectionFeedback = admin.firestore.FieldValue.delete();
+        updateData.feedback = admin.firestore.FieldValue.delete();
 
       } else if (decision === 'rejected') {
-        updateData.rejectionFeedback = {
+        // Armazena todo o objeto de feedback no campo 'feedback'
+        updateData.feedback = {
             ...feedback,
             rejectedBy: approverId,
             rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
         };
 
          if(collectionName === 'tasks') {
-            updateData.status = 'doing'; // Move task back to 'doing'
+            updateData.status = 'todo'; // Devolve a tarefa para o início do fluxo
          } else {
-            updateData.isCompleted = false; // Un-complete recurring task
+            updateData.isCompleted = false; // Desmarca a tarefa recorrente
          }
+         // Limpa os campos de aprovação antigos para consistência
+         updateData.proofs = admin.firestore.FieldValue.delete();
+         updateData.approvalNotes = admin.firestore.FieldValue.delete();
       }
 
       await taskRef.update(updateData);
@@ -318,7 +324,7 @@ export const resetRecurringTasks = onSchedule(
           proofs: admin.firestore.FieldValue.delete(),
           approvalNotes: admin.firestore.FieldValue.delete(),
           submittedAt: admin.firestore.FieldValue.delete(),
-          rejectionFeedback: admin.firestore.FieldValue.delete(), // Also reset feedback
+          feedback: admin.firestore.FieldValue.delete(), // Also reset feedback
       };
 
       if (task.checklist && Array.isArray(task.checklist)) {
@@ -343,5 +349,3 @@ export const resetRecurringTasks = onSchedule(
     }
   }
 );
-
-    
