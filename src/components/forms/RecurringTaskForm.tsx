@@ -81,7 +81,7 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-4">
-             {task?.feedback && (
+             {task?.approvalStatus === 'rejected' && task.feedback && (
                 <Alert variant="destructive">
                     <AlertTitle>Feedback de Rejeição</AlertTitle>
                     <AlertDescription className="space-y-4">
