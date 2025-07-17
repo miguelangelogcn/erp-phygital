@@ -15,7 +15,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { Briefcase, Users, ListTodo, Shield, UserSquare, CheckSquare } from "lucide-react";
+import { Briefcase, Users, ListTodo, Shield, UserSquare, CheckSquare, Calendar } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 export default function DashboardLayoutComponent({
@@ -27,6 +27,7 @@ export default function DashboardLayoutComponent({
   const canManageEmployees = userData?.permissions?.includes("manage_employees");
   const canManageRoles = userData?.permissions?.includes("manage_roles");
   const canManageTeams = userData?.permissions?.includes("manage_teams");
+  const canManageCalendar = userData?.permissions?.includes("manage_calendar");
   const isLeader = userData?.isLeader || false; // Assume isLeader is part of userData
 
   return (
@@ -99,6 +100,16 @@ export default function DashboardLayoutComponent({
                       </SidebarMenuButton>
                     </Link>
                   </SidebarMenuItem>
+                   {canManageCalendar && (
+                     <SidebarMenuItem>
+                        <Link href="/dashboard/calendar">
+                          <SidebarMenuButton>
+                            <Calendar className="text-primary" />
+                            Calendário de Gravações
+                          </SidebarMenuButton>
+                        </Link>
+                     </SidebarMenuItem>
+                   )}
               </SidebarGroup>
             </SidebarMenu>
           </SidebarContent>
