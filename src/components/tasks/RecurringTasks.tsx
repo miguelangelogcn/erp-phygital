@@ -77,14 +77,25 @@ export default function RecurringTasks() {
 
     const unsubscribe = onRecurringTasksUpdate(
       (tasks) => {
-        const newColumns: Columns = JSON.parse(JSON.stringify(initialColumns));
+        const newColumnsState: Columns = {
+            1: { id: 1, title: dayNames[1], tasks: [] },
+            2: { id: 2, title: dayNames[2], tasks: [] },
+            3: { id: 3, title: dayNames[3], tasks: [] },
+            4: { id: 4, title: dayNames[4], tasks: [] },
+            5: { id: 5, title: dayNames[5], tasks: [] },
+            6: { id: 6, title: dayNames[6], tasks: [] },
+            7: { id: 7, title: dayNames[7], tasks: [] },
+        };
+        
         tasks.forEach((task) => {
-          if (newColumns[task.dayOfWeek]) {
-            newColumns[task.dayOfWeek].tasks.push(task);
+          if (task.dayOfWeek && newColumnsState[task.dayOfWeek]) {
+            newColumnsState[task.dayOfWeek].tasks.push(task);
           }
         });
-        Object.values(newColumns).forEach(col => col.tasks.sort((a, b) => (a.order || 0) - (b.order || 0)));
-        setColumns(newColumns);
+
+        Object.values(newColumnsState).forEach(col => col.tasks.sort((a, b) => (a.order || 0) - (b.order || 0)));
+        
+        setColumns(newColumnsState);
         setLoading(false);
       },
       (error) => {
