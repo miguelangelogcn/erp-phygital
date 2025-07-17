@@ -1,28 +1,20 @@
 // src/app/dashboard/tasks/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  DragDropContext,
-  Droppable,
-  Draggable,
-  DropResult,
-} from "react-beautiful-dnd";
+import React, { useState, useEffect } from 'react';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { onSnapshot, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
 import {
   Card,
-  CardContent,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+  CardContent,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Loader2, PlusCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
- import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -31,11 +23,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Loader2, PlusCircle } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+} from '@/components/ui/alert-dialog';
 
-import { onTasksUpdate, updateTaskStatus, updateTask, deleteTask } from "@/lib/firebase/services/tasks";
+import { onTasksUpdate, updateTask, deleteTask, updateTaskStatus } from "@/lib/firebase/services/tasks";
 import { getUsers } from "@/lib/firebase/services/users";
 import { getClients } from "@/lib/firebase/services/clients";
 import type { Task, TaskStatus } from "@/types/task";
@@ -44,7 +34,6 @@ import type { SelectOption } from "@/types/common";
 import TaskForm from "@/components/forms/TaskForm";
 import TaskDetailsModal from "@/components/modals/TaskDetailsModal";
 import { CreateTaskModal } from "@/components/modals/CreateTaskModal";
-
 
 type Columns = {
   [key in TaskStatus]: {
@@ -290,25 +279,22 @@ export default function TasksPage() {
         </div>
       </DragDropContext>
        
-       <Dialog open={isEditModalOpen} onOpenChange={(isOpen) => { if (!isOpen) { setIsEditModalOpen(false); setEditingTask(null); } else { setIsEditModalOpen(true); } }}>
-         <DialogContent className="sm:max-w-3xl">
-           <DialogHeader>
-             <DialogTitle>Editar Tarefa</DialogTitle>
-             <DialogDescription>Atualize os detalhes da tarefa abaixo.</DialogDescription>
-           </DialogHeader>
-           {editingTask && (
-             <TaskForm
-                task={editingTask}
-                users={users}
-                clients={clients}
-                onSave={handleUpdateTask}
-                onCancel={() => { setIsEditModalOpen(false); setEditingTask(null); }}
-                onDelete={handleDeleteTask}
-                isSubmitting={isSubmitting}
-             />
-           )}
-         </DialogContent>
-       </Dialog>
+       <CreateTaskModal>
+          <dialog open={isEditModalOpen} onOpenChange={(isOpen) => { if (!isOpen) { setIsEditModalOpen(false); setEditingTask(null); } else { setIsEditModalOpen(true); } }}>
+            {editingTask && (
+              <TaskForm
+                  task={editingTask}
+                  users={users}
+                  clients={clients}
+                  onSave={handleUpdateTask}
+                  onCancel={() => { setIsEditModalOpen(false); setEditingTask(null); }}
+                  onDelete={handleDeleteTask}
+                  isSubmitting={isSubmitting}
+              />
+            )}
+          </dialog>
+       </CreateTaskModal>
+
 
        <TaskDetailsModal
             task={viewingTask}
