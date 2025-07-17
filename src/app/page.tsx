@@ -66,7 +66,7 @@ export default function LoginPage() {
               </div>
             </div>
             <CardFooter className="flex flex-col items-center gap-4 px-0 pb-0 pt-4">
-              <Button type="submit" className="w-full">Entrar</Button>
+              <Button type="submit" variant="gradient" className="w-full">Entrar</Button>
               <div className="h-4 text-center">
                 {error && <p className="text-sm text-destructive">{error}</p>}
               </div>

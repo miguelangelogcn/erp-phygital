@@ -9,6 +9,9 @@ export default {
   ],
   theme: {
     extend: {
+      backgroundImage: {
+        'gradient-to-r-from-orange-400-to-amber-400': 'linear-gradient(to right, var(--tw-gradient-stops))',
+      },
       fontFamily: {
         body: ['Inter', 'sans-serif'],
         headline: ['Inter', 'sans-serif'],
