@@ -31,7 +31,8 @@ import { AttachmentViewer } from "../modals/AttachmentViewer";
 
 interface TaskFormProps {
   task?: Task | null;
-  users: SelectOption[];
+  responsibleOptions: SelectOption[];
+  allUserOptions: SelectOption[];
   clients: SelectOption[];
   onSave: (data: NewTask | Partial<Task>) => void;
   onCancel: () => void;
@@ -46,7 +47,7 @@ type FormValues = Omit<NewTask, 'dueDate' | 'checklist'> & {
     checklist?: (Omit<ChecklistItem, 'dueDate'> & { dueDate?: Date | null })[];
 }
 
-const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, isSubmitting, currentUserIsLeader, currentUserId }: TaskFormProps) => {
+const TaskForm = ({ task, responsibleOptions = [], allUserOptions = [], clients = [], onSave, onCancel, onDelete, isSubmitting, currentUserIsLeader, currentUserId }: TaskFormProps) => {
     const [isViewerOpen, setIsViewerOpen] = useState(false);
     const [selectedFile, setSelectedFile] = useState<{ url: string; name: string } | null>(null);
 
@@ -143,7 +144,7 @@ const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, 
                             <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!currentUserIsLeader}>
                                 <SelectTrigger><SelectValue placeholder="Selecione um responsável" /></SelectTrigger>
                                 <SelectContent>
-                                    {users.filter(u => u.value).map(user => <SelectItem key={user.value} value={user.value}>{user.label}</SelectItem>)}
+                                    {responsibleOptions.filter(u => u.value).map(user => <SelectItem key={user.value} value={user.value}>{user.label}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         )}
@@ -156,7 +157,7 @@ const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, 
                         control={control}
                         render={({ field }) => (
                             <MultiSelect
-                                options={users.filter(u => u.value)}
+                                options={allUserOptions.filter(u => u.value)}
                                 selected={field.value || []}
                                 onChange={field.onChange as any}
                                 placeholder="Selecione assistentes"

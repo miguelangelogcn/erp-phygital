@@ -60,17 +60,21 @@ export default function RecurringTasks() {
 
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   
-  const userOptions = useMemo(() => {
+  const userOptionsForResponsible = useMemo(() => {
     if (userData?.isLeader && userData.teamMemberIds) {
-      // For leaders, show only their team members
       return users
         .filter(u => userData.teamMemberIds?.includes(u.id))
         .map(u => ({ value: u.id, label: u.name }));
     }
-    // For regular users, the filter is not shown
+     if (userData) {
+      return users
+        .filter(u => u.id === userData.id)
+        .map(u => ({ value: u.id, label: u.name }));
+    }
     return [];
   }, [users, userData]);
-
+  
+  const allUserOptions = useMemo(() => users.map(u => ({ value: u.id, label: u.name })), [users]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -259,7 +263,7 @@ export default function RecurringTasks() {
             <CardContent className="flex flex-col md:flex-row gap-4 items-center">
                 <div className="flex-1 w-full">
                     <MultiSelect
-                        options={userOptions}
+                        options={userOptionsForResponsible}
                         selected={selectedEmployees}
                         onChange={setSelectedEmployees as any}
                         placeholder="Filtrar por funcionários..."
@@ -335,13 +339,16 @@ export default function RecurringTasks() {
           {editingTask && (
              <RecurringTaskForm
                 task={editingTask}
-                users={userOptions}
+                responsibleOptions={userOptionsForResponsible}
+                allUserOptions={allUserOptions}
                 clients={clients}
                 onSave={handleSaveTask}
                 onCancel={handleCloseModal}
                 onDelete={() => handleDeleteClick(editingTask.id)}
                 onChecklistItemChange={handleChecklistItemChange}
                 isSubmitting={isSubmitting}
+                currentUserIsLeader={!!userData?.isLeader}
+                currentUserId={userData?.id}
              />
           )}
         </DialogContent>

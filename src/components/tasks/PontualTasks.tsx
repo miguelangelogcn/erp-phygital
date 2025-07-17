@@ -93,17 +93,22 @@ export default function PontualTasks() {
       onConfirm: () => void;
   } | null>(null);
 
-  const userOptions = useMemo(() => {
+  const userOptionsForResponsible = useMemo(() => {
     if (userData?.isLeader && userData.teamMemberIds) {
-      // For leaders, show only their team members
       return users
         .filter(u => userData.teamMemberIds?.includes(u.id))
         .map(u => ({ value: u.id, label: u.name }));
     }
-    // For regular users, the filter is not shown, but we can default to all users
-    return users.map(u => ({ value: u.id, label: u.name }));
+     if (userData) {
+      return users
+        .filter(u => u.id === userData.id)
+        .map(u => ({ value: u.id, label: u.name }));
+    }
+    return [];
   }, [users, userData]);
   
+  const allUserOptions = useMemo(() => users.map(u => ({ value: u.id, label: u.name })), [users]);
+
   useEffect(() => {
     const fetchAuxiliaryData = async () => {
         try {
@@ -316,7 +321,7 @@ export default function PontualTasks() {
             <CardContent className="flex flex-col md:flex-row gap-4">
                 <div className="flex-1">
                     <MultiSelect
-                        options={userOptions}
+                        options={userOptionsForResponsible}
                         selected={selectedEmployees}
                         onChange={setSelectedEmployees as any}
                         placeholder="Filtrar por funcionários..."
@@ -416,12 +421,15 @@ export default function PontualTasks() {
           {editingTask && (
             <TaskForm
               task={editingTask}
-              users={userOptions}
+              responsibleOptions={userOptionsForResponsible}
+              allUserOptions={allUserOptions}
               clients={clients}
               onSave={handleUpdateTask}
               onCancel={() => { setIsEditModalOpen(false); setEditingTask(null); }}
               onDelete={handleDeleteTask}
               isSubmitting={isSubmitting}
+              currentUserIsLeader={!!userData?.isLeader}
+              currentUserId={userData?.id}
             />
           )}
         </DialogContent>

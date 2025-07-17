@@ -26,7 +26,8 @@ import { AttachmentViewer } from "../modals/AttachmentViewer";
 
 interface RecurringTaskFormProps {
   task?: RecurringTask | null;
-  users: SelectOption[];
+  responsibleOptions: SelectOption[];
+  allUserOptions: SelectOption[];
   clients: SelectOption[];
   onSave: (data: NewRecurringTask | Partial<RecurringTask>) => void;
   onCancel: () => void;
@@ -47,7 +48,7 @@ const dayOptions: { value: DayOfWeekNumber; label: string }[] = [
     { value: 7, label: 'Domingo' },
 ];
 
-const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, onChecklistItemChange, isSubmitting, currentUserIsLeader, currentUserId }: RecurringTaskFormProps) => {
+const RecurringTaskForm = ({ task, responsibleOptions = [], allUserOptions = [], clients = [], onSave, onCancel, onDelete, onChecklistItemChange, isSubmitting, currentUserIsLeader, currentUserId }: RecurringTaskFormProps) => {
     const [isViewerOpen, setIsViewerOpen] = useState(false);
     const [selectedFile, setSelectedFile] = useState<{ url: string; name: string } | null>(null);
 
@@ -148,7 +149,7 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
                             <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!currentUserIsLeader}>
                                 <SelectTrigger><SelectValue placeholder="Selecione um responsável" /></SelectTrigger>
                                 <SelectContent>
-                                    {users.filter(u => u.value).map(user => <SelectItem key={user.value} value={user.value}>{user.label}</SelectItem>)}
+                                    {responsibleOptions.filter(u => u.value).map(user => <SelectItem key={user.value} value={user.value}>{user.label}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         )}
@@ -161,7 +162,7 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
                         control={control}
                         render={({ field }) => (
                             <MultiSelect
-                                options={users.filter(u => u.value)}
+                                options={allUserOptions.filter(u => u.value)}
                                 selected={field.value || []}
                                 onChange={field.onChange as any}
                                 placeholder="Selecione assistentes"
