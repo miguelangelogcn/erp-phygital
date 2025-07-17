@@ -47,6 +47,7 @@ export default function ApprovalsPage() {
   const [isLeader, setIsLeader] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState<string | null>(null);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [taskForFeedback, setTaskForFeedback] = useState<ApprovalTask | null>(null);
   const { toast } = useToast();
 
@@ -120,29 +121,13 @@ export default function ApprovalsPage() {
 
   const handleRejectClick = (task: ApprovalTask) => {
     setTaskForFeedback(task);
+    setIsFeedbackModalOpen(true);
   };
   
-  const handleFeedbackSubmit = async (feedback: { notes: string; audioUrl?: string; attachments: any[] }) => {
-    if (!taskForFeedback) return;
-    setIsSubmitting(taskForFeedback.id);
-
-    try {
-      await reviewTaskCallable({
-        taskId: taskForFeedback.id,
-        taskType: taskForFeedback.type,
-        decision: 'rejected',
-        feedback: feedback,
-      });
-
-      toast({ title: "Feedback Enviado", description: "A tarefa foi marcada como rejeitada." });
-      setTaskForFeedback(null);
-      fetchData(); // Refetch data
-    } catch (error: any) {
-      console.error("Error sending feedback:", error);
-      toast({ variant: "destructive", title: "Erro ao Enviar", description: error.message || "Não foi possível enviar o feedback." });
-    } finally {
-      setIsSubmitting(null);
-    }
+  const handleFeedbackSubmitSuccess = () => {
+    setIsFeedbackModalOpen(false);
+    setTaskForFeedback(null);
+    fetchData(); // Refetch data
   };
 
   const getUserName = (userId: string) =>
@@ -266,10 +251,11 @@ export default function ApprovalsPage() {
 
       {taskForFeedback && (
         <FeedbackModal
-          isOpen={!!taskForFeedback}
-          onClose={() => setTaskForFeedback(null)}
-          onSubmit={handleFeedbackSubmit}
-          isSubmitting={isSubmitting === taskForFeedback.id}
+          isOpen={isFeedbackModalOpen}
+          onClose={() => setIsFeedbackModalOpen(false)}
+          onSubmitSuccess={handleFeedbackSubmitSuccess}
+          isSubmitting={!!isSubmitting}
+          setIsSubmitting={(submitting) => setIsSubmitting(submitting ? taskForFeedback.id : null)}
           task={taskForFeedback}
         />
       )}
