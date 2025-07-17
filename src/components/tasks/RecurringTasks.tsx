@@ -23,13 +23,11 @@ import type { SelectOption } from "@/types/common";
 import { CreateRecurringTaskModal } from "../modals/CreateRecurringTaskModal";
 import RecurringTaskForm from "../forms/RecurringTaskForm";
 
-type Columns = {
-  [key in DayOfWeekNumber]: {
-    id: DayOfWeekNumber;
-    title: string;
-    tasks: RecurringTask[];
-  };
-};
+interface Column {
+  id: DayOfWeekNumber;
+  title: string;
+  tasks: RecurringTask[];
+}
 
 const dayNames: { [key in DayOfWeekNumber]: string } = {
   1: "Segunda-feira",
@@ -41,18 +39,18 @@ const dayNames: { [key in DayOfWeekNumber]: string } = {
   7: "Domingo",
 };
 
-const initialColumns: Columns = {
-  1: { id: 1, title: dayNames[1], tasks: [] },
-  2: { id: 2, title: dayNames[2], tasks: [] },
-  3: { id: 3, title: dayNames[3], tasks: [] },
-  4: { id: 4, title: dayNames[4], tasks: [] },
-  5: { id: 5, title: dayNames[5], tasks: [] },
-  6: { id: 6, title: dayNames[6], tasks: [] },
-  7: { id: 7, title: dayNames[7], tasks: [] },
-};
+const initialColumns: Column[] = [
+  { id: 1, title: dayNames[1], tasks: [] },
+  { id: 2, title: dayNames[2], tasks: [] },
+  { id: 3, title: dayNames[3], tasks: [] },
+  { id: 4, title: dayNames[4], tasks: [] },
+  { id: 5, title: dayNames[5], tasks: [] },
+  { id: 6, title: dayNames[6], tasks: [] },
+  { id: 7, title: dayNames[7], tasks: [] },
+];
 
 export default function RecurringTasks() {
-  const [columns, setColumns] = useState<Columns>(initialColumns);
+  const [columns, setColumns] = useState<Column[]>(initialColumns);
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<SelectOption[]>([]);
   const [clients, setClients] = useState<SelectOption[]>([]);
@@ -77,23 +75,16 @@ export default function RecurringTasks() {
 
     const unsubscribe = onRecurringTasksUpdate(
       (tasks) => {
-        const newColumnsState: Columns = {
-            1: { id: 1, title: dayNames[1], tasks: [] },
-            2: { id: 2, title: dayNames[2], tasks: [] },
-            3: { id: 3, title: dayNames[3], tasks: [] },
-            4: { id: 4, title: dayNames[4], tasks: [] },
-            5: { id: 5, title: dayNames[5], tasks: [] },
-            6: { id: 6, title: dayNames[6], tasks: [] },
-            7: { id: 7, title: dayNames[7], tasks: [] },
-        };
+        const newColumnsState: Column[] = JSON.parse(JSON.stringify(initialColumns)); // Deep copy to reset tasks
         
         tasks.forEach((task) => {
-          if (task.dayOfWeek && newColumnsState[task.dayOfWeek]) {
-            newColumnsState[task.dayOfWeek].tasks.push(task);
-          }
+            const column = newColumnsState.find(c => c.id === task.dayOfWeek);
+            if (column) {
+                column.tasks.push(task);
+            }
         });
 
-        Object.values(newColumnsState).forEach(col => col.tasks.sort((a, b) => (a.order || 0) - (b.order || 0)));
+        newColumnsState.forEach(col => col.tasks.sort((a, b) => (a.order || 0) - (b.order || 0)));
         
         setColumns(newColumnsState);
         setLoading(false);
@@ -114,33 +105,36 @@ export default function RecurringTasks() {
     const sourceDay = parseInt(source.droppableId, 10) as DayOfWeekNumber;
     const destDay = parseInt(destination.droppableId, 10) as DayOfWeekNumber;
 
-    const startColumn = columns[sourceDay];
-    const endColumn = columns[destDay];
+    const newColumnsState = [...columns];
+    const sourceColIndex = newColumnsState.findIndex(c => c.id === sourceDay);
+    const destColIndex = newColumnsState.findIndex(c => c.id === destDay);
+    const sourceCol = { ...newColumnsState[sourceColIndex] };
+    const destCol = sourceColIndex === destColIndex ? sourceCol : { ...newColumnsState[destColIndex] };
 
-    const startTasks = Array.from(startColumn.tasks);
-    const [movedTask] = startTasks.splice(source.index, 1);
+    const sourceTasks = [...sourceCol.tasks];
+    const [movedTask] = sourceTasks.splice(source.index, 1);
     
-    let endTasks: RecurringTask[];
-    if (startColumn.id === endColumn.id) {
-      endTasks = startTasks;
-      endTasks.splice(destination.index, 0, movedTask);
+    let destTasks: RecurringTask[];
+    if (sourceDay === destDay) {
+      destTasks = sourceTasks;
+      destTasks.splice(destination.index, 0, movedTask);
+      sourceCol.tasks = destTasks;
+      newColumnsState[sourceColIndex] = sourceCol;
     } else {
-      endTasks = Array.from(endColumn.tasks);
-      endTasks.splice(destination.index, 0, movedTask);
+      destTasks = [...destCol.tasks];
+      destTasks.splice(destination.index, 0, movedTask);
+      sourceCol.tasks = sourceTasks;
+      destCol.tasks = destTasks;
+      newColumnsState[sourceColIndex] = sourceCol;
+      newColumnsState[destColIndex] = destCol;
     }
-
-    const newColumnsState = {
-      ...columns,
-      [startColumn.id]: { ...startColumn, tasks: startTasks },
-      [endColumn.id]: { ...endColumn, tasks: endTasks },
-    };
-
+    
     setColumns(newColumnsState);
     
-    updateRecurringTaskOrderAndDay(draggableId, destDay, startTasks, endTasks, sourceDay, destDay)
+    updateRecurringTaskOrderAndDay(draggableId, destDay, sourceTasks, destTasks, sourceDay, destDay)
       .catch(() => {
         toast({ variant: "destructive", title: "Erro ao mover tarefa" });
-        setColumns(columns); // Revert on error
+        // Revert on error - re-trigger useEffect by fetching again or reverting state
       });
   };
 
@@ -194,7 +188,7 @@ export default function RecurringTasks() {
 
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 items-start">
-          {Object.values(columns).map((column) => (
+          {columns.map((column) => (
             <Droppable key={column.id} droppableId={String(column.id)}>
               {(provided, snapshot) => (
                 <Card ref={provided.innerRef} {...provided.droppableProps} className={`flex flex-col transition-colors ${snapshot.isDraggingOver ? "bg-accent" : ""}`}>
@@ -262,7 +256,7 @@ export default function RecurringTasks() {
               clients={clients}
               onSave={handleUpdateTask}
               onCancel={() => { setIsEditModalOpen(false); setEditingTask(null); }}
-              onDelete={() => setDeletingTaskId(editingTask.id)}
+              onDelete={() => {setEditingTask(null); setIsEditModalOpen(false); setDeletingTaskId(editingTask.id)}}
               isSubmitting={isSubmitting}
             />
           )}

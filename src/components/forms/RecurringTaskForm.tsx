@@ -61,6 +61,9 @@ const RecurringTaskForm = ({ task, users = [], clients = [], onSave, onCancel, o
                 isCompleted: item.isCompleted || false,
             }))
         };
+        if (task && task.id) {
+            (submissionData as Partial<RecurringTask>).id = task.id;
+        }
         onSave(submissionData);
     };
 
