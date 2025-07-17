@@ -98,6 +98,7 @@ const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, 
                     <Controller
                         name="responsibleId"
                         control={control}
+                        rules={{ required: true }}
                         render={({ field }) => (
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <SelectTrigger><SelectValue placeholder="Selecione um responsável" /></SelectTrigger>
@@ -213,3 +214,5 @@ const TaskForm = ({ task, users = [], clients = [], onSave, onCancel, onDelete, 
 };
 
 export default TaskForm;
+
+    

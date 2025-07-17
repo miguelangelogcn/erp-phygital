@@ -1,7 +1,7 @@
 // src/app/dashboard/tasks/page.tsx
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import {
   Card,
@@ -10,7 +10,9 @@ import {
   CardContent,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, PlusCircle } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Loader2, PlusCircle, Calendar as CalendarIcon, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -29,6 +31,9 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { addDays, format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import type { DateRange } from "react-day-picker";
 
 
 import { onTasksUpdate, updateTask, deleteTask, updateTaskStatus } from "@/lib/firebase/services/tasks";
@@ -40,6 +45,8 @@ import type { SelectOption } from "@/types/common";
 import TaskForm from "@/components/forms/TaskForm";
 import TaskDetailsModal from "@/components/modals/TaskDetailsModal";
 import { CreateTaskModal } from "@/components/modals/CreateTaskModal";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { cn } from "@/lib/utils";
 
 type Columns = {
   [key in TaskStatus]: {
@@ -56,6 +63,7 @@ const initialColumns: Columns = {
 }
 
 export default function TasksPage() {
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [columns, setColumns] = useState<Columns>(initialColumns);
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<SelectOption[]>([]);
@@ -66,6 +74,10 @@ export default function TasksPage() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Filter states
+  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const [alertState, setAlertState] = useState<{
       isOpen: boolean;
@@ -88,18 +100,7 @@ export default function TasksPage() {
 
     const unsubscribe = onTasksUpdate(
       (tasks) => {
-        const newColumns: Columns = {
-          todo: { id: "todo", title: "A Fazer", tasks: [] },
-          doing: { id: "doing", title: "Fazendo", tasks: [] },
-          done: { id: "done", title: "Feito", tasks: [] },
-        };
-        tasks.forEach((task) => {
-          if (newColumns[task.status]) {
-            newColumns[task.status].tasks.push(task)
-          }
-        });
-        Object.values(newColumns).forEach(col => col.tasks.sort((a, b) => (a.order || 0) - (b.order || 0)));
-        setColumns(newColumns);
+        setAllTasks(tasks);
         setLoading(false);
       },
       (error) => {
@@ -111,10 +112,46 @@ export default function TasksPage() {
     return () => unsubscribe();
   }, [toast]);
 
+  const filteredTasks = useMemo(() => {
+    return allTasks.filter(task => {
+        const employeeMatch = selectedEmployees.length === 0 || 
+            selectedEmployees.includes(task.responsibleId || "") || 
+            task.assistantIds?.some(id => selectedEmployees.includes(id));
+
+        const dateMatch = !dateRange || !dateRange.from || !task.dueDate || (
+            task.dueDate.toDate() >= dateRange.from &&
+            task.dueDate.toDate() <= (dateRange.to || dateRange.from)
+        );
+        
+        return employeeMatch && dateMatch;
+    });
+  }, [allTasks, selectedEmployees, dateRange]);
+
+  useEffect(() => {
+    const newColumns: Columns = {
+      todo: { id: "todo", title: "A Fazer", tasks: [] },
+      doing: { id: "doing", title: "Fazendo", tasks: [] },
+      done: { id: "done", title: "Feito", tasks: [] },
+    };
+    filteredTasks.forEach((task) => {
+      if (newColumns[task.status]) {
+        newColumns[task.status].tasks.push(task)
+      }
+    });
+    Object.values(newColumns).forEach(col => col.tasks.sort((a, b) => (a.order || 0) - (b.order || 0)));
+    setColumns(newColumns);
+  }, [filteredTasks]);
+
+  const clearFilters = () => {
+    setSelectedEmployees([]);
+    setDateRange(undefined);
+  };
+
+
   const handleCardClick = (task: Task) => {
     if (task.status === 'todo') {
         setViewingTask(task);
-    } else if (task.status === 'doing') {
+    } else if (task.status === 'doing' || task.status === 'done') {
         setEditingTask(task);
         setIsEditModalOpen(true);
     }
@@ -247,13 +284,75 @@ export default function TasksPage() {
             </Button>
         </CreateTaskModal>
       </div>
+
+       <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Filtros</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+                <MultiSelect
+                    options={users}
+                    selected={selectedEmployees}
+                    onChange={setSelectedEmployees as any}
+                    placeholder="Filtrar por funcionários..."
+                    className="w-full"
+                />
+            </div>
+            <div className="flex-1">
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <Button
+                        id="date"
+                        variant={"outline"}
+                        className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !dateRange && "text-muted-foreground"
+                        )}
+                    >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateRange?.from ? (
+                        dateRange.to ? (
+                            <>
+                            {format(dateRange.from, "LLL dd, y", { locale: ptBR })} -{" "}
+                            {format(dateRange.to, "LLL dd, y", { locale: ptBR })}
+                            </>
+                        ) : (
+                            format(dateRange.from, "LLL dd, y", { locale: ptBR })
+                        )
+                        ) : (
+                        <span>Selecione um intervalo de datas</span>
+                        )}
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={dateRange?.from}
+                        selected={dateRange}
+                        onSelect={setDateRange}
+                        numberOfMonths={2}
+                        locale={ptBR}
+                    />
+                    </PopoverContent>
+                </Popover>
+            </div>
+            <Button variant="ghost" onClick={clearFilters}>
+                <X className="mr-2 h-4 w-4" />
+                Limpar Filtros
+            </Button>
+        </CardContent>
+      </Card>
+
+
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
           {columns && Object.values(columns).map((column) => (
             <Droppable key={column.id} droppableId={column.id}>
               {(provided, snapshot) => (
                 <Card ref={provided.innerRef} {...provided.droppableProps} className={`flex flex-col transition-colors ${snapshot.isDraggingOver ? "bg-accent" : ""}`}>
-                  <CardHeader><CardTitle>{column.title}</CardTitle></CardHeader>
+                  <CardHeader><CardTitle>{column.title} ({column.tasks.length})</CardTitle></CardHeader>
                   <CardContent className="flex-grow space-y-4 p-4 min-h-[200px]">
                     {column.tasks.length > 0 ? (
                       column.tasks.map((task, index) => (
@@ -333,3 +432,5 @@ export default function TasksPage() {
     </main>
   );
 }
+
+    

@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, ArrowLeft, Briefcase, DollarSign, Edit, KeyRound, Megaphone } from "lucide-react";
+import { Loader2, ArrowLeft, Briefcase, DollarSign, Edit, KeyRound, Megaphone, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -76,7 +76,7 @@ export default function ClientDetailPage() {
       </div>
       <Card className="w-full">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
                   {client.logoUrl && (
                       <img src={client.logoUrl} alt={`${client.name} logo`} className="h-16 w-16 rounded-full object-cover border" />
@@ -86,7 +86,16 @@ export default function ClientDetailPage() {
                       <CardDescription>ID: {client.id}</CardDescription>
                   </div>
               </div>
-              {/* Add edit button later */}
+              <div className="flex gap-2">
+                <Button variant="outline" size="icon">
+                    <Edit className="h-4 w-4" />
+                    <span className="sr-only">Editar Cliente</span>
+                </Button>
+                 <Button variant="destructive" size="icon">
+                    <Trash2 className="h-4 w-4" />
+                     <span className="sr-only">Excluir Cliente</span>
+                </Button>
+              </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -135,3 +144,5 @@ export default function ClientDetailPage() {
     </main>
   );
 }
+
+    
