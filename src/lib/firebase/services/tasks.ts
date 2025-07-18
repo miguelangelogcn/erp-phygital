@@ -128,6 +128,7 @@ export async function getTasksForApproval(memberIds: string[], leaderId: string)
  */
 export async function addTask(taskData: NewTask): Promise<string> {
   try {
+    console.log("Chamando createTaskWithNotifications com:", taskData);
     const result: any = await createTaskCallable(taskData);
     if (result.data.success) {
         return result.data.id;

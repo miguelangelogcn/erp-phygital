@@ -41,7 +41,10 @@ export async function addCalendarEvent(eventData: NewCalendarEvent): Promise<str
 export async function updateCalendarEvent(eventId: string, eventData: Partial<NewCalendarEvent>): Promise<void> {
   try {
     const eventDocRef = doc(db, "calendarEvents", eventId);
-    await updateDoc(eventDocRef, eventData);
+    await updateDoc(eventDocRef, {
+        ...eventData,
+        updatedAt: serverTimestamp()
+    });
   } catch (error) {
     console.error("Error updating calendar event: ", error);
     throw new Error("Failed to update calendar event.");
@@ -62,5 +65,3 @@ export async function deleteCalendarEvent(eventId: string): Promise<void> {
     throw new Error("Failed to delete calendar event.");
   }
 }
-
-      
