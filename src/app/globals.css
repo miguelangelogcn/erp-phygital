@@ -44,7 +44,7 @@ body {
 
     --fc-bg-color: #1F2937; /* bg-gray-800 */
     --fc-text-color: #D1D5DB; /* text-gray-300 */
-    --fc-border-color: #374151; /* border-gray-700 */
+    --fc-border-color: #454545; /* border-gray-700 */
     --fc-day-header-bg-color: transparent;
     --fc-today-bg-color: rgba(79, 70, 229, 0.2); /* bg-indigo-500 com opacidade */
     --fc-event-bg-color: #374151; /* bg-gray-700 */
