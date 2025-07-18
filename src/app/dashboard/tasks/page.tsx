@@ -4,6 +4,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import PontualTasks from "@/components/tasks/PontualTasks";
 import RecurringTasks from "@/components/tasks/RecurringTasks";
+import CentralTasks from "@/components/tasks/CentralTasks";
 
 export default function TasksPage() {
   return (
@@ -17,11 +18,15 @@ export default function TasksPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="pontual">
-        <TabsList className="grid w-full grid-cols-2 md:w-[400px]">
+      <Tabs defaultValue="central">
+        <TabsList className="grid w-full grid-cols-3 md:w-[600px]">
+          <TabsTrigger value="central">Central</TabsTrigger>
           <TabsTrigger value="pontual">Tarefas Pontuais</TabsTrigger>
           <TabsTrigger value="recorrente">Tarefas Recorrentes</TabsTrigger>
         </TabsList>
+        <TabsContent value="central" className="mt-6">
+            <CentralTasks />
+        </TabsContent>
         <TabsContent value="pontual" className="mt-6">
           <PontualTasks />
         </TabsContent>
