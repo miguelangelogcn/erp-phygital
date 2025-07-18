@@ -28,7 +28,7 @@ export const createUser = onCall({ region: "southamerica-east1" }, async (reques
       teamId: teamId || null,
       permissions: permissions || [],
     });
-    return { success: true, uid: userRecord.uid };
+    return { success: true, uid: userRecord.uid, message: "Funcionário adicionado com sucesso." };
   } catch (error: any) {
     logger.error("Erro ao criar utilizador:", error);
     if (error.code === 'auth/email-already-exists') {
@@ -46,7 +46,7 @@ export const updateUser = onCall({ region: "southamerica-east1" }, async (reques
     try {
         await db.collection("users").doc(uid).update({ name, roleId, teamId: teamId || null, permissions });
         await auth.updateUser(uid, { displayName: name });
-        return { success: true };
+        return { success: true, message: "Funcionário atualizado com sucesso." };
     } catch (error: any) {
         logger.error(`Erro ao atualizar o utilizador ${uid}:`, error);
         throw new HttpsError("internal", "Ocorreu um erro ao atualizar o utilizador.");
@@ -61,7 +61,7 @@ export const deleteUser = onCall({ region: "southamerica-east1" }, async (reques
   try {
     await auth.deleteUser(uid);
     await db.collection("users").doc(uid).delete();
-    return { success: true };
+    return { success: true, message: "Funcionário excluído com sucesso." };
   } catch (error: any) {
     logger.error(`Erro ao apagar o utilizador ${uid}:`, error);
     throw new HttpsError("internal", "Ocorreu um erro ao apagar o utilizador.");
@@ -90,7 +90,7 @@ export const deleteTask = onCall({ region: "southamerica-east1" }, async (reques
 // --- FUNÇÕES DE APROVAÇÃO E TAREFAS RECORRENTES ---
 
 export const submitTaskForApproval = onCall({ region: "southamerica-east1" }, async (request) => {
-    const { taskId, taskType, proof } = request.data;
+    const { taskId, taskType, proof, notes } = request.data;
     if (!taskId || !taskType || !proof) {
         throw new HttpsError("invalid-argument", "Faltam dados essenciais.");
     }
@@ -99,6 +99,8 @@ export const submitTaskForApproval = onCall({ region: "southamerica-east1" }, as
         await db.collection(collectionName).doc(taskId).update({
             approvalStatus: 'pending',
             proof: proof,
+            approvalNotes: notes || null,
+            submittedAt: admin.firestore.FieldValue.serverTimestamp()
         });
         return { success: true };
     } catch (error: any) {
@@ -120,17 +122,22 @@ export const reviewTask = onCall({ region: "southamerica-east1" }, async (reques
 
     const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
     const taskRef = db.collection(collectionName).doc(taskId);
+    
+    const approverUser = await auth.getUser(approverId);
+    const approverName = approverUser.displayName || "Líder";
 
     try {
       const updateData: { [key: string]: any } = {
         approvalStatus: decision,
         approverId: approverId,
+        reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
 
       if (decision === 'rejected') {
         updateData.rejectionFeedback = admin.firestore.FieldValue.arrayUnion({
             ...feedback,
-            timestamp: admin.firestore.FieldValue.serverTimestamp()
+            rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
+            rejectedBy: approverName,
         });
         if (collectionName === 'tasks') {
           updateData.status = 'doing';
@@ -140,6 +147,7 @@ export const reviewTask = onCall({ region: "southamerica-east1" }, async (reques
       } else if (decision === 'approved') {
         if (collectionName === 'tasks') {
           updateData.status = 'done';
+          updateData.completedAt = admin.firestore.FieldValue.serverTimestamp();
         } else {
           updateData.isCompleted = true;
         }
@@ -192,25 +200,14 @@ export const resetRecurringTasks = onSchedule({
 const createNotificationsForUsers = async (userIds: string[], message: string, linkTo: string, triggeredBy: string) => {
   const batch = db.batch();
   const uniqueUserIds = [...new Set(userIds.filter(id => id))];
-
   logger.info("A criar notificações para os seguintes UIDs:", uniqueUserIds);
-
   uniqueUserIds.forEach((userId) => {
     const notificationRef = db.collection('users').doc(userId).collection('notifications').doc();
-    batch.set(notificationRef, {
-      message,
-      linkTo,
-      triggeredBy,
-      status: 'unread',
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    batch.set(notificationRef, { message, linkTo, triggeredBy, status: 'unread', createdAt: admin.firestore.FieldValue.serverTimestamp() });
   });
-
   if (uniqueUserIds.length > 0) {
     await batch.commit();
     logger.info(`${uniqueUserIds.length} notificações criadas com sucesso.`);
-  } else {
-    logger.warn("Nenhum UID válido fornecido para criar notificações.");
   }
 };
 
@@ -251,6 +248,35 @@ const handleItemCreation = async (snap: any, itemType: string, linkPath: string)
     logger.info("[handleItemCreation] Lista final de IDs para notificar:", userIdsToNotify);
     return createNotificationsForUsers(userIdsToNotify, message, linkTo, creatorName);
 };
+
+export const createTask = onCall({ region: "southamerica-east1" }, async (request) => {
+    const taskData = request.data;
+    const creatorId = request.auth?.uid;
+    if (!creatorId) {
+        throw new HttpsError("unauthenticated", "O utilizador deve estar autenticado.");
+    }
+    try {
+        const docRef = await db.collection('tasks').add({
+            ...taskData,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            approvalStatus: null,
+        });
+
+        const creator = await auth.getUser(creatorId);
+        const creatorName = creator.displayName || 'Sistema';
+        const message = `${creatorName} atribuiu-lhe a tarefa: "${taskData.title}"`;
+        const linkTo = `/dashboard/tasks?openTask=${docRef.id}`;
+        
+        let userIdsToNotify = [taskData.responsibleId, ...(taskData.assistantIds || [])];
+        await createNotificationsForUsers(userIdsToNotify, message, linkTo, creatorName);
+
+        return { success: true, id: docRef.id };
+    } catch (error) {
+        logger.error("Erro ao criar tarefa com notificações:", error);
+        throw new HttpsError("internal", "Não foi possível criar a tarefa.");
+    }
+});
+
 
 // --- Gatilhos para a coleção 'tasks' ---
 export const onTaskCreated = onDocumentCreated({ document: "tasks/{taskId}", region: "southamerica-east1" }, (event) => {

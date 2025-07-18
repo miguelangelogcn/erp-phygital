@@ -16,7 +16,7 @@ import { db, functions } from "@/lib/firebase/config";
 import type { Task, TaskStatus, NewTask, ApprovalTask } from "@/types/task";
 import { httpsCallable } from "firebase/functions";
 
-const createTaskCallable = httpsCallable(functions, 'createTaskWithNotifications');
+const createTaskCallable = httpsCallable(functions, 'createTask');
 const deleteTaskCallable = httpsCallable(functions, 'deleteTask');
 
 
@@ -136,7 +136,7 @@ export async function addTask(taskData: NewTask): Promise<string> {
       throw new Error(result.data.message || 'Failed to create task.');
     }
   } catch (error) {
-    console.error("Error calling createTaskWithNotifications function: ", error);
+    console.error("Error calling createTask function: ", error);
     throw error;
   }
 }
@@ -221,7 +221,7 @@ export async function updateTaskStatusAndOrder(
 export async function deleteTask(taskId: string): Promise<void> {
     try {
         await deleteTaskCallable({ taskId, taskType: 'tasks' });
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error calling deleteTask function: ", error);
         throw error;
     }
