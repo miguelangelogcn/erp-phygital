@@ -33,8 +33,8 @@ export default function CalendarPage() {
           start: data.startDateTime.toDate(),
           end: data.endDateTime.toDate(),
           allDay: false,
-          backgroundColor: data.color || '#3788d8',
-          borderColor: data.color || '#3788d8',
+          backgroundColor: data.color || '#374151',
+          borderColor: data.color || '#4B5563',
           extendedProps: { ...data, id: doc.id }
         };
       }).filter(event => event !== null) as EventInput[];
