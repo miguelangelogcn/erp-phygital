@@ -193,6 +193,8 @@ const createNotificationsForUsers = async (userIds: string[], message: string, l
   const batch = db.batch();
   const uniqueUserIds = [...new Set(userIds.filter(id => id))];
 
+  logger.info("A criar notificações para os seguintes UIDs:", uniqueUserIds);
+
   uniqueUserIds.forEach((userId) => {
     const notificationRef = db.collection('users').doc(userId).collection('notifications').doc();
     batch.set(notificationRef, {
@@ -203,32 +205,50 @@ const createNotificationsForUsers = async (userIds: string[], message: string, l
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
   });
+
   if (uniqueUserIds.length > 0) {
     await batch.commit();
+    logger.info(`${uniqueUserIds.length} notificações criadas com sucesso.`);
+  } else {
+    logger.warn("Nenhum UID válido fornecido para criar notificações.");
   }
 };
 
-// Lógica de notificação robusta e reutilizável
 const handleItemCreation = async (snap: any, itemType: string, linkPath: string) => {
-    if (!snap) return;
+    logger.info(`[handleItemCreation] Acionado para ${itemType} com ID: ${snap.id}`);
+    if (!snap) {
+        logger.warn("[handleItemCreation] Snapshot nulo ou indefinido.");
+        return;
+    }
     const data = snap.data();
-    if (!data.responsibleId) return; // Se não houver responsável, não notificar
+    logger.info("[handleItemCreation] Dados do documento:", data);
+
+    if (!data.responsibleId) {
+        logger.warn("[handleItemCreation] 'responsibleId' em falta.");
+        return;
+    }
 
     const creator = await auth.getUser(data.responsibleId);
     const creatorName = creator.displayName || 'Sistema';
-    
     const message = `${creatorName} atribuiu-lhe ${itemType}: "${data.title}"`;
     const linkTo = `${linkPath}${snap.id}`;
     
-    // Lógica corrigida e mais explícita para juntar os IDs
     let userIdsToNotify: string[] = [];
     if (data.responsibleId) {
         userIdsToNotify.push(data.responsibleId);
     }
-    if (data.assistantIds && Array.isArray(data.assistantIds)) {
-        userIdsToNotify = userIdsToNotify.concat(data.assistantIds);
+
+    logger.info("[handleItemCreation] Campo assistantIds:", data.assistantIds);
+    logger.info("[handleItemCreation] Tipo de assistantIds:", typeof data.assistantIds);
+    logger.info("[handleItemCreation] É um array?", Array.isArray(data.assistantIds));
+
+    if (data.assistantIds && Array.isArray(data.assistantIds) && data.assistantIds.length > 0) {
+        userIdsToNotify = [...userIdsToNotify, ...data.assistantIds];
+    } else {
+        logger.warn("[handleItemCreation] 'assistantIds' está vazio, não é um array, ou não existe.");
     }
 
+    logger.info("[handleItemCreation] Lista final de IDs para notificar:", userIdsToNotify);
     return createNotificationsForUsers(userIdsToNotify, message, linkTo, creatorName);
 };
 
@@ -243,18 +263,18 @@ export const onTaskUpdated = onDocumentUpdated({ document: "tasks/{taskId}", reg
     if (!afterData || !beforeData) return;
 
     if (afterData.approvalStatus === 'pending' && beforeData.approvalStatus !== 'pending') {
-      const taskCreatorDoc = await db.collection('users').doc(afterData.responsibleId).get();
-      const teamId = taskCreatorDoc.data()?.teamId;
-      if (teamId) {
-        const team = await db.collection('teams').doc(teamId).get();
-        const leaderId = team.data()?.leaderId;
-        if (leaderId) {
-          const message = `A tarefa "${afterData.title}" foi submetida para aprovação.`;
-          const linkTo = `/dashboard/approvals`;
-          const creatorName = taskCreatorDoc.data()?.name || 'Um utilizador';
-          await createNotificationsForUsers([leaderId], message, linkTo, creatorName);
+        const taskCreatorDoc = await db.collection('users').doc(afterData.responsibleId).get();
+        const teamId = taskCreatorDoc.data()?.teamId;
+        if (teamId) {
+            const team = await db.collection('teams').doc(teamId).get();
+            const leaderId = team.data()?.leaderId;
+            if (leaderId) {
+                const message = `A tarefa "${afterData.title}" foi submetida para aprovação.`;
+                const linkTo = `/dashboard/approvals`;
+                const creatorName = taskCreatorDoc.data()?.name || 'Um utilizador';
+                await createNotificationsForUsers([leaderId], message, linkTo, creatorName);
+            }
         }
-      }
     }
     return;
 });
@@ -293,12 +313,11 @@ export const onCalendarEventCreated = onDocumentCreated({ document: "calendarEve
     return handleItemCreation(event.data, "um novo evento", "/dashboard/calendar?openEvent=");
 });
 
-export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEvents/{eventId}", region: "southamerica-east1" }, (event) => {
+export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEvents/{eventId}", region: "southamerica-east1" }, async (event) => {
     const afterData = event.data?.after.data();
     const beforeData = event.data?.before.data();
     if (!afterData || !beforeData) return;
 
-    // Lógica de notificação para edição geral
     const message = `O evento de calendário "${afterData.title}" foi atualizado.`;
     const linkTo = `/dashboard/calendar?openEvent=${event.params.eventId}`;
     
@@ -307,10 +326,9 @@ export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEve
         userIdsToNotify.push(afterData.responsibleId);
     }
     if (afterData.assistantIds && Array.isArray(afterData.assistantIds)) {
-        userIdsToNotify = userIdsToNotify.concat(afterData.assistantIds);
+        userIdsToNotify = [...userIdsToNotify, ...afterData.assistantIds];
     }
     
-    const triggeredBy = "Sistema"; // Idealmente, teríamos o ID de quem editou
-
+    const triggeredBy = "Sistema";
     return createNotificationsForUsers(userIdsToNotify, message, linkTo, triggeredBy);
 });
