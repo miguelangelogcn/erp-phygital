@@ -77,6 +77,7 @@ export function onRecurringTasksUpdate(
 
 /**
  * Adds a new recurring task to the 'recurringTasks' collection.
+ * This will trigger the onRecurringTaskCreated cloud function for notifications.
  * @param {NewRecurringTask} taskData - The data for the new task.
  * @returns {Promise<string>} The ID of the newly created task.
  */

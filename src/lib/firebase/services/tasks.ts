@@ -122,7 +122,8 @@ export async function getTasksForApproval(memberIds: string[], leaderId: string)
 
 
 /**
- * Adds a new task to the 'tasks' collection.
+ * Adds a new task to the 'tasks' collection using addDoc.
+ * This will trigger the onTaskCreated cloud function for notifications.
  * @param {NewTask} taskData - The data for the new task.
  * @returns {Promise<string>} The ID of the newly created task.
  */
