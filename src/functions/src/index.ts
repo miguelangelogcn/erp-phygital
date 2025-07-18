@@ -362,104 +362,85 @@ export const resetRecurringTasks = onSchedule(
   }
 );
 
+// --- FUNÇÕES DE GERAÇÃO DE NOTIFICAÇÕES (Triggers) ---
 
-// --- Funções de Notificação ---
-
-/**
- * Cria uma notificação para um utilizador específico.
- */
-async function createNotification(userId: string, message: string, link: string) {
-    if (!userId) return;
-    try {
-        await db.collection("users").doc(userId).collection("notifications").add({
-            message,
-            link,
-            status: "unread", // Alterado de isRead: false para status: 'unread'
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        logger.info(`Notificação criada para o utilizador ${userId}: "${message}"`);
-    } catch (error) {
-        logger.error(`Erro ao criar notificação para ${userId}:`, error);
+const createNotificationsForUsers = async (userIds: string[], message: string, linkTo: string, triggeredBy: string) => {
+  const batch = db.batch();
+  userIds.forEach((userId) => {
+    if (userId) {
+      const notificationRef = db.collection('users').doc(userId).collection('notifications').doc();
+      batch.set(notificationRef, {
+        message,
+        linkTo,
+        triggeredBy,
+        status: 'unread',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
     }
-}
+  });
+  await batch.commit();
+};
 
-/**
- * Acionada quando uma nova tarefa, tarefa recorrente ou evento de calendário é criado.
- */
-export const onTaskCreated = onDocumentCreated(
-    { document: "{collectionId}/{docId}", region: "southamerica-east1" },
-    async (event) => {
-        const { collectionId, docId } = event.params;
-        const data = event.data?.data();
-
-        if (!['tasks', 'recurringTasks', 'calendarEvents'].includes(collectionId) || !data) {
-            return;
-        }
-
-        const title = data.title || "uma nova tarefa";
-        const responsibleId = data.responsibleId;
-        const assistantIds = data.assistantIds || [];
-
-        const allUserIds = [...new Set([responsibleId, ...assistantIds])].filter(Boolean);
-
-        const message = `Você foi adicionado a uma nova atividade: ${title}`;
-        const link = `/dashboard/tasks`; // Link genérico por enquanto
-
-        for (const userId of allUserIds) {
-            await createNotification(userId, message, link);
-        }
+export const onTaskCreatedTrigger = onDocumentCreated({document: 'tasks/{taskId}', region: "southamerica-east1"}, async (event) => {
+    const snap = event.data;
+    if (!snap) return null;
+    const task = snap.data();
+    if (!task) return null;
+    
+    // Assegura que responsibleId existe antes de chamar auth.getUser
+    if (!task.responsibleId) {
+        logger.error("A tarefa foi criada sem um responsibleId.", { taskId: event.params.taskId });
+        return null;
     }
-);
+    
+    const creatorUser = await auth.getUser(task.responsibleId);
+    const creatorName = creatorUser.displayName || 'Sistema';
+    
+    const message = `${creatorName} criou uma nova tarefa: "${task.title}"`;
+    const linkTo = `/dashboard/tasks?openTask=${event.params.taskId}`;
+    
+    const userIdsToNotify = [task.responsibleId, ...(task.assistantIds || [])];
+    const uniqueUserIds = [...new Set(userIdsToNotify)];
 
+    return createNotificationsForUsers(uniqueUserIds, message, linkTo, creatorName);
+  });
 
-/**
- * Acionada quando uma tarefa, tarefa recorrente ou evento de calendário é atualizado.
- */
-export const onTaskUpdated = onDocumentUpdated(
-    { document: "{collectionId}/{docId}", region: "southamerica-east1" },
-    async (event) => {
-        const { collectionId, docId } = event.params;
-        const dataAfter = event.data?.after.data();
-        const dataBefore = event.data?.before.data();
+export const onTaskUpdatedTrigger = onDocumentUpdated({document: 'tasks/{taskId}', region: "southamerica-east1"}, async (event) => {
+    const change = event.data;
+    if (!change) return null;
 
-        if (!['tasks', 'recurringTasks', 'calendarEvents'].includes(collectionId) || !dataAfter || !dataBefore) {
-            return;
+    const newValue = change.after.data();
+    const previousValue = change.before.data();
+
+    // Notificação para tarefa enviada para aprovação
+    if (newValue.approvalStatus === 'pending' && previousValue.approvalStatus !== 'pending') {
+      try {
+        const taskCreatorDoc = await db.collection('users').doc(newValue.responsibleId).get();
+        if (!taskCreatorDoc.exists) return null;
+
+        const taskCreator = taskCreatorDoc.data();
+        const teamId = taskCreator?.teamId;
+
+        if (teamId) {
+          const teamDoc = await db.collection('teams').doc(teamId).get();
+          if (!teamDoc.exists) return null;
+          
+          const team = teamDoc.data();
+          const leaderId = team?.leaderId;
+
+          if (leaderId) {
+            const message = `A tarefa "${newValue.title}" foi submetida para aprovação.`;
+            const linkTo = `/dashboard/approvals`;
+            const creatorName = taskCreator?.name || 'Um utilizador';
+            await createNotificationsForUsers([leaderId], message, linkTo, creatorName);
+          }
         }
-
-        const title = dataAfter.title || "uma tarefa";
-        const responsibleId = dataAfter.responsibleId;
-        const assistantIds = dataAfter.assistantIds || [];
-        const allUserIds = [...new Set([responsibleId, ...assistantIds])].filter(Boolean);
-
-        // Notificação de atualização geral
-        const updateMessage = `A atividade "${title}" foi atualizada.`;
-        const link = `/dashboard/tasks`; // Link genérico
-
-        for (const userId of allUserIds) {
-            await createNotification(userId, updateMessage, link);
-        }
-
-        // Notificação de aprovação pendente
-        if (dataAfter.approvalStatus === 'pending' && dataBefore.approvalStatus !== 'pending') {
-            try {
-                const userDoc = await db.collection("users").doc(responsibleId).get();
-                if (!userDoc.exists) return;
-
-                const teamId = userDoc.data()?.teamId;
-                if (!teamId) return;
-
-                const teamDoc = await db.collection("teams").doc(teamId).get();
-                if (!teamDoc.exists) return;
-
-                const leaderId = teamDoc.data()?.leaderId;
-                if (leaderId) {
-                    const approvalMessage = `Uma nova tarefa ("${title}") aguarda a sua aprovação.`;
-                    const approvalLink = "/dashboard/approvals";
-                    await createNotification(leaderId, approvalMessage, approvalLink);
-                }
-            } catch (error) {
-                logger.error(`Erro ao notificar líder sobre aprovação para a tarefa ${docId}:`, error);
-            }
-        }
+      } catch (error) {
+        logger.error(`Erro ao notificar líder para a tarefa ${event.params.taskId}:`, error);
+      }
     }
-);
+    // Adicione aqui outras lógicas de notificação para edição, se desejar
+    return null;
+  });
+
+    
