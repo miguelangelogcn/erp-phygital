@@ -208,17 +208,33 @@ const createNotificationsForUsers = async (userIds: string[], message: string, l
   }
 };
 
-// --- Gatilhos para a coleção 'tasks' ---
-export const onTaskCreated = onDocumentCreated({ document: "tasks/{taskId}", region: "southamerica-east1" }, async (event) => {
-    const snap = event.data;
+// Lógica de notificação robusta e reutilizável
+const handleItemCreation = async (snap: any, itemType: string, linkPath: string) => {
     if (!snap) return;
-    const task = snap.data();
-    const creator = await auth.getUser(task.responsibleId);
+    const data = snap.data();
+    if (!data.responsibleId) return; // Se não houver responsável, não notificar
+
+    const creator = await auth.getUser(data.responsibleId);
     const creatorName = creator.displayName || 'Sistema';
-    const message = `${creatorName} atribuiu-lhe a tarefa: "${task.title}"`;
-    const linkTo = `/dashboard/tasks?openTask=${event.params.taskId}`;
-    const userIdsToNotify = [task.responsibleId, ...(task.assistantIds || [])];
+    
+    const message = `${creatorName} atribuiu-lhe ${itemType}: "${data.title}"`;
+    const linkTo = `${linkPath}${snap.id}`;
+    
+    // Lógica corrigida e mais explícita para juntar os IDs
+    let userIdsToNotify: string[] = [];
+    if (data.responsibleId) {
+        userIdsToNotify.push(data.responsibleId);
+    }
+    if (data.assistantIds && Array.isArray(data.assistantIds)) {
+        userIdsToNotify = userIdsToNotify.concat(data.assistantIds);
+    }
+
     return createNotificationsForUsers(userIdsToNotify, message, linkTo, creatorName);
+};
+
+// --- Gatilhos para a coleção 'tasks' ---
+export const onTaskCreated = onDocumentCreated({ document: "tasks/{taskId}", region: "southamerica-east1" }, (event) => {
+    return handleItemCreation(event.data, "uma nova tarefa", "/dashboard/tasks?openTask=");
 });
 
 export const onTaskUpdated = onDocumentUpdated({ document: "tasks/{taskId}", region: "southamerica-east1" }, async (event) => {
@@ -244,17 +260,9 @@ export const onTaskUpdated = onDocumentUpdated({ document: "tasks/{taskId}", reg
 });
 
 
-// --- Novos Gatilhos para a coleção 'recurringTasks' ---
-export const onRecurringTaskCreated = onDocumentCreated({ document: "recurringTasks/{taskId}", region: "southamerica-east1" }, async (event) => {
-    const snap = event.data;
-    if (!snap) return;
-    const task = snap.data();
-    const creator = await auth.getUser(task.responsibleId);
-    const creatorName = creator.displayName || 'Sistema';
-    const message = `${creatorName} atribuiu-lhe a tarefa recorrente: "${task.title}"`;
-    const linkTo = `/dashboard/tasks?tab=recurring`;
-    const userIdsToNotify = [task.responsibleId, ...(task.assistantIds || [])];
-    return createNotificationsForUsers(userIdsToNotify, message, linkTo, creatorName);
+// --- Gatilhos para a coleção 'recurringTasks' ---
+export const onRecurringTaskCreated = onDocumentCreated({ document: "recurringTasks/{taskId}", region: "southamerica-east1" }, (event) => {
+    return handleItemCreation(event.data, "uma nova tarefa recorrente", "/dashboard/tasks?tab=recurring&openTask=");
 });
 
 export const onRecurringTaskUpdated = onDocumentUpdated({ document: "recurringTasks/{taskId}", region: "southamerica-east1" }, async (event) => {
@@ -280,29 +288,28 @@ export const onRecurringTaskUpdated = onDocumentUpdated({ document: "recurringTa
 });
 
 
-// --- Novos Gatilhos para a coleção 'calendarEvents' ---
-export const onCalendarEventCreated = onDocumentCreated({ document: "calendarEvents/{eventId}", region: "southamerica-east1" }, async (event) => {
-    const snap = event.data;
-    if (!snap) return;
-    const eventData = snap.data();
-    // Assumindo que o criador é o responsável
-    const creator = await auth.getUser(eventData.responsibleId);
-    const creatorName = creator.displayName || 'Sistema';
-    const message = `${creatorName} agendou um novo evento: "${eventData.title}"`;
-    const linkTo = `/dashboard/calendar`;
-    const userIdsToNotify = [eventData.responsibleId, ...(eventData.assistantIds || [])];
-    return createNotificationsForUsers(userIdsToNotify, message, linkTo, creatorName);
+// --- Gatilhos para a coleção 'calendarEvents' ---
+export const onCalendarEventCreated = onDocumentCreated({ document: "calendarEvents/{eventId}", region: "southamerica-east1" }, (event) => {
+    return handleItemCreation(event.data, "um novo evento", "/dashboard/calendar?openEvent=");
 });
 
-export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEvents/{eventId}", region: "southamerica-east1" }, async (event) => {
+export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEvents/{eventId}", region: "southamerica-east1" }, (event) => {
     const afterData = event.data?.after.data();
     const beforeData = event.data?.before.data();
     if (!afterData || !beforeData) return;
 
     // Lógica de notificação para edição geral
     const message = `O evento de calendário "${afterData.title}" foi atualizado.`;
-    const linkTo = `/dashboard/calendar`;
-    const userIdsToNotify = [afterData.responsibleId, ...(afterData.assistantIds || [])];
+    const linkTo = `/dashboard/calendar?openEvent=${event.params.eventId}`;
+    
+    let userIdsToNotify: string[] = [];
+    if (afterData.responsibleId) {
+        userIdsToNotify.push(afterData.responsibleId);
+    }
+    if (afterData.assistantIds && Array.isArray(afterData.assistantIds)) {
+        userIdsToNotify = userIdsToNotify.concat(afterData.assistantIds);
+    }
+    
     const triggeredBy = "Sistema"; // Idealmente, teríamos o ID de quem editou
 
     return createNotificationsForUsers(userIdsToNotify, message, linkTo, triggeredBy);
