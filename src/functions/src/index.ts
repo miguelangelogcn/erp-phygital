@@ -75,11 +75,12 @@ export const deleteUser = onCall({ region: "southamerica-east1" }, async (reques
 export const deleteTask = onCall({ region: "southamerica-east1" }, async (request) => {
     const { taskId, taskType } = request.data;
     if (!taskId || !taskType) {
-        throw new HttpsError("invalid-argument", "Faltam dados essenciais.");
+        throw new HttpsError("invalid-argument", "Faltam dados essenciais (taskId, taskType).");
     }
     const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
     try {
         await db.collection(collectionName).doc(taskId).delete();
+        logger.info(`Tarefa ${taskId} da coleção ${collectionName} foi apagada com sucesso.`);
         return { success: true };
     } catch (error: any) {
         logger.error(`Erro ao apagar a tarefa ${taskId}:`, error);
