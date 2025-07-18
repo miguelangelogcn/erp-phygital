@@ -148,13 +148,16 @@ body {
    .fc-theme-standard .fc-scrollgrid, .fc-theme-standard th, .fc-theme-standard td {
     border-color: hsl(var(--card));
   }
-  .fc .fc-daygrid-day {
+  
+  .fc-daygrid-day {
     position: relative;
   }
-  .fc .fc-daygrid-day:hover {
+  .fc-daygrid-day:hover {
      background-color: hsl(var(--accent) / 0.5);
+     cursor: pointer;
   }
-  .fc .fc-daygrid-day::after {
+
+  .fc-daygrid-day::after {
     content: '+';
     position: absolute;
     top: 0.25rem;
@@ -165,7 +168,7 @@ body {
     opacity: 0;
     transition: opacity 0.2s ease-in-out;
   }
-  .fc .fc-daygrid-day:hover::after {
+  .fc-daygrid-day:hover::after {
     opacity: 1;
   }
 }
