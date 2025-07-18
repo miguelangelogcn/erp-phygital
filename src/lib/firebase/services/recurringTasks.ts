@@ -22,7 +22,6 @@ import type {
 } from "@/types/recurringTask";
 
 const deleteTaskCallable = httpsCallable(functions, 'deleteTask');
-const createRecurringTaskCallable = httpsCallable(functions, 'createRecurringTask');
 
 interface TaskViewConfig {
     uid: string;
@@ -77,17 +76,22 @@ export function onRecurringTasksUpdate(
 }
 
 /**
- * Adds a new recurring task by calling a cloud function.
+ * Adds a new recurring task to the 'recurringTasks' collection.
  * @param {NewRecurringTask} taskData - The data for the new task.
- * @returns {Promise<any>} The result of the cloud function call.
+ * @returns {Promise<string>} The ID of the newly created task.
  */
 export async function addRecurringTask(
   taskData: NewRecurringTask
-): Promise<any> {
+): Promise<string> {
     try {
-        return await createRecurringTaskCallable(taskData);
+      const docRef = await addDoc(collection(db, "recurringTasks"), {
+          ...taskData,
+          createdAt: serverTimestamp(),
+          approvalStatus: null,
+      });
+      return docRef.id;
     } catch (error) {
-        console.error("Error calling createRecurringTask function: ", error);
+        console.error("Error adding recurring task: ", error);
         throw new Error("Failed to add recurring task.");
     }
 }
