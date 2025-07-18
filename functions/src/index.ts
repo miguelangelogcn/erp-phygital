@@ -1,9 +1,8 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { onSchedule } from "firebase-functions/v2/scheduler";
+
+import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 
-// Inicialização segura do Admin SDK
 if (!admin.apps.length) {
   admin.initializeApp();
 }
@@ -11,7 +10,8 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 const auth = admin.auth();
 
-// Define a interface para os dados esperados
+// --- FUNÇÕES DE GESTÃO (onCall) ---
+
 interface CreateUserData {
   name: string;
   email: string;
@@ -21,6 +21,28 @@ interface CreateUserData {
   permissions?: string[];
 }
 
+export const createUser = functions.region("southamerica-east1").https.onCall(async (data: CreateUserData, context) => {
+    logger.info("Função 'createUser' chamada com os dados:", data);
+    const { name, email, password, roleId, teamId, permissions } = data;
+    if (!name || !email || !password) {
+      throw new functions.https.HttpsError("invalid-argument", "Faltam dados essenciais (nome, email, senha).");
+    }
+    try {
+      const userRecord = await auth.createUser({ email, password, displayName: name });
+      const userData: any = { name, email, permissions: permissions || [] };
+      if (roleId) userData.roleId = roleId;
+      if (teamId) userData.teamId = teamId;
+      await db.collection("users").doc(userRecord.uid).set(userData);
+      return { success: true, message: "Utilizador criado com sucesso!", uid: userRecord.uid };
+    } catch (error: any) {
+      if (error.code === 'auth/email-already-exists') {
+        throw new functions.https.HttpsError('already-exists', 'Este e-mail já está em uso.');
+      }
+      throw new functions.https.HttpsError("internal", "Ocorreu um erro inesperado no servidor.", error.message);
+    }
+});
+
+
 interface UpdateUserData {
   uid: string;
   name: string;
@@ -29,13 +51,60 @@ interface UpdateUserData {
   permissions: string[];
 }
 
+export const updateUser = functions.region("southamerica-east1").https.onCall(async (data: UpdateUserData, context) => {
+    const { uid, name, roleId, teamId, permissions } = data;
+    if (!uid || !name || !Array.isArray(permissions)) {
+      throw new functions.https.HttpsError("invalid-argument", "Faltam dados essenciais (uid, nome, permissões).");
+    }
+    try {
+      const updatePayload: any = { name, permissions };
+      if (roleId) updatePayload.roleId = roleId;
+      updatePayload.teamId = teamId ? teamId : admin.firestore.FieldValue.delete();
+      await db.collection("users").doc(uid).update(updatePayload);
+      await auth.updateUser(uid, { displayName: name });
+      return { success: true, message: "Utilizador atualizado com sucesso!" };
+    } catch (error: any) {
+      throw new functions.https.HttpsError("internal", "Ocorreu um erro ao atualizar o utilizador.", error.message);
+    }
+});
+
+
 interface DeleteUserData {
   uid: string;
 }
 
+export const deleteUser = functions.region("southamerica-east1").https.onCall(async (data: DeleteUserData, context) => {
+    const { uid } = data;
+    if (!uid) {
+      throw new functions.https.HttpsError("invalid-argument", "O UID do utilizador é obrigatório.");
+    }
+    try {
+      await auth.deleteUser(uid);
+      await db.collection("users").doc(uid).delete();
+      return { success: true, message: "Utilizador excluído com sucesso!" };
+    } catch (error: any) {
+      throw new functions.https.HttpsError("internal", "Ocorreu um erro ao excluir o utilizador.", error.message);
+    }
+});
+
+
 interface DeleteTaskData {
   taskId: string;
 }
+
+export const deleteTask = functions.region("southamerica-east1").https.onCall(async (data: DeleteTaskData, context) => {
+    const { taskId } = data;
+    if (!taskId) {
+        throw new functions.https.HttpsError("invalid-argument", "O ID da tarefa é obrigatório.");
+    }
+    try {
+        await db.collection("tasks").doc(taskId).delete();
+        return { success: true, message: "Tarefa excluída com sucesso!" };
+    } catch (error: any) {
+        throw new functions.https.HttpsError("internal", "Ocorreu um erro ao excluir a tarefa.", error.message);
+    }
+});
+
 
 interface SubmitForApprovalData {
   taskId: string;
@@ -44,245 +113,59 @@ interface SubmitForApprovalData {
   notes: string;
 }
 
+export const submitTaskForApproval = functions.region("southamerica-east1").https.onCall(async (data: SubmitForApprovalData, context) => {
+    const { taskId, taskType, proofs, notes } = data;
+    if (!taskId || !taskType || !proofs || proofs.length === 0) {
+      throw new functions.https.HttpsError("invalid-argument", "Dados insuficientes para submeter para aprovação.");
+    }
+    const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
+    try {
+      await db.collection(collectionName).doc(taskId).update({
+        approvalStatus: 'pending',
+        proofs,
+        approvalNotes: notes || "",
+        submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+        rejectionFeedback: admin.firestore.FieldValue.delete(),
+      });
+      return { success: true, message: "Tarefa submetida para aprovação!" };
+    } catch (error: any) {
+      throw new functions.https.HttpsError("internal", "Ocorreu um erro ao submeter a tarefa.", error.message);
+    }
+});
+
+
 interface ReviewTaskData {
   taskId: string;
   taskType: "tasks" | "recurringTasks";
   decision: "approved" | "rejected";
-  feedback?: {
-    notes: string;
-    files?: { url: string; name: string }[];
-    audioUrl?: string;
-  };
+  feedback?: { notes: string; files?: { url: string; name: string }[]; audioUrl?: string; };
 }
 
-export const createUser = onCall(
-  { region: "southamerica-east1" },
-  async (request) => {
-    const data: CreateUserData = request.data;
-    logger.info("Função 'createUser' chamada com os dados:", data);
-
-    const { name, email, password, roleId, teamId, permissions } = data;
-    if (!name || !email || !password) {
-      throw new HttpsError(
-        "invalid-argument",
-        "Faltam dados essenciais (nome, email, senha)."
-      );
-    }
-
-    try {
-      logger.info(`A criar utilizador no Auth para: ${email}`);
-      const userRecord = await auth.createUser({
-        email: email,
-        password: password,
-        displayName: name,
-      });
-      logger.info(`Utilizador criado no Auth com UID: ${userRecord.uid}`);
-
-      const userData: any = {
-        name: name,
-        email: email,
-        permissions: permissions || [],
-      };
-
-      if (roleId) userData.roleId = roleId;
-      if (teamId) userData.teamId = teamId;
-
-
-      logger.info(`A criar documento no Firestore para UID: ${userRecord.uid}`);
-      await db.collection("users").doc(userRecord.uid).set(userData);
-      logger.info("Documento criado no Firestore com sucesso.");
-
-      return { success: true, message: "Utilizador criado com sucesso!", uid: userRecord.uid };
-
-    } catch (error: any) {
-      logger.error("ERRO DETALHADO dentro da função:", error);
-      if (error.code === 'auth/email-already-exists') {
-           throw new HttpsError('already-exists', 'Este e-mail já está em uso.');
-      }
-      throw new HttpsError("internal", "Ocorreu um erro inesperado no servidor.", error.message);
-    }
-  }
-);
-
-
-export const updateUser = onCall(
-  { region: "southamerica-east1" },
-  async (request) => {
-    const data: UpdateUserData = request.data;
-    const { uid, name, roleId, teamId, permissions } = data;
-    logger.info(`A atualizar o utilizador: ${uid}`, data);
-
-    if (!uid || !name || !Array.isArray(permissions)) {
-      throw new HttpsError(
-        "invalid-argument",
-        "Faltam dados essenciais (uid, nome, permissões)."
-      );
-    }
-
-    try {
-      const updatePayload: any = {
-        name: name,
-        permissions: permissions,
-      };
-
-      if (roleId) updatePayload.roleId = roleId;
-      if (teamId) {
-        updatePayload.teamId = teamId;
-      } else {
-        updatePayload.teamId = admin.firestore.FieldValue.delete();
-      }
-      
-      await db.collection("users").doc(uid).update(updatePayload);
-
-      await auth.updateUser(uid, { displayName: name });
-
-      logger.info(`Utilizador ${uid} atualizado com sucesso.`);
-      return { success: true, message: "Utilizador atualizado com sucesso!" };
-
-    } catch (error: any) {
-      logger.error(`Erro ao atualizar o utilizador ${uid}:`, error);
-      throw new HttpsError("internal", "Ocorreu um erro ao atualizar o utilizador.", error.message);
-    }
-  }
-);
-
-export const deleteUser = onCall(
-  { region: "southamerica-east1" },
-  async (request) => {
-    const data: DeleteUserData = request.data;
-    const { uid } = data;
-    logger.info(`A excluir o utilizador: ${uid}`);
-
-    if (!uid) {
-      throw new HttpsError("invalid-argument", "O UID do utilizador é obrigatório.");
-    }
-
-    try {
-      await auth.deleteUser(uid);
-      logger.info(`Utilizador ${uid} excluído do Auth.`);
-
-      await db.collection("users").doc(uid).delete();
-      logger.info(`Documento do utilizador ${uid} excluído do Firestore.`);
-
-      return { success: true, message: "Utilizador excluído com sucesso!" };
-
-    } catch (error: any) {
-      logger.error(`Erro ao excluir o utilizador ${uid}:`, error);
-      throw new HttpsError("internal", "Ocorreu um erro ao excluir o utilizador.", error.message);
-    }
-  }
-);
-
-
-export const deleteTask = onCall(
-  { region: "southamerica-east1" },
-  async(request) => {
-    const data: DeleteTaskData = request.data;
-    const { taskId } = data;
-    logger.info(`A excluir a tarefa: ${taskId}`);
-
-    if (!taskId) {
-      throw new HttpsError("invalid-argument", "O ID da tarefa é obrigatório.");
-    }
-
-    try {
-      await db.collection("tasks").doc(taskId).delete();
-      logger.info(`Tarefa ${taskId} excluída do Firestore.`);
-      return { success: true, message: "Tarefa excluída com sucesso!" };
-    } catch(error: any) {
-      logger.error(`Erro ao excluir a tarefa ${taskId}:`, error);
-      throw new HttpsError("internal", "Ocorreu um erro ao excluir a tarefa.", error.message)
-    }
-  }
-);
-
-
-export const submitTaskForApproval = onCall(
-  { region: "southamerica-east1" },
-  async (request) => {
-    const data: SubmitForApprovalData = request.data;
-    const { taskId, taskType, proofs, notes } = data;
-
-    logger.info(`Submetendo tarefa para aprovação: ${taskId} do tipo ${taskType}`);
-
-    if (!taskId || !taskType || !proofs || proofs.length === 0) {
-      throw new HttpsError(
-        "invalid-argument",
-        "Dados insuficientes para submeter para aprovação."
-      );
-    }
-
-    const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
-
-    try {
-      const taskDocRef = db.collection(collectionName).doc(taskId);
-      await taskDocRef.update({
-        approvalStatus: 'pending',
-        proofs: proofs,
-        approvalNotes: notes || "",
-        submittedAt: admin.firestore.FieldValue.serverTimestamp(),
-        // Limpar o feedback anterior ao resubmeter
-        feedback: admin.firestore.FieldValue.delete(),
-        rejectionFeedback: admin.firestore.FieldValue.delete(),
-      });
-
-      logger.info(`Tarefa ${taskId} atualizada para 'pending' com sucesso.`);
-      return { success: true, message: "Tarefa submetida para aprovação!" };
-    } catch (error: any) {
-      logger.error(`Erro ao submeter a tarefa ${taskId}:`, error);
-      throw new HttpsError("internal", "Ocorreu um erro ao submeter a tarefa.", error.message);
-    }
-  }
-);
-
-export const reviewTask = onCall(
-  { region: "southamerica-east1" },
-  async (request) => {
-    // Log para depuração: ver exatamente o que a função recebe
-    logger.info("Função 'reviewTask' chamada com os dados:", request.data);
-
-    const { taskId, taskType, decision, feedback } = request.data as ReviewTaskData;
-    const approverId = request.auth?.uid;
-
+export const reviewTask = functions.region("southamerica-east1").https.onCall(async (data: ReviewTaskData, context) => {
+    const { taskId, taskType, decision, feedback } = data;
+    const approverId = context.auth?.uid;
     if (!approverId) {
-      throw new HttpsError("unauthenticated", "O utilizador deve estar autenticado para rever tarefas.");
+      throw new functions.https.HttpsError("unauthenticated", "O utilizador deve estar autenticado para rever tarefas.");
     }
-
-    if (!taskId || !taskType || (decision !== 'approved' && decision !== 'rejected')) {
-      throw new HttpsError("invalid-argument", "Faltam dados essenciais ou a decisão é inválida.");
-    }
-
     const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
     const taskRef = db.collection(collectionName).doc(taskId);
-
     try {
       const updateData: { [key: string]: any } = {
         approvalStatus: decision,
         approverId: approverId,
         reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
-
       if (decision === 'rejected') {
-        // Guarda o objeto de feedback inteiro no campo correto
-        updateData.rejectionFeedback = { 
-            ...(feedback || {}),
-            rejectedBy: approverId,
-            rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
-        }; 
-        
-        // Devolve a tarefa para o estado de trabalho
+        const newFeedbackEntry = { ...(feedback || {}), rejectedBy: approverId, rejectedAt: admin.firestore.FieldValue.serverTimestamp() };
+        updateData.rejectionFeedback = admin.firestore.FieldValue.arrayUnion(newFeedbackEntry);
         if (collectionName === 'tasks') {
           updateData.status = 'todo';
         } else {
           updateData.isCompleted = false;
         }
-         // Limpa os campos de aprovação antigos para consistência
-         updateData.proofs = admin.firestore.FieldValue.delete();
-         updateData.approvalNotes = admin.firestore.FieldValue.delete();
-
+        updateData.proofs = admin.firestore.FieldValue.delete();
+        updateData.approvalNotes = admin.firestore.FieldValue.delete();
       } else if (decision === 'approved') {
-        // Se aprovada, limpa qualquer feedback antigo e marca como concluída
-        updateData.rejectionFeedback = admin.firestore.FieldValue.delete();
         if (collectionName === 'tasks') {
           updateData.status = 'done';
           updateData.completedAt = admin.firestore.FieldValue.serverTimestamp();
@@ -290,70 +173,127 @@ export const reviewTask = onCall(
           updateData.isCompleted = true;
         }
       }
-
       await taskRef.update(updateData);
-      logger.info(`Tarefa ${taskId} atualizada com sucesso com a decisão: ${decision}`);
       return { success: true, message: "Revisão da tarefa concluída." };
-
     } catch (error: any) {
-      logger.error(`Erro ao rever a tarefa ${taskId}:`, error);
-      throw new HttpsError("internal", "Ocorreu um erro ao processar a sua revisão.");
+      throw new functions.https.HttpsError("internal", "Ocorreu um erro ao processar a sua revisão.");
     }
-  }
-);
+});
 
+// --- FUNÇÃO AGENDADA (onSchedule) ---
 
-export const resetRecurringTasks = onSchedule(
-  {
-    schedule: "59 23 * * 0", // Every Sunday at 23:59
-    timeZone: "America/Sao_Paulo", // Or your preferred timezone
-    region: "southamerica-east1",
-  },
-  async (event) => {
+export const resetRecurringTasks = functions.region("southamerica-east1").pubsub.schedule("59 23 * * 0")
+  .timeZone("America/Sao_Paulo")
+  .onRun(async (context) => {
     logger.info("A executar a função de reset de tarefas recorrentes...");
-
     const tasksCollectionRef = db.collection("recurringTasks");
     const snapshot = await tasksCollectionRef.get();
-
     if (snapshot.empty) {
       logger.info("Nenhuma tarefa recorrente encontrada para resetar.");
       return;
     }
-
     const batch = db.batch();
-
     snapshot.forEach((doc) => {
       const task = doc.data();
       const taskRef = tasksCollectionRef.doc(doc.id);
-      const updatePayload: any = { 
-          isCompleted: false,
-          approvalStatus: admin.firestore.FieldValue.delete(),
-          proofs: admin.firestore.FieldValue.delete(),
-          approvalNotes: admin.firestore.FieldValue.delete(),
-          submittedAt: admin.firestore.FieldValue.delete(),
-          feedback: admin.firestore.FieldValue.delete(), // Also reset feedback
-          rejectionFeedback: admin.firestore.FieldValue.delete(), // Also reset new feedback field
+      const updatePayload: any = {
+        isCompleted: false,
+        approvalStatus: admin.firestore.FieldValue.delete(),
+        proofs: admin.firestore.FieldValue.delete(),
+        approvalNotes: admin.firestore.FieldValue.delete(),
+        submittedAt: admin.firestore.FieldValue.delete(),
+        rejectionFeedback: admin.firestore.FieldValue.delete(),
       };
-
       if (task.checklist && Array.isArray(task.checklist)) {
-        const resetChecklist = task.checklist.map((item: any) => ({
-          ...item,
-          isCompleted: false,
-        }));
-        updatePayload.checklist = resetChecklist;
+        updatePayload.checklist = task.checklist.map((item: any) => ({ ...item, isCompleted: false }));
       }
-      
       batch.update(taskRef, updatePayload);
-      logger.info(`A tarefa ${doc.id} foi agendada para reset no batch.`);
     });
-
     try {
       await batch.commit();
-      logger.info(
-        `Reset de tarefas recorrentes concluído com sucesso para ${snapshot.size} tarefas.`
-      );
+      logger.info(`Reset de tarefas recorrentes concluído com sucesso para ${snapshot.size} tarefas.`);
     } catch (error) {
       logger.error("Erro ao executar o batch de reset:", error);
     }
-  }
-);
+});
+
+
+// --- FUNÇÕES DE GERAÇÃO DE NOTIFICAÇÕES (Triggers) ---
+
+const createNotificationsForUsers = async (userIds: string[], message: string, linkTo: string, triggeredBy: string) => {
+  const batch = db.batch();
+  userIds.forEach((userId) => {
+    if (userId) {
+      const notificationRef = db.collection('users').doc(userId).collection('notifications').doc();
+      batch.set(notificationRef, {
+        message,
+        linkTo,
+        triggeredBy,
+        status: 'unread',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+  });
+  await batch.commit();
+};
+
+export const onTaskCreated = functions.region("southamerica-east1").firestore
+  .document('tasks/{taskId}')
+  .onCreate(async (snap, context) => {
+    const task = snap.data();
+    if (!task) return null;
+    
+    // Assegura que responsibleId existe antes de chamar auth.getUser
+    if (!task.responsibleId) {
+        logger.error("A tarefa foi criada sem um responsibleId.", { taskId: context.params.taskId });
+        return null;
+    }
+    
+    const creatorUser = await auth.getUser(task.responsibleId);
+    const creatorName = creatorUser.displayName || 'Sistema';
+    
+    const message = `${creatorName} criou uma nova tarefa: "${task.title}"`;
+    const linkTo = `/dashboard/tasks?openTask=${context.params.taskId}`;
+    
+    const userIdsToNotify = [task.responsibleId, ...(task.assistantIds || [])];
+    const uniqueUserIds = [...new Set(userIdsToNotify)];
+
+    return createNotificationsForUsers(uniqueUserIds, message, linkTo, creatorName);
+  });
+
+export const onTaskUpdated = functions.region("southamerica-east1").firestore
+  .document('tasks/{taskId}')
+  .onUpdate(async (change, context) => {
+    const newValue = change.after.data();
+    const previousValue = change.before.data();
+
+    // Notificação para tarefa enviada para aprovação
+    if (newValue.approvalStatus === 'pending' && previousValue.approvalStatus !== 'pending') {
+      try {
+        const taskCreatorDoc = await db.collection('users').doc(newValue.responsibleId).get();
+        if (!taskCreatorDoc.exists) return null;
+
+        const taskCreator = taskCreatorDoc.data();
+        const teamId = taskCreator?.teamId;
+
+        if (teamId) {
+          const teamDoc = await db.collection('teams').doc(teamId).get();
+          if (!teamDoc.exists) return null;
+          
+          const team = teamDoc.data();
+          const leaderId = team?.leaderId;
+
+          if (leaderId) {
+            const message = `A tarefa "${newValue.title}" foi submetida para aprovação.`;
+            const linkTo = `/dashboard/approvals`;
+            const creatorName = taskCreator?.name || 'Um utilizador';
+            await createNotificationsForUsers([leaderId], message, linkTo, creatorName);
+          }
+        }
+      } catch (error) {
+        logger.error(`Erro ao notificar líder para a tarefa ${context.params.taskId}:`, error);
+      }
+    }
+    // Adicione aqui outras lógicas de notificação para edição, se desejar
+    return null;
+  });
