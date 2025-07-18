@@ -9,7 +9,7 @@ import { db } from '@/lib/firebase/config';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bell, Archive, Eye, Loader2 } from 'lucide-react';
+import { Bell, Archive, Eye, Loader2, Undo } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -43,15 +43,21 @@ export function NotificationsBell() {
     return () => unsubscribe();
   }, [userData]);
 
-  const updateNotificationStatus = async (id: string, status: 'read' | 'archived') => {
+  const updateNotificationStatus = async (id: string, status: 'unread' | 'read' | 'archived') => {
     if (!userData) return;
     const notificationRef = doc(db, `users/${userData.id}/notifications`, id);
-    await updateDoc(notificationRef, { status });
+    try {
+        await updateDoc(notificationRef, { status });
+    } catch(error) {
+        console.error("Failed to update notification status:", error);
+    }
   };
 
   const handleNotificationClick = (notification: Notification) => {
     updateNotificationStatus(notification.id, 'read');
-    router.push(notification.link);
+    if (notification.link) {
+        router.push(notification.link);
+    }
   };
 
   const unreadCount = notifications.filter(n => n.status === 'unread').length;
@@ -70,21 +76,31 @@ export function NotificationsBell() {
         {filtered.map(n => (
           <React.Fragment key={n.id}>
              <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="flex flex-col items-start gap-2 p-3 cursor-default">
-                <div className="w-full" onClick={() => handleNotificationClick(n)}>
+                <div className="w-full cursor-pointer" onClick={() => handleNotificationClick(n)}>
                     <p className="text-sm font-medium">{n.message}</p>
                     <p className="text-xs text-muted-foreground mt-1">
                         {formatDistanceToNow(n.createdAt.toDate(), { addSuffix: true, locale: ptBR })}
                     </p>
                 </div>
-                <div className="flex gap-2 self-end">
-                    {status !== 'read' && (
-                        <Button variant="ghost" size="sm" onClick={() => updateNotificationStatus(n.id, 'read')}>
-                            <Eye className="mr-2 h-4 w-4" /> Marcar como lida
-                        </Button>
-                    )}
-                    {status !== 'archived' && (
+                <div className="flex gap-2 self-end w-full justify-end">
+                    {status === 'unread' && (
                         <Button variant="ghost" size="sm" onClick={() => updateNotificationStatus(n.id, 'archived')}>
                             <Archive className="mr-2 h-4 w-4" /> Arquivar
+                        </Button>
+                    )}
+                     {status === 'read' && (
+                        <>
+                            <Button variant="ghost" size="sm" onClick={() => updateNotificationStatus(n.id, 'unread')}>
+                                <Undo className="mr-2 h-4 w-4" /> Marcar como não lida
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => updateNotificationStatus(n.id, 'archived')}>
+                                <Archive className="mr-2 h-4 w-4" /> Arquivar
+                            </Button>
+                        </>
+                    )}
+                    {status === 'archived' && (
+                        <Button variant="ghost" size="sm" onClick={() => updateNotificationStatus(n.id, 'unread')}>
+                           <Undo className="mr-2 h-4 w-4" /> Desarquivar
                         </Button>
                     )}
                 </div>
@@ -116,7 +132,9 @@ export function NotificationsBell() {
         <DropdownMenuSeparator />
          <Tabs defaultValue="unread" className="w-full">
           <TabsList className="grid w-full grid-cols-3 rounded-none bg-transparent p-0 border-b">
-            <TabsTrigger value="unread" className="rounded-none data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary">Não lidas</TabsTrigger>
+            <TabsTrigger value="unread" className="rounded-none data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
+                Não lidas {unreadCount > 0 && `(${unreadCount})`}
+            </TabsTrigger>
             <TabsTrigger value="read" className="rounded-none data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary">Lidas</TabsTrigger>
             <TabsTrigger value="archived" className="rounded-none data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary">Arquivadas</TabsTrigger>
           </TabsList>
