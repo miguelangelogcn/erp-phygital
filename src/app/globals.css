@@ -117,6 +117,9 @@ body {
     color: #9CA3AF;
     @apply font-normal;
   }
+   .fc .fc-col-header {
+    background-color: #262626;
+  }
   .fc .fc-button {
     background-color: var(--fc-button-bg-color);
     color: var(--fc-button-text-color);
