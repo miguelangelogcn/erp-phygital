@@ -17,6 +17,7 @@ import type { Task, TaskStatus, NewTask, ApprovalTask } from "@/types/task";
 import { httpsCallable } from "firebase/functions";
 
 const deleteTaskCallable = httpsCallable(functions, 'deleteTask');
+const createTaskCallable = httpsCallable(functions, 'createTask');
 
 
 interface TaskViewConfig {
@@ -122,21 +123,15 @@ export async function getTasksForApproval(memberIds: string[], leaderId: string)
 
 
 /**
- * Adds a new task to the 'tasks' collection. This will trigger the onTaskCreated Cloud Function.
+ * Adds a new task to the 'tasks' collection by calling a cloud function.
  * @param {NewTask} taskData - The data for the new task.
- * @returns {Promise<string>} The ID of the newly created task.
+ * @returns {Promise<any>} The result from the cloud function.
  */
-export async function addTask(taskData: NewTask): Promise<string> {
+export async function addTask(taskData: NewTask): Promise<any> {
   try {
-    console.log("Adding task to 'tasks' collection:", taskData);
-    const docRef = await addDoc(collection(db, "tasks"), {
-        ...taskData,
-        createdAt: serverTimestamp(),
-        approvalStatus: null,
-    });
-    return docRef.id;
+    return await createTaskCallable(taskData);
   } catch (error) {
-    console.error("Error adding task directly: ", error);
+    console.error("Error calling createTask function: ", error);
     throw new Error("Failed to add task.");
   }
 }

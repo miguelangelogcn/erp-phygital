@@ -212,17 +212,81 @@ const createNotificationsForUsers = async (userIds: string[], message: string, l
   }
 };
 
-// --- Gatilhos para a coleção 'tasks' ---
-export const onTaskCreated = onDocumentCreated({ document: "tasks/{taskId}", region: "southamerica-east1" }, async (event) => {
-    const snap = event.data;
-    if (!snap) return;
-    const task = snap.data();
-    const creator = await auth.getUser(task.responsibleId);
-    const creatorName = creator.displayName || 'Sistema';
-    const message = `${creatorName} atribuiu-lhe a tarefa: "${task.title}"`;
-    const linkTo = `/dashboard/tasks?openTask=${event.params.taskId}`;
-    return createNotificationsForUsers([task.responsibleId], message, linkTo, creatorName);
+// Nova função para criar Tarefas Pontuais
+export const createTask = onCall({ region: "southamerica-east1" }, async (request) => {
+    const taskData = request.data;
+    const creatorId = request.auth?.uid;
+
+    if (!creatorId) {
+        throw new HttpsError("unauthenticated", "O utilizador deve estar autenticado.");
+    }
+    
+    try {
+        const docRef = await db.collection('tasks').add({
+            ...taskData,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            approvalStatus: null, // Garante o estado inicial
+        });
+
+        const creatorDoc = await db.collection('users').doc(creatorId).get();
+        const creatorName = creatorDoc.data()?.name || 'Sistema';
+        const message = `${creatorName} atribuiu-lhe a tarefa: "${taskData.title}"`;
+        const linkTo = `/dashboard/tasks?openTask=${docRef.id}`;
+        
+        const userIdsToNotify = [taskData.responsibleId, ...(taskData.assistantIds || [])];
+        await createNotificationsForUsers(userIdsToNotify, message, linkTo, creatorName);
+
+        return { success: true, id: docRef.id };
+    } catch (error) {
+        logger.error("Erro ao criar tarefa com notificações:", error);
+        throw new HttpsError("internal", "Não foi possível criar a tarefa.");
+    }
 });
+
+// Nova função para criar Tarefas Recorrentes
+export const createRecurringTask = onCall({ region: "southamerica-east1" }, async (request) => {
+    const taskData = request.data;
+    const creatorId = request.auth?.uid;
+    if (!creatorId) throw new HttpsError("unauthenticated", "O utilizador deve estar autenticado.");
+    
+    try {
+        const docRef = await db.collection('recurringTasks').add({ ...taskData });
+        const creatorDoc = await db.collection('users').doc(creatorId).get();
+        const creatorName = creatorDoc.data()?.name || 'Sistema';
+        const message = `${creatorName} atribuiu-lhe a tarefa recorrente: "${taskData.title}"`;
+        const linkTo = `/dashboard/tasks?tab=recurring&openTask=${docRef.id}`;
+        const userIdsToNotify = [taskData.responsibleId, ...(taskData.assistantIds || [])];
+        await createNotificationsForUsers(userIdsToNotify, message, linkTo, creatorName);
+        return { success: true, id: docRef.id };
+    } catch (error) {
+        logger.error("Erro ao criar tarefa recorrente com notificações:", error);
+        throw new HttpsError("internal", "Não foi possível criar a tarefa recorrente.");
+    }
+});
+
+// Nova função para criar Eventos de Calendário
+export const createCalendarEvent = onCall({ region: "southamerica-east1" }, async (request) => {
+    const eventData = request.data;
+    const creatorId = request.auth?.uid;
+    if (!creatorId) throw new HttpsError("unauthenticated", "O utilizador deve estar autenticado.");
+    
+    try {
+        const docRef = await db.collection('calendarEvents').add({ ...eventData });
+        const creatorDoc = await db.collection('users').doc(creatorId).get();
+        const creatorName = creatorDoc.data()?.name || 'Sistema';
+        const message = `${creatorName} agendou um novo evento: "${eventData.title}"`;
+        const linkTo = `/dashboard/calendar?openEvent=${docRef.id}`;
+        const userIdsToNotify = [eventData.responsibleId, ...(eventData.assistantIds || [])];
+        await createNotificationsForUsers(userIdsToNotify, message, linkTo, creatorName);
+        return { success: true, id: docRef.id };
+    } catch (error) {
+        logger.error("Erro ao criar evento com notificações:", error);
+        throw new HttpsError("internal", "Não foi possível criar o evento.");
+    }
+});
+
+
+// --- FUNÇÕES DE GATILHO (TRIGGERS) APENAS PARA ATUALIZAÇÕES ---
 
 export const onTaskUpdated = onDocumentUpdated({ document: "tasks/{taskId}", region: "southamerica-east1" }, async (event) => {
     const afterData = event.data?.after.data();
@@ -243,31 +307,20 @@ export const onTaskUpdated = onDocumentUpdated({ document: "tasks/{taskId}", reg
             }
         }
     }
-
+    
+    // Lógica CORRIGIDA para notificar NOVOS assistentes
     const beforeAssistants = new Set(beforeData.assistantIds || []);
     const afterAssistants = afterData.assistantIds || [];
     const newAssistants = afterAssistants.filter((id: string) => !beforeAssistants.has(id));
 
     if (newAssistants.length > 0) {
-        const editorName = 'Sistema';
+        const editorName = 'Sistema'; // Idealmente, teríamos o ID de quem editou
         const message = `Você foi adicionado como auxiliar na tarefa: "${afterData.title}"`;
         const linkTo = `/dashboard/tasks?openTask=${event.params.taskId}`;
         await createNotificationsForUsers(newAssistants, message, linkTo, editorName);
     }
+
     return;
-});
-
-
-// --- Gatilhos para a coleção 'recurringTasks' ---
-export const onRecurringTaskCreated = onDocumentCreated({ document: "recurringTasks/{taskId}", region: "southamerica-east1" }, async (event) => {
-    const snap = event.data;
-    if (!snap) return;
-    const task = snap.data();
-    const creator = await auth.getUser(task.responsibleId);
-    const creatorName = creator.displayName || 'Sistema';
-    const message = `${creatorName} atribuiu-lhe a tarefa recorrente: "${task.title}"`;
-    const linkTo = `/dashboard/tasks?tab=recurring&openTask=${event.params.taskId}`;
-    return createNotificationsForUsers([task.responsibleId], message, linkTo, creatorName);
 });
 
 export const onRecurringTaskUpdated = onDocumentUpdated({ document: "recurringTasks/{taskId}", region: "southamerica-east1" }, async (event) => {
@@ -301,19 +354,6 @@ export const onRecurringTaskUpdated = onDocumentUpdated({ document: "recurringTa
         await createNotificationsForUsers(newAssistants, message, linkTo, editorName);
     }
     return;
-});
-
-
-// --- Gatilhos para a coleção 'calendarEvents' ---
-export const onCalendarEventCreated = onDocumentCreated({ document: "calendarEvents/{eventId}", region: "southamerica-east1" }, async (event) => {
-    const snap = event.data;
-    if (!snap) return;
-    const eventData = snap.data();
-    const creator = await auth.getUser(eventData.responsibleId);
-    const creatorName = creator.displayName || 'Sistema';
-    const message = `${creatorName} agendou um novo evento: "${eventData.title}"`;
-    const linkTo = `/dashboard/calendar?openEvent=${event.params.eventId}`;
-    return createNotificationsForUsers([eventData.responsibleId], message, linkTo, creatorName);
 });
 
 export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEvents/{eventId}", region: "southamerica-east1" }, async (event) => {

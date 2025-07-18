@@ -22,6 +22,7 @@ import type {
 } from "@/types/recurringTask";
 
 const deleteTaskCallable = httpsCallable(functions, 'deleteTask');
+const createRecurringTaskCallable = httpsCallable(functions, 'createRecurringTask');
 
 interface TaskViewConfig {
     uid: string;
@@ -76,22 +77,17 @@ export function onRecurringTasksUpdate(
 }
 
 /**
- * Adds a new recurring task.
+ * Adds a new recurring task by calling a cloud function.
  * @param {NewRecurringTask} taskData - The data for the new task.
- * @returns {Promise<string>} The ID of the newly created task.
+ * @returns {Promise<any>} The result of the cloud function call.
  */
 export async function addRecurringTask(
   taskData: NewRecurringTask
-): Promise<string> {
+): Promise<any> {
     try {
-        const docRef = await addDoc(collection(db, "recurringTasks"), {
-            ...taskData,
-            createdAt: serverTimestamp(),
-            approvalStatus: null,
-        });
-        return docRef.id;
+        return await createRecurringTaskCallable(taskData);
     } catch (error) {
-        console.error("Error adding recurring task: ", error);
+        console.error("Error calling createRecurringTask function: ", error);
         throw new Error("Failed to add recurring task.");
     }
 }
@@ -121,10 +117,9 @@ export async function updateRecurringTaskChecklist(taskId: string, checklist: Re
     await updateDoc(taskDocRef, { checklist: checklist });
   } catch (error)
  {
-    console.error("Error updating recurring task checklist: ", error);
-    throw new Error("Failed to update checklist.");
+           toast({ variant: "destructive", title: "Erro no Checklist", description: "Não foi possível atualizar o item." });
+      }
   }
-}
 
 /**
  * Updates the completion status of a recurring task.
