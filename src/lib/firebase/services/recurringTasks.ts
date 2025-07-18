@@ -115,11 +115,11 @@ export async function updateRecurringTaskChecklist(taskId: string, checklist: Re
   try {
     const taskDocRef = doc(db, "recurringTasks", taskId);
     await updateDoc(taskDocRef, { checklist: checklist });
-  } catch (error)
- {
-           toast({ variant: "destructive", title: "Erro no Checklist", description: "Não foi possível atualizar o item." });
-      }
+  } catch (error) {
+    console.error("Error updating checklist: ", error);
+    throw new Error("Failed to update checklist.");
   }
+}
 
 /**
  * Updates the completion status of a recurring task.

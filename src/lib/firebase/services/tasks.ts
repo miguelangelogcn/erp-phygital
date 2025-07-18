@@ -129,7 +129,9 @@ export async function getTasksForApproval(memberIds: string[], leaderId: string)
  */
 export async function addTask(taskData: NewTask): Promise<any> {
   try {
-    return await createTaskCallable(taskData);
+    console.log("Chamando a função 'createTask' com os seguintes dados:", taskData);
+    const result = await createTaskCallable(taskData);
+    return result;
   } catch (error) {
     console.error("Error calling createTask function: ", error);
     throw new Error("Failed to add task.");
