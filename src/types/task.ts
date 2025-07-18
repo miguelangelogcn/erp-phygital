@@ -19,7 +19,7 @@ export interface TaskProof {
 }
 
 export interface Feedback {
-  notes: string;
+  notes?: string;
   files?: TaskProof[];
   audioUrl?: string;
   rejectedBy: string;
@@ -47,7 +47,7 @@ export interface Task {
   approverId?: string;
   reviewedAt?: Timestamp;
   completedAt?: Timestamp;
-  rejectionFeedback?: Feedback[];
+  rejectionFeedback?: (Feedback & { timestamp: Timestamp })[];
 }
 
 // Para criar uma nova tarefa, omitimos o 'id' e tornamos os Timestamps opcionais

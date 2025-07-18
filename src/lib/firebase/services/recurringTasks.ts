@@ -12,13 +12,17 @@ import {
   where,
   QueryConstraint
 } from "firebase/firestore";
-import { db } from "@/lib/firebase/config";
+import { db, functions } from "@/lib/firebase/config";
+import { httpsCallable } from "firebase/functions";
 import type {
   RecurringTask,
   NewRecurringTask,
   DayOfWeekNumber,
   RecurringChecklistItem,
 } from "@/types/recurringTask";
+
+const deleteTaskCallable = httpsCallable(functions, 'deleteTask');
+
 
 interface TaskViewConfig {
     uid: string;
@@ -147,8 +151,7 @@ export async function updateRecurringTaskCompletion(taskId: string, isCompleted:
  */
 export async function deleteRecurringTask(taskId: string): Promise<void> {
   try {
-    const taskDocRef = doc(db, "recurringTasks", taskId);
-    await deleteDoc(taskDocRef);
+    await deleteTaskCallable({ taskId, taskType: 'recurringTasks' });
   } catch (error) {
     console.error("Error deleting recurring task: ", error);
     throw new Error("Failed to delete recurring task.");

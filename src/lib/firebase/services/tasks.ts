@@ -249,7 +249,7 @@ export async function updateTaskStatusAndOrder(
  */
 export async function deleteTask(taskId: string): Promise<void> {
     try {
-        await deleteTaskCallable({ taskId });
+        await deleteTaskCallable({ taskId, taskType: 'tasks' });
     } catch (error) {
         console.error("Error calling deleteTask function: ", error);
         throw new Error("Failed to delete task.");

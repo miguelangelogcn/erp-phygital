@@ -30,7 +30,7 @@ export interface RecurringTask {
   submittedAt?: Timestamp;
   approverId?: string;
   reviewedAt?: Timestamp;
-  rejectionFeedback?: Feedback[];
+  rejectionFeedback?: (Feedback & { timestamp: Timestamp })[];
 }
 
 export type NewRecurringTask = Omit<RecurringTask, "id" | "createdAt" | "reviewedAt">;
