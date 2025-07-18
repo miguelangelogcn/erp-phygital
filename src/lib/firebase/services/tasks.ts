@@ -143,6 +143,7 @@ export async function getTasksForApproval(memberIds: string[], leaderId: string)
  */
 export async function addTask(taskData: NewTask): Promise<string> {
   try {
+    console.log("Adding new task to 'tasks' collection with data:", taskData);
     const docRef = await addDoc(collection(db, "tasks"), {
       ...taskData,
       createdAt: serverTimestamp(),
