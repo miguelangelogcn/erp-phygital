@@ -16,6 +16,7 @@ import { db, functions } from "@/lib/firebase/config";
 import type { Task, TaskStatus, NewTask, ApprovalTask } from "@/types/task";
 import { httpsCallable } from "firebase/functions";
 
+const createTaskCallable = httpsCallable(functions, 'createTaskWithNotifications');
 const deleteTaskCallable = httpsCallable(functions, 'deleteTask');
 
 
@@ -122,22 +123,21 @@ export async function getTasksForApproval(memberIds: string[], leaderId: string)
 
 
 /**
- * Adds a new task to the 'tasks' collection in Firestore.
- * The onTaskCreated trigger will handle notifications.
+ * Adds a new task by calling a Cloud Function.
  * @param {NewTask} taskData - The data for the new task.
  * @returns {Promise<string>} The ID of the newly created task.
  */
 export async function addTask(taskData: NewTask): Promise<string> {
   try {
-    const docRef = await addDoc(collection(db, "tasks"), {
-        ...taskData,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-    });
-    return docRef.id;
+    const result: any = await createTaskCallable(taskData);
+    if (result.data.success) {
+      return result.data.id;
+    } else {
+      throw new Error(result.data.message || 'Failed to create task.');
+    }
   } catch (error) {
-    console.error("Error adding task: ", error);
-    throw new Error("Failed to add task.");
+    console.error("Error calling createTaskWithNotifications function: ", error);
+    throw error;
   }
 }
 
@@ -223,6 +223,6 @@ export async function deleteTask(taskId: string): Promise<void> {
         await deleteTaskCallable({ taskId, taskType: 'tasks' });
     } catch (error) {
         console.error("Error calling deleteTask function: ", error);
-        throw new Error("Failed to delete task.");
+        throw error;
     }
 }

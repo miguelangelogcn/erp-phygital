@@ -21,6 +21,7 @@ import type {
   RecurringChecklistItem,
 } from "@/types/recurringTask";
 
+const createRecurringTaskCallable = httpsCallable(functions, 'createRecurringTaskWithNotifications');
 const deleteTaskCallable = httpsCallable(functions, 'deleteTask');
 
 interface TaskViewConfig {
@@ -76,8 +77,7 @@ export function onRecurringTasksUpdate(
 }
 
 /**
- * Adds a new recurring task to the 'recurringTasks' collection.
- * The onRecurringTaskCreated trigger will handle notifications.
+ * Adds a new recurring task by calling a Cloud Function.
  * @param {NewRecurringTask} taskData - The data for the new task.
  * @returns {Promise<string>} The ID of the newly created task.
  */
@@ -85,14 +85,15 @@ export async function addRecurringTask(
   taskData: NewRecurringTask
 ): Promise<string> {
   try {
-     const docRef = await addDoc(collection(db, "recurringTasks"), {
-        ...taskData,
-        createdAt: serverTimestamp(),
-    });
-    return docRef.id;
+    const result: any = await createRecurringTaskCallable(taskData);
+    if (result.data.success) {
+        return result.data.id;
+    } else {
+        throw new Error(result.data.message || 'Failed to create recurring task.');
+    }
   } catch (error) {
-    console.error("Error adding recurring task: ", error);
-    throw new Error("Failed to add recurring task.");
+    console.error("Error calling createRecurringTaskWithNotifications function: ", error);
+    throw error;
   }
 }
 
@@ -148,7 +149,7 @@ export async function deleteRecurringTask(taskId: string): Promise<void> {
     await deleteTaskCallable({ taskId, taskType: 'recurringTasks' });
   } catch (error) {
     console.error("Error deleting recurring task: ", error);
-    throw new Error("Failed to delete recurring task.");
+    throw error;
   }
 }
 
