@@ -34,7 +34,7 @@ export default function CentralTasks() {
   }, []);
 
   useEffect(() => {
-    if (!userData || !date || clients.length === 0) return;
+    if (!userData || !date) return;
 
     const fetchAgenda = async () => {
       setLoading(true);
@@ -84,11 +84,11 @@ export default function CentralTasks() {
             responsibleEventsSnap
         ] = await Promise.all([
             getDocs(responsibleTasksQuery), getDocs(assistantTasksQuery),
-            getDocs(responsibleRecurringQuery), getDocs(assistantRecurringSnap),
+            getDocs(responsibleRecurringQuery), getDocs(assistantRecurringQuery),
             getDocs(responsibleEventsQuery)
         ]);
         
-        const combinedTasks: Record<string, AgendaItem> = {};
+        const combinedItems: Record<string, AgendaItem> = {};
 
         const statusMap: Record<string, string> = {
             todo: 'A Fazer',
@@ -101,8 +101,8 @@ export default function CentralTasks() {
         // Process Pontual Tasks
         [...responsibleTasksSnap.docs, ...assistantTasksSnap.docs].forEach(doc => {
             const task = { id: doc.id, ...doc.data() } as Task;
-            if (!combinedTasks[task.id]) {
-                combinedTasks[task.id] = {
+            if (!combinedItems[task.id]) {
+                combinedItems[task.id] = {
                     id: task.id,
                     title: task.title,
                     type: 'task',
@@ -115,8 +115,8 @@ export default function CentralTasks() {
         // Process Recurring Tasks
         [...responsibleRecurringSnap.docs, ...assistantRecurringSnap.docs].forEach(doc => {
             const task = { id: doc.id, ...doc.data() } as RecurringTask;
-            if (!combinedTasks[task.id]) {
-                 combinedTasks[task.id] = {
+            if (!combinedItems[task.id]) {
+                 combinedItems[task.id] = {
                     id: task.id,
                     title: task.title,
                     type: 'recurring',
@@ -129,8 +129,8 @@ export default function CentralTasks() {
         // Process Calendar Events
         responsibleEventsSnap.docs.forEach(doc => {
             const event = { id: doc.id, ...doc.data() } as CalendarEvent;
-             if (!combinedTasks[event.id]) {
-                combinedTasks[event.id] = {
+             if (!combinedItems[event.id]) {
+                combinedItems[event.id] = {
                     id: event.id,
                     title: event.title,
                     type: 'event',
@@ -140,8 +140,18 @@ export default function CentralTasks() {
                 };
             }
         });
+        
+        const sortedItems = Object.values(combinedItems).sort((a, b) => {
+          // Sort by start time if available, otherwise by title
+          if (a.startTime && b.startTime) {
+            return a.startTime.localeCompare(b.startTime);
+          }
+          if (a.startTime) return -1; // a comes first
+          if (b.startTime) return 1;  // b comes first
+          return a.title.localeCompare(b.title); // fallback to title sort
+        });
 
-        setAgendaItems(Object.values(combinedTasks));
+        setAgendaItems(sortedItems);
 
       } catch (e) {
         console.error("Error fetching agenda:", e);

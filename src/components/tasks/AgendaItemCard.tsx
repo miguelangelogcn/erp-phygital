@@ -5,8 +5,6 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ListTodo, Repeat, Video, Clock } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 export type AgendaItem = {
     id: string;
@@ -47,7 +45,7 @@ export function AgendaItemCard({ item, onClick }: AgendaItemCardProps) {
 
   return (
     <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={onClick}>
-      <CardHeader className="p-4">
+      <CardHeader className="p-4 pb-2">
         <div className="flex justify-between items-start gap-2">
             <div className="flex items-center gap-3">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${details.color}`}>
@@ -67,7 +65,7 @@ export function AgendaItemCard({ item, onClick }: AgendaItemCardProps) {
         </div>
       </CardHeader>
       {item.status && (
-        <CardContent className="p-4 pt-0">
+        <CardContent className="p-4 pt-2">
             <Badge variant="secondary">{item.status}</Badge>
         </CardContent>
       )}
