@@ -212,47 +212,16 @@ const createNotificationsForUsers = async (userIds: string[], message: string, l
   }
 };
 
-const handleItemCreation = async (snap: any, itemType: string, linkPath: string) => {
-    logger.info(`[handleItemCreation] Acionado para ${itemType} com ID: ${snap.id}`);
-    if (!snap) {
-        logger.warn("[handleItemCreation] Snapshot nulo ou indefinido.");
-        return;
-    }
-    const data = snap.data();
-    logger.info("[handleItemCreation] Dados do documento:", data);
-
-    if (!data.responsibleId) {
-        logger.warn("[handleItemCreation] 'responsibleId' em falta.");
-        return;
-    }
-
-    const creator = await auth.getUser(data.responsibleId);
-    const creatorName = creator.displayName || 'Sistema';
-    const message = `${creatorName} atribuiu-lhe ${itemType}: "${data.title}"`;
-    const linkTo = `${linkPath}${snap.id}`;
-    
-    let userIdsToNotify: string[] = [];
-    if (data.responsibleId) {
-        userIdsToNotify.push(data.responsibleId);
-    }
-
-    logger.info("[handleItemCreation] Campo assistantIds:", data.assistantIds);
-    logger.info("[handleItemCreation] Tipo de assistantIds:", typeof data.assistantIds);
-    logger.info("[handleItemCreation] É um array?", Array.isArray(data.assistantIds));
-
-    if (data.assistantIds && Array.isArray(data.assistantIds) && data.assistantIds.length > 0) {
-        userIdsToNotify = [...userIdsToNotify, ...data.assistantIds];
-    } else {
-        logger.warn("[handleItemCreation] 'assistantIds' está vazio, não é um array, ou não existe.");
-    }
-
-    logger.info("[handleItemCreation] Lista final de IDs para notificar:", userIdsToNotify);
-    return createNotificationsForUsers(userIdsToNotify, message, linkTo, creatorName);
-};
-
 // --- Gatilhos para a coleção 'tasks' ---
-export const onTaskCreated = onDocumentCreated({ document: "tasks/{taskId}", region: "southamerica-east1" }, (event) => {
-    return handleItemCreation(event.data, "uma nova tarefa", "/dashboard/tasks?openTask=");
+export const onTaskCreated = onDocumentCreated({ document: "tasks/{taskId}", region: "southamerica-east1" }, async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+    const task = snap.data();
+    const creator = await auth.getUser(task.responsibleId);
+    const creatorName = creator.displayName || 'Sistema';
+    const message = `${creatorName} atribuiu-lhe a tarefa: "${task.title}"`;
+    const linkTo = `/dashboard/tasks?openTask=${event.params.taskId}`;
+    return createNotificationsForUsers([task.responsibleId], message, linkTo, creatorName);
 });
 
 export const onTaskUpdated = onDocumentUpdated({ document: "tasks/{taskId}", region: "southamerica-east1" }, async (event) => {
@@ -274,13 +243,31 @@ export const onTaskUpdated = onDocumentUpdated({ document: "tasks/{taskId}", reg
             }
         }
     }
+
+    const beforeAssistants = new Set(beforeData.assistantIds || []);
+    const afterAssistants = afterData.assistantIds || [];
+    const newAssistants = afterAssistants.filter((id: string) => !beforeAssistants.has(id));
+
+    if (newAssistants.length > 0) {
+        const editorName = 'Sistema';
+        const message = `Você foi adicionado como auxiliar na tarefa: "${afterData.title}"`;
+        const linkTo = `/dashboard/tasks?openTask=${event.params.taskId}`;
+        await createNotificationsForUsers(newAssistants, message, linkTo, editorName);
+    }
     return;
 });
 
 
 // --- Gatilhos para a coleção 'recurringTasks' ---
-export const onRecurringTaskCreated = onDocumentCreated({ document: "recurringTasks/{taskId}", region: "southamerica-east1" }, (event) => {
-    return handleItemCreation(event.data, "uma nova tarefa recorrente", "/dashboard/tasks?tab=recurring&openTask=");
+export const onRecurringTaskCreated = onDocumentCreated({ document: "recurringTasks/{taskId}", region: "southamerica-east1" }, async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+    const task = snap.data();
+    const creator = await auth.getUser(task.responsibleId);
+    const creatorName = creator.displayName || 'Sistema';
+    const message = `${creatorName} atribuiu-lhe a tarefa recorrente: "${task.title}"`;
+    const linkTo = `/dashboard/tasks?tab=recurring&openTask=${event.params.taskId}`;
+    return createNotificationsForUsers([task.responsibleId], message, linkTo, creatorName);
 });
 
 export const onRecurringTaskUpdated = onDocumentUpdated({ document: "recurringTasks/{taskId}", region: "southamerica-east1" }, async (event) => {
@@ -302,13 +289,31 @@ export const onRecurringTaskUpdated = onDocumentUpdated({ document: "recurringTa
             }
         }
     }
+    
+    const beforeAssistants = new Set(beforeData.assistantIds || []);
+    const afterAssistants = afterData.assistantIds || [];
+    const newAssistants = afterAssistants.filter((id: string) => !beforeAssistants.has(id));
+
+    if (newAssistants.length > 0) {
+        const editorName = 'Sistema';
+        const message = `Você foi adicionado como auxiliar na tarefa recorrente: "${afterData.title}"`;
+        const linkTo = `/dashboard/tasks?tab=recurring&openTask=${event.params.taskId}`;
+        await createNotificationsForUsers(newAssistants, message, linkTo, editorName);
+    }
     return;
 });
 
 
 // --- Gatilhos para a coleção 'calendarEvents' ---
-export const onCalendarEventCreated = onDocumentCreated({ document: "calendarEvents/{eventId}", region: "southamerica-east1" }, (event) => {
-    return handleItemCreation(event.data, "um novo evento", "/dashboard/calendar?openEvent=");
+export const onCalendarEventCreated = onDocumentCreated({ document: "calendarEvents/{eventId}", region: "southamerica-east1" }, async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+    const eventData = snap.data();
+    const creator = await auth.getUser(eventData.responsibleId);
+    const creatorName = creator.displayName || 'Sistema';
+    const message = `${creatorName} agendou um novo evento: "${eventData.title}"`;
+    const linkTo = `/dashboard/calendar?openEvent=${event.params.eventId}`;
+    return createNotificationsForUsers([eventData.responsibleId], message, linkTo, creatorName);
 });
 
 export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEvents/{eventId}", region: "southamerica-east1" }, async (event) => {
@@ -316,17 +321,16 @@ export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEve
     const beforeData = event.data?.before.data();
     if (!afterData || !beforeData) return;
 
-    const message = `O evento de calendário "${afterData.title}" foi atualizado.`;
-    const linkTo = `/dashboard/calendar?openEvent=${event.params.eventId}`;
-    
-    let userIdsToNotify: string[] = [];
-    if (afterData.responsibleId) {
-        userIdsToNotify.push(afterData.responsibleId);
+    const beforeAssistants = new Set(beforeData.assistantIds || []);
+    const afterAssistants = afterData.assistantIds || [];
+    const newAssistants = afterAssistants.filter((id: string) => !beforeAssistants.has(id));
+
+    if (newAssistants.length > 0) {
+        const editorName = 'Sistema';
+        const message = `Você foi adicionado como auxiliar no evento: "${afterData.title}"`;
+        const linkTo = `/dashboard/calendar?openEvent=${event.params.eventId}`;
+        await createNotificationsForUsers(newAssistants, message, linkTo, editorName);
     }
-    if (afterData.assistantIds && Array.isArray(afterData.assistantIds)) {
-        userIdsToNotify = [...userIdsToNotify, ...afterData.assistantIds];
-    }
-    
-    const triggeredBy = "Sistema";
-    return createNotificationsForUsers(userIdsToNotify, message, linkTo, triggeredBy);
+
+    return;
 });

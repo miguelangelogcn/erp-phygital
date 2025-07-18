@@ -18,7 +18,7 @@ export interface RecurringTask {
   dayOfWeek: DayOfWeekNumber;
   isCompleted: boolean;
   order?: number;
-  responsibleId?: string;
+  responsibleId: string;
   assistantIds?: string[];
   clientId?: string;
   checklist?: RecurringChecklistItem[];
@@ -33,4 +33,6 @@ export interface RecurringTask {
   rejectionFeedback?: Feedback[]; // Simplified from (Feedback & { timestamp: Timestamp })[]
 }
 
-export type NewRecurringTask = Omit<RecurringTask, "id" | "createdAt" | "reviewedAt">;
+export type NewRecurringTask = Omit<RecurringTask, "id" | "createdAt" | "reviewedAt" | "responsibleId"> & {
+  responsibleId?: string;
+};
