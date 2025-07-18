@@ -8,6 +8,7 @@ export interface CalendarEvent {
   endDateTime: Timestamp;
   clientId?: string;
   responsibleId?: string;
+  assistantIds?: string[];
   scripts?: string;
   color?: string; // e.g., hex code
 }
