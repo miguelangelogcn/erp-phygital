@@ -141,7 +141,8 @@ export async function updateRecurringTaskCompletion(taskId: string, isCompleted:
 
 
 /**
- * Deletes a recurring task.
+ * Deletes a recurring task by calling the 'deleteTask' cloud function.
+ * @param {string} taskId - The id of the recurring task to delete.
  */
 export async function deleteRecurringTask(taskId: string): Promise<void> {
   try {

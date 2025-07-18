@@ -249,35 +249,6 @@ const handleItemCreation = async (snap: any, itemType: string, linkPath: string)
     return createNotificationsForUsers(userIdsToNotify, message, linkTo, creatorName);
 };
 
-export const createTask = onCall({ region: "southamerica-east1" }, async (request) => {
-    const taskData = request.data;
-    const creatorId = request.auth?.uid;
-    if (!creatorId) {
-        throw new HttpsError("unauthenticated", "O utilizador deve estar autenticado.");
-    }
-    try {
-        const docRef = await db.collection('tasks').add({
-            ...taskData,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            approvalStatus: null,
-        });
-
-        const creator = await auth.getUser(creatorId);
-        const creatorName = creator.displayName || 'Sistema';
-        const message = `${creatorName} atribuiu-lhe a tarefa: "${taskData.title}"`;
-        const linkTo = `/dashboard/tasks?openTask=${docRef.id}`;
-        
-        let userIdsToNotify = [taskData.responsibleId, ...(taskData.assistantIds || [])];
-        await createNotificationsForUsers(userIdsToNotify, message, linkTo, creatorName);
-
-        return { success: true, id: docRef.id };
-    } catch (error) {
-        logger.error("Erro ao criar tarefa com notificações:", error);
-        throw new HttpsError("internal", "Não foi possível criar a tarefa.");
-    }
-});
-
-
 // --- Gatilhos para a coleção 'tasks' ---
 export const onTaskCreated = onDocumentCreated({ document: "tasks/{taskId}", region: "southamerica-east1" }, (event) => {
     return handleItemCreation(event.data, "uma nova tarefa", "/dashboard/tasks?openTask=");
