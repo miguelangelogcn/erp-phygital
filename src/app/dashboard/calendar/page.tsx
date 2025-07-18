@@ -1,5 +1,4 @@
 // Ficheiro: src/app/dashboard/calendar/page.tsx
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -8,34 +7,37 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
-import { EventInput } from '@fullcalendar/core';
+import { EventInput, EventClickArg, DateClickArg } from '@fullcalendar/core';
 import { Loader2 } from 'lucide-react';
+import type { CalendarEvent } from '@/types/calendarEvent';
+import { EventModal } from '@/components/modals/EventModal';
+import { Timestamp } from 'firebase/firestore';
 
 export default function CalendarPage() {
   const [events, setEvents] = useState<EventInput[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<Partial<CalendarEvent> | null>(null);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'calendarEvents'), (snapshot) => {
       const fetchedEvents = snapshot.docs.map(doc => {
-        const data = doc.data();
-        // Adiciona validação para garantir que os timestamps existem antes de converter
-        const start = data.startDateTime ? data.startDateTime.toDate() : null;
-        const end = data.endDateTime ? data.endDateTime.toDate() : null;
+        const data = doc.data() as Omit<CalendarEvent, 'id'>;
+        
+        if (!data.startDateTime || !data.endDateTime) return null;
 
-        if (start && end) {
-            return {
-              id: doc.id,
-              title: data.title,
-              start: start,
-              end: end,
-              allDay: false, // Assumindo que os eventos têm hora
-              backgroundColor: data.color || '#3788d8', // Cor padrão
-              borderColor: data.color || '#3788d8',
-            };
-        }
-        return null;
+        return {
+          id: doc.id,
+          title: data.title,
+          start: data.startDateTime.toDate(),
+          end: data.endDateTime.toDate(),
+          allDay: false,
+          backgroundColor: data.color || '#3788d8',
+          borderColor: data.color || '#3788d8',
+          extendedProps: { ...data, id: doc.id }
+        };
       }).filter(event => event !== null) as EventInput[];
+      
       setEvents(fetchedEvents);
       setLoading(false);
     });
@@ -43,15 +45,23 @@ export default function CalendarPage() {
     return () => unsubscribe();
   }, []);
 
-  const handleDateClick = (arg: any) => {
-    // Lógica para abrir um modal de criação de novo evento
-    alert('Criar novo evento no dia: ' + arg.dateStr);
+  const handleDateClick = (arg: DateClickArg) => {
+    const startDateTime = Timestamp.fromDate(arg.date);
+    const endDateTime = Timestamp.fromDate(new Date(arg.date.getTime() + 60 * 60 * 1000)); // Add 1 hour
+    setSelectedEvent({ startDateTime, endDateTime });
+    setIsModalOpen(true);
   };
 
-  const handleEventClick = (arg: any) => {
-    // Lógica para abrir um modal de edição do evento clicado
-    alert('Editar evento: ' + arg.event.title);
+  const handleEventClick = (arg: EventClickArg) => {
+    const eventData = arg.event.extendedProps as CalendarEvent;
+    setSelectedEvent(eventData);
+    setIsModalOpen(true);
   };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedEvent(null);
+  }
   
   if (loading) {
     return (
@@ -72,7 +82,7 @@ export default function CalendarPage() {
           events={events}
           dateClick={handleDateClick}
           eventClick={handleEventClick}
-          locale="pt-br" // Adiciona localização para português do Brasil
+          locale="pt-br"
           headerToolbar={{
             left: 'prev,next today',
             center: 'title',
@@ -84,9 +94,15 @@ export default function CalendarPage() {
             week: 'Semana',
             day: 'Dia',
           }}
-          height="auto" // Ajusta a altura automaticamente
+          height="auto"
         />
       </div>
+
+      <EventModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        event={selectedEvent}
+      />
     </main>
   );
 }
