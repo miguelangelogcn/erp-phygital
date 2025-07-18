@@ -7,22 +7,27 @@ import {
   doc,
   serverTimestamp
 } from "firebase/firestore";
-import { db } from "@/lib/firebase/config";
+import { db, functions } from "@/lib/firebase/config";
 import type { NewCalendarEvent } from "@/types/calendarEvent";
+import { httpsCallable } from "firebase/functions";
 
-const eventsCollection = collection(db, "calendarEvents");
+const createCalendarEventCallable = httpsCallable(functions, 'createCalendarEventWithNotifications');
 
 /**
- * Adds a new event to the 'calendarEvents' collection.
+ * Adds a new event by calling a Cloud Function.
  * @param {NewCalendarEvent} eventData - The data for the new event.
  * @returns {Promise<string>} The ID of the newly created event.
  */
 export async function addCalendarEvent(eventData: NewCalendarEvent): Promise<string> {
   try {
-    const docRef = await addDoc(eventsCollection, eventData);
-    return docRef.id;
+    const result: any = await createCalendarEventCallable(eventData);
+    if (result.data.success) {
+        return result.data.id;
+    } else {
+        throw new Error("Failed to create calendar event via Cloud Function.");
+    }
   } catch (error) {
-    console.error("Error adding calendar event: ", error);
+    console.error("Error calling createCalendarEventWithNotifications function: ", error);
     throw new Error("Failed to add calendar event.");
   }
 }
@@ -57,3 +62,5 @@ export async function deleteCalendarEvent(eventId: string): Promise<void> {
     throw new Error("Failed to delete calendar event.");
   }
 }
+
+      

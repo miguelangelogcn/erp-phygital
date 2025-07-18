@@ -23,9 +23,10 @@ import type { User } from '@/types/user';
 
 interface CreateRecurringTaskModalProps {
   children: ReactNode;
+  onTaskCreated?: () => void;
 }
 
-export function CreateRecurringTaskModal({ children }: CreateRecurringTaskModalProps) {
+export function CreateRecurringTaskModal({ children, onTaskCreated }: CreateRecurringTaskModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -82,10 +83,12 @@ export function CreateRecurringTaskModal({ children }: CreateRecurringTaskModalP
       await addRecurringTask(newTaskData);
       toast({ title: 'Sucesso', description: 'Nova tarefa recorrente criada.' });
       setIsOpen(false);
-    } catch (error) {
+      onTaskCreated?.();
+    } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Erro ao salvar',
+        description: error.message || 'Não foi possível salvar a tarefa recorrente.',
       });
     } finally {
       setIsSubmitting(false);
@@ -122,3 +125,5 @@ export function CreateRecurringTaskModal({ children }: CreateRecurringTaskModalP
     </Dialog>
   );
 }
+
+  

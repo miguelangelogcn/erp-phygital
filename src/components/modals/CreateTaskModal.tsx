@@ -23,9 +23,10 @@ import type { User } from '@/types/user';
 
 interface CreateTaskModalProps {
   children: ReactNode; // The trigger button
+  onTaskCreated?: () => void; // Optional callback
 }
 
-export function CreateTaskModal({ children }: CreateTaskModalProps) {
+export function CreateTaskModal({ children, onTaskCreated }: CreateTaskModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -87,11 +88,12 @@ export function CreateTaskModal({ children }: CreateTaskModalProps) {
       await addTask(newTaskData);
       toast({ title: 'Sucesso', description: 'Nova tarefa criada.' });
       setIsOpen(false);
-    } catch (error) {
+      onTaskCreated?.(); // Call the callback if it exists
+    } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Erro ao salvar',
-        description: 'Não foi possível salvar a tarefa.',
+        description: error.message || 'Não foi possível salvar a tarefa.',
       });
     } finally {
       setIsSubmitting(false);
@@ -128,3 +130,5 @@ export function CreateTaskModal({ children }: CreateTaskModalProps) {
     </Dialog>
   );
 }
+
+  

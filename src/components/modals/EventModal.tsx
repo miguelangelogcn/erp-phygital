@@ -34,11 +34,13 @@ import type { CalendarEvent, NewCalendarEvent } from '@/types/calendarEvent';
 import type { Client } from '@/types/client';
 import type { User } from '@/types/user';
 import { Timestamp } from 'firebase/firestore';
+import { MultiSelect } from '../ui/multi-select';
 
 interface EventModalProps {
   isOpen: boolean;
   onClose: () => void;
   event: Partial<CalendarEvent> | null;
+  onEventChange?: () => void;
 }
 
 // Helper to format Date to 'yyyy-MM-ddThh:mm'
@@ -47,7 +49,7 @@ const toDateTimeLocal = (date: Date): string => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
-export function EventModal({ isOpen, onClose, event }: EventModalProps) {
+export function EventModal({ isOpen, onClose, event, onEventChange }: EventModalProps) {
   const [formData, setFormData] = useState<Partial<NewCalendarEvent>>({});
   const [clients, setClients] = useState<Client[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -55,6 +57,8 @@ export function EventModal({ isOpen, onClose, event }: EventModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const { toast } = useToast();
+
+  const userOptions = users.map(u => ({ value: u.id, label: u.name }));
 
   useEffect(() => {
     if (isOpen) {
@@ -71,11 +75,12 @@ export function EventModal({ isOpen, onClose, event }: EventModalProps) {
               endDateTime: event.endDateTime,
               clientId: event.clientId || '',
               responsibleId: event.responsibleId || '',
+              assistantIds: event.assistantIds || [],
               scripts: event.scripts || '',
               color: event.color || '#3788d8',
             });
           } else {
-             setFormData({ color: '#3788d8' });
+             setFormData({ color: '#3788d8', assistantIds: [] });
           }
         })
         .catch(() => toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível carregar os dados necessários.' }))
@@ -91,7 +96,7 @@ export function EventModal({ isOpen, onClose, event }: EventModalProps) {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSelectChange = (name: string, value: string) => {
+  const handleSelectChange = (name: string, value: string | string[]) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -116,6 +121,7 @@ export function EventModal({ isOpen, onClose, event }: EventModalProps) {
         endDateTime: formData.endDateTime,
         clientId: formData.clientId,
         responsibleId: formData.responsibleId,
+        assistantIds: formData.assistantIds || [],
         scripts: formData.scripts,
         color: formData.color,
       };
@@ -127,6 +133,7 @@ export function EventModal({ isOpen, onClose, event }: EventModalProps) {
         await addCalendarEvent(eventPayload);
         toast({ title: 'Sucesso', description: 'Evento criado.' });
       }
+      onEventChange?.();
       onClose();
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Erro ao salvar', description: error.message });
@@ -141,6 +148,7 @@ export function EventModal({ isOpen, onClose, event }: EventModalProps) {
       try {
           await deleteCalendarEvent(event.id);
           toast({ title: 'Sucesso', description: 'Evento excluído.' });
+          onEventChange?.();
           onClose();
       } catch (error: any) {
           toast({ variant: 'destructive', title: 'Erro ao excluir', description: error.message });
@@ -210,6 +218,17 @@ export function EventModal({ isOpen, onClose, event }: EventModalProps) {
                 </Select>
             </div>
              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="assistantIds" className="text-right">Auxiliares</Label>
+                <div className="col-span-3">
+                   <MultiSelect
+                        options={userOptions}
+                        selected={formData.assistantIds || []}
+                        onChange={(selected) => handleSelectChange('assistantIds', selected)}
+                        placeholder="Selecione auxiliares"
+                    />
+                </div>
+            </div>
+             <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="color" className="text-right">Cor</Label>
                 <Input id="color" name="color" type="color" value={formData.color || '#3788d8'} onChange={handleChange} className="col-span-3 h-10 p-1" />
             </div>
@@ -250,3 +269,5 @@ export function EventModal({ isOpen, onClose, event }: EventModalProps) {
     </Dialog>
   );
 }
+
+  

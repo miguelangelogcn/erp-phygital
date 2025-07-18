@@ -22,6 +22,7 @@ import type {
 } from "@/types/recurringTask";
 
 const deleteTaskCallable = httpsCallable(functions, 'deleteTask');
+const createRecurringTaskCallable = httpsCallable(functions, 'createRecurringTaskWithNotifications');
 
 
 interface TaskViewConfig {
@@ -39,7 +40,6 @@ export function onRecurringTasksUpdate(
   onError: (error: Error) => void
 ): () => void {
    if (!viewConfig) {
-      // Return an empty unsubscribe function if config is not ready
       return () => {};
   }
   
@@ -49,10 +49,8 @@ export function onRecurringTasksUpdate(
   const queryConstraints: QueryConstraint[] = [];
 
   if (isLeader && memberIds && memberIds.length > 0) {
-      // Leader sees all tasks for their team members
       queryConstraints.push(where("responsibleId", "in", memberIds));
   } else if (!isLeader) {
-      // Employee sees tasks they are responsible for
       queryConstraints.push(where("responsibleId", "==", uid));
   } else {
       callback([]);
@@ -80,20 +78,20 @@ export function onRecurringTasksUpdate(
 }
 
 /**
- * Adds a new recurring task.
+ * Adds a new recurring task by calling a Cloud Function.
  */
 export async function addRecurringTask(
   taskData: NewRecurringTask
 ): Promise<string> {
   try {
-    const docRef = await addDoc(collection(db, "recurringTasks"), {
-      ...taskData,
-      isCompleted: false, // Default value on creation
-      createdAt: serverTimestamp(),
-    });
-    return docRef.id;
+    const result: any = await createRecurringTaskCallable(taskData);
+     if (result.data.success) {
+        return result.data.id;
+    } else {
+        throw new Error("Failed to create recurring task via Cloud Function.");
+    }
   } catch (error) {
-    console.error("Error adding recurring task: ", error);
+    console.error("Error calling createRecurringTaskWithNotifications function: ", error);
     throw new Error("Failed to add recurring task.");
   }
 }
@@ -116,8 +114,6 @@ export async function updateRecurringTask(
 
 /**
  * Updates just the checklist for a recurring task.
- * @param taskId The ID of the task to update.
- * @param checklist The full, updated checklist array.
  */
 export async function updateRecurringTaskChecklist(taskId: string, checklist: RecurringChecklistItem[]): Promise<void> {
   try {
@@ -132,8 +128,6 @@ export async function updateRecurringTaskChecklist(taskId: string, checklist: Re
 
 /**
  * Updates the completion status of a recurring task.
- * @param taskId The ID of the task.
- * @param isCompleted The new completion status.
  */
 export async function updateRecurringTaskCompletion(taskId: string, isCompleted: boolean): Promise<void> {
   try {
@@ -193,3 +187,5 @@ export async function updateRecurringTaskOrderAndDay(
     throw new Error("Failed to update recurring tasks.");
   }
 }
+
+      
