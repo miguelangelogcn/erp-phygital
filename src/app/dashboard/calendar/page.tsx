@@ -12,6 +12,7 @@ import { Loader2 } from 'lucide-react';
 import type { CalendarEvent } from '@/types/calendarEvent';
 import { EventModal } from '@/components/modals/EventModal';
 import { Timestamp } from 'firebase/firestore';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function CalendarPage() {
   const [events, setEvents] = useState<EventInput[]>([]);
@@ -73,31 +74,35 @@ export default function CalendarPage() {
 
   return (
     <main className="p-4 md:p-8">
-      <h1 className="text-2xl font-bold mb-6">Calendário de Gravações</h1>
-      <div className="bg-card p-4 rounded-lg shadow text-foreground">
-        <FullCalendar
-          plugins={[dayGridPlugin, interactionPlugin]}
-          initialView="dayGridMonth"
-          weekends={true}
-          events={events}
-          dateClick={handleDateClick}
-          eventClick={handleEventClick}
-          locale="pt-br"
-          headerToolbar={{
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth,dayGridWeek,dayGridDay'
-          }}
-          buttonText={{
-            today: 'Hoje',
-            month: 'Mês',
-            week: 'Semana',
-            day: 'Dia',
-          }}
-          height="auto"
-        />
-      </div>
-
+      <Card>
+        <CardHeader>
+          <CardTitle>Calendário de Gravações</CardTitle>
+        </CardHeader>
+        <CardContent>
+           <FullCalendar
+            plugins={[dayGridPlugin, interactionPlugin]}
+            initialView="dayGridMonth"
+            weekends={true}
+            events={events}
+            dateClick={handleDateClick}
+            eventClick={handleEventClick}
+            locale="pt-br"
+            headerToolbar={{
+              left: 'prev,next today',
+              center: 'title',
+              right: 'dayGridMonth,dayGridWeek,dayGridDay'
+            }}
+            buttonText={{
+              today: 'Hoje',
+              month: 'Mês',
+              week: 'Semana',
+              day: 'Dia',
+            }}
+            height="auto"
+          />
+        </CardContent>
+      </Card>
+     
       <EventModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}

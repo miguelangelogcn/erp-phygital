@@ -86,4 +86,38 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+  /* Estilos do FullCalendar */
+  .fc {
+    @apply text-foreground;
+  }
+  .fc .fc-toolbar-title {
+    @apply text-xl font-bold text-foreground;
+  }
+  .fc .fc-button {
+    @apply bg-secondary text-secondary-foreground border-secondary hover:bg-accent;
+  }
+  .fc .fc-button-primary:disabled {
+    @apply bg-muted text-muted-foreground;
+  }
+  .fc .fc-daygrid-day-frame {
+     @apply border-border;
+  }
+  .fc .fc-col-header-cell {
+    @apply border-b border-border text-muted-foreground;
+  }
+  .fc .fc-daygrid-day.fc-day-today {
+    @apply bg-accent/30;
+  }
+  .fc .fc-daygrid-day-number {
+    @apply text-foreground/80;
+  }
+  .fc-theme-standard .fc-scrollgrid, .fc-theme-standard th, .fc-theme-standard td {
+    border-color: hsl(var(--border));
+  }
+  .fc .fc-daygrid-day:hover {
+     background-color: hsl(var(--accent) / 0.5);
+  }
+  .fc .fc-event {
+    @apply rounded-md text-sm p-1;
+  }
 }
