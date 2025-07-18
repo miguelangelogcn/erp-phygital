@@ -287,6 +287,8 @@ export default function PontualTasks() {
         onConfirm: async () => {
             setIsSubmitting(true);
             try {
+                const taskType = 'tasks';
+                console.log("A chamar a função 'deleteTask' com os seguintes dados:", { taskId, taskType });
                 await deleteTaskService(taskId);
                 toast({ title: "Sucesso", description: "Tarefa excluída." });
                 setIsEditModalOpen(false);
@@ -464,3 +466,5 @@ export default function PontualTasks() {
     </div>
   );
 }
+
+    

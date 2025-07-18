@@ -193,7 +193,10 @@ export default function RecurringTasks() {
     if (!deletingTaskId) return;
     setIsSubmitting(true);
     try {
-        await deleteRecurringTask(deletingTaskId);
+        const taskId = deletingTaskId;
+        const taskType = 'recurringTasks';
+        console.log("A chamar a função 'deleteTask' com os seguintes dados:", { taskId, taskType });
+        await deleteRecurringTask(taskId);
         toast({ title: "Sucesso!", description: "Tarefa recorrente excluída." });
         handleCloseModal();
     } catch (error) {
@@ -380,3 +383,5 @@ export default function RecurringTasks() {
     </div>
   );
 }
+
+    
