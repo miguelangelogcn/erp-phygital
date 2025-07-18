@@ -151,10 +151,15 @@ body {
   
   .fc-daygrid-day {
     position: relative;
+    transition: background-color 0.2s ease-in-out;
   }
+
   .fc-daygrid-day:hover {
-     background-color: hsl(var(--accent) / 0.5);
-     cursor: pointer;
+    cursor: pointer;
+  }
+
+  .fc-daygrid-day:hover > * {
+    background-color: hsl(var(--accent) / 0.5);
   }
 
   .fc-daygrid-day::after {
@@ -167,7 +172,9 @@ body {
     color: hsl(var(--muted-foreground));
     opacity: 0;
     transition: opacity 0.2s ease-in-out;
+    pointer-events: none; /* Crucial para o hover funcionar corretamente */
   }
+  
   .fc-daygrid-day:hover::after {
     opacity: 1;
   }
