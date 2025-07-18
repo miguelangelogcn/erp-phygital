@@ -374,7 +374,7 @@ async function createNotification(userId: string, message: string, link: string)
         await db.collection("users").doc(userId).collection("notifications").add({
             message,
             link,
-            isRead: false,
+            status: "unread", // Alterado de isRead: false para status: 'unread'
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         logger.info(`Notificação criada para o utilizador ${userId}: "${message}"`);

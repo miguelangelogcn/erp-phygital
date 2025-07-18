@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Briefcase, Users, ListTodo, Shield, UserSquare, CheckSquare, Calendar } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { NotificationsBell } from "../notifications/NotificationsBell";
 
 export default function DashboardLayoutComponent({
   children,
@@ -34,8 +35,11 @@ export default function DashboardLayoutComponent({
     <SidebarProvider>
       <div className="flex min-h-screen">
         <Sidebar>
-          <SidebarHeader>
+          <SidebarHeader className="flex items-center justify-between">
             <SidebarTrigger />
+             <div className="pr-2">
+                <NotificationsBell />
+             </div>
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu>
