@@ -100,10 +100,11 @@ body {
     @apply bg-muted text-muted-foreground;
   }
   .fc .fc-daygrid-day-frame {
-     @apply border-border;
+     border-color: hsl(var(--card));
   }
   .fc .fc-col-header-cell {
-    @apply border-b border-border text-muted-foreground;
+    @apply text-muted-foreground;
+     border-color: hsl(var(--card));
   }
   .fc .fc-daygrid-day.fc-day-today {
     @apply bg-accent/30;
@@ -112,7 +113,7 @@ body {
     @apply text-foreground/80;
   }
   .fc-theme-standard .fc-scrollgrid, .fc-theme-standard th, .fc-theme-standard td {
-    border-color: hsl(var(--border));
+    border-color: hsl(var(--card));
   }
   .fc .fc-daygrid-day:hover {
      background-color: hsl(var(--accent) / 0.5);
