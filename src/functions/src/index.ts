@@ -1,6 +1,7 @@
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { onDocumentCreated, onDocumentUpdated, Change } from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 
@@ -222,6 +223,9 @@ export const submitTaskForApproval = onCall(
         proofs: proofs,
         approvalNotes: notes || "",
         submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+        // Limpar o feedback anterior ao resubmeter
+        feedback: admin.firestore.FieldValue.delete(),
+        rejectionFeedback: admin.firestore.FieldValue.delete(),
       });
 
       logger.info(`Tarefa ${taskId} atualizada para 'pending' com sucesso.`);
@@ -331,6 +335,7 @@ export const resetRecurringTasks = onSchedule(
           proofs: admin.firestore.FieldValue.delete(),
           approvalNotes: admin.firestore.FieldValue.delete(),
           submittedAt: admin.firestore.FieldValue.delete(),
+          feedback: admin.firestore.FieldValue.delete(), // Also reset feedback
           rejectionFeedback: admin.firestore.FieldValue.delete(), // Also reset new feedback field
       };
 
@@ -357,4 +362,104 @@ export const resetRecurringTasks = onSchedule(
   }
 );
 
-    
+
+// --- Funções de Notificação ---
+
+/**
+ * Cria uma notificação para um utilizador específico.
+ */
+async function createNotification(userId: string, message: string, link: string) {
+    if (!userId) return;
+    try {
+        await db.collection("users").doc(userId).collection("notifications").add({
+            message,
+            link,
+            isRead: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        logger.info(`Notificação criada para o utilizador ${userId}: "${message}"`);
+    } catch (error) {
+        logger.error(`Erro ao criar notificação para ${userId}:`, error);
+    }
+}
+
+/**
+ * Acionada quando uma nova tarefa, tarefa recorrente ou evento de calendário é criado.
+ */
+export const onTaskCreated = onDocumentCreated(
+    { document: "{collectionId}/{docId}", region: "southamerica-east1" },
+    async (event) => {
+        const { collectionId, docId } = event.params;
+        const data = event.data?.data();
+
+        if (!['tasks', 'recurringTasks', 'calendarEvents'].includes(collectionId) || !data) {
+            return;
+        }
+
+        const title = data.title || "uma nova tarefa";
+        const responsibleId = data.responsibleId;
+        const assistantIds = data.assistantIds || [];
+
+        const allUserIds = [...new Set([responsibleId, ...assistantIds])].filter(Boolean);
+
+        const message = `Você foi adicionado a uma nova atividade: ${title}`;
+        const link = `/dashboard/tasks`; // Link genérico por enquanto
+
+        for (const userId of allUserIds) {
+            await createNotification(userId, message, link);
+        }
+    }
+);
+
+
+/**
+ * Acionada quando uma tarefa, tarefa recorrente ou evento de calendário é atualizado.
+ */
+export const onTaskUpdated = onDocumentUpdated(
+    { document: "{collectionId}/{docId}", region: "southamerica-east1" },
+    async (event) => {
+        const { collectionId, docId } = event.params;
+        const dataAfter = event.data?.after.data();
+        const dataBefore = event.data?.before.data();
+
+        if (!['tasks', 'recurringTasks', 'calendarEvents'].includes(collectionId) || !dataAfter || !dataBefore) {
+            return;
+        }
+
+        const title = dataAfter.title || "uma tarefa";
+        const responsibleId = dataAfter.responsibleId;
+        const assistantIds = dataAfter.assistantIds || [];
+        const allUserIds = [...new Set([responsibleId, ...assistantIds])].filter(Boolean);
+
+        // Notificação de atualização geral
+        const updateMessage = `A atividade "${title}" foi atualizada.`;
+        const link = `/dashboard/tasks`; // Link genérico
+
+        for (const userId of allUserIds) {
+            await createNotification(userId, updateMessage, link);
+        }
+
+        // Notificação de aprovação pendente
+        if (dataAfter.approvalStatus === 'pending' && dataBefore.approvalStatus !== 'pending') {
+            try {
+                const userDoc = await db.collection("users").doc(responsibleId).get();
+                if (!userDoc.exists) return;
+
+                const teamId = userDoc.data()?.teamId;
+                if (!teamId) return;
+
+                const teamDoc = await db.collection("teams").doc(teamId).get();
+                if (!teamDoc.exists) return;
+
+                const leaderId = teamDoc.data()?.leaderId;
+                if (leaderId) {
+                    const approvalMessage = `Uma nova tarefa ("${title}") aguarda a sua aprovação.`;
+                    const approvalLink = "/dashboard/approvals";
+                    await createNotification(leaderId, approvalMessage, approvalLink);
+                }
+            } catch (error) {
+                logger.error(`Erro ao notificar líder sobre aprovação para a tarefa ${docId}:`, error);
+            }
+        }
+    }
+);
