@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import * as functions from "firebase-functions";
+import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 
@@ -89,16 +90,15 @@ export const deleteTask = onCall({ region: "southamerica-east1" }, async (reques
 // --- FUNÇÕES DE APROVAÇÃO E TAREFAS RECORRENTES ---
 
 export const submitTaskForApproval = onCall({ region: "southamerica-east1" }, async (request) => {
-    const { taskId, taskType, proofs, notes } = request.data;
-    if (!taskId || !taskType || !proofs) {
+    const { taskId, taskType, proof } = request.data;
+    if (!taskId || !taskType || !proof) {
         throw new HttpsError("invalid-argument", "Faltam dados essenciais.");
     }
     const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
     try {
         await db.collection(collectionName).doc(taskId).update({
             approvalStatus: 'pending',
-            proofs: proofs,
-            approvalNotes: notes || ""
+            proof: proof,
         });
         return { success: true };
     } catch (error: any) {
@@ -125,25 +125,21 @@ export const reviewTask = onCall({ region: "southamerica-east1" }, async (reques
       const updateData: { [key: string]: any } = {
         approvalStatus: decision,
         approverId: approverId,
-        reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
 
       if (decision === 'rejected') {
-        const newFeedbackEntry = { ...(feedback || {}), rejectedBy: approverId, rejectedAt: admin.firestore.FieldValue.serverTimestamp() };
-        updateData.rejectionFeedback = admin.firestore.FieldValue.arrayUnion(newFeedbackEntry);
-
+        updateData.rejectionFeedback = admin.firestore.FieldValue.arrayUnion({
+            ...feedback,
+            timestamp: admin.firestore.FieldValue.serverTimestamp()
+        });
         if (collectionName === 'tasks') {
-          updateData.status = 'todo';
+          updateData.status = 'doing';
         } else {
           updateData.isCompleted = false;
         }
-        updateData.proofs = admin.firestore.FieldValue.delete();
-        updateData.approvalNotes = admin.firestore.FieldValue.delete();
-
       } else if (decision === 'approved') {
         if (collectionName === 'tasks') {
           updateData.status = 'done';
-          updateData.completedAt = admin.firestore.FieldValue.serverTimestamp();
         } else {
           updateData.isCompleted = true;
         }
@@ -158,11 +154,11 @@ export const reviewTask = onCall({ region: "southamerica-east1" }, async (reques
     }
 });
 
-export const resetRecurringTasks = functions
-  .region("southamerica-east1")
-  .pubsub.schedule("59 23 * * 0") // Todos os Domingos às 23:59
-  .timeZone("America/Sao_Paulo")
-  .onRun(async (context) => {
+export const resetRecurringTasks = onSchedule({
+    schedule: "59 23 * * 0", // Todos os Domingos às 23:59
+    timeZone: "America/Sao_Paulo",
+    region: "southamerica-east1"
+}, async (event) => {
     logger.info("A executar a função de reset de tarefas recorrentes...");
     const recurringTasksRef = db.collection("recurringTasks");
     const snapshot = await recurringTasksRef.get();
@@ -175,15 +171,13 @@ export const resetRecurringTasks = functions
     const batch = db.batch();
     snapshot.forEach((doc) => {
       const task = doc.data();
-      const newChecklist = task.checklist?.map((item: any) => ({ ...item, isCompleted: false })) || [];
+      const newChecklist = task.checklist ? task.checklist.map((item: any) => ({ ...item, isCompleted: false })) : [];
       batch.update(doc.ref, { 
           isCompleted: false, 
           checklist: newChecklist,
-          approvalStatus: admin.firestore.FieldValue.delete(),
-          rejectionFeedback: admin.firestore.FieldValue.delete(),
-          proofs: admin.firestore.FieldValue.delete(),
-          approvalNotes: admin.firestore.FieldValue.delete(),
-          submittedAt: admin.firestore.FieldValue.delete(),
+          approvalStatus: null,
+          rejectionFeedback: [],
+          proof: [],
       });
     });
 
@@ -198,7 +192,7 @@ export const resetRecurringTasks = functions
 // Função auxiliar para criar notificações
 const createNotificationsForUsers = async (userIds: string[], message: string, linkTo: string, triggeredBy: string) => {
   const batch = db.batch();
-  const uniqueUserIds = [...new Set(userIds.filter(id => id))]; // Garante que não há IDs nulos ou duplicados
+  const uniqueUserIds = [...new Set(userIds.filter(id => id))];
 
   uniqueUserIds.forEach((userId) => {
     const notificationRef = db.collection('users').doc(userId).collection('notifications').doc();
@@ -216,52 +210,45 @@ const createNotificationsForUsers = async (userIds: string[], message: string, l
 };
 
 // Acionada quando uma NOVA tarefa pontual é criada
-export const onTaskCreated = functions.region("southamerica-east1").firestore
-  .document('tasks/{taskId}')
-  .onCreate(async (snap, context) => {
-    const task = snap.data();
-    if (!task || !task.responsibleId) return;
+export const onTaskCreated = onDocumentCreated({ document: "tasks/{taskId}", region: "southamerica-east1" }, async (event) => {
+    const snap = event.data;
+    if (!snap) return;
 
+    const task = snap.data();
     const creator = await auth.getUser(task.responsibleId);
     const creatorName = creator.displayName || 'Sistema';
     
     const message = `${creatorName} criou uma nova tarefa: "${task.title}"`;
-    const linkTo = `/dashboard/tasks?openTask=${context.params.taskId}`;
+    const linkTo = `/dashboard/tasks?openTask=${event.params.taskId}`;
     
     const userIdsToNotify = [task.responsibleId, ...(task.assistantIds || [])];
 
     return createNotificationsForUsers(userIdsToNotify, message, linkTo, creatorName);
-  });
+});
 
 // Acionada quando uma tarefa é ATUALIZADA
-export const onTaskUpdated = functions.region("southamerica-east1").firestore
-  .document('tasks/{taskId}')
-  .onUpdate(async (change, context) => {
-    const newValue = change.after.data();
-    const previousValue = change.before.data();
+export const onTaskUpdated = onDocumentUpdated({ document: "tasks/{taskId}", region: "southamerica-east1" }, async (event) => {
+    const afterData = event.data?.after.data();
+    const beforeData = event.data?.before.data();
+
+    if (!afterData || !beforeData) return;
 
     // Notificação para tarefa enviada para aprovação
-    if (newValue.approvalStatus === 'pending' && previousValue.approvalStatus !== 'pending') {
-      try {
-        const taskCreatorDoc = await db.collection('users').doc(newValue.responsibleId).get();
-        if (!taskCreatorDoc.exists) return null;
-        const teamId = taskCreatorDoc.data()?.teamId;
+    if (afterData.approvalStatus === 'pending' && beforeData.approvalStatus !== 'pending') {
+      const taskCreatorDoc = await db.collection('users').doc(afterData.responsibleId).get();
+      const teamId = taskCreatorDoc.data()?.teamId;
 
-        if (teamId) {
-          const teamDoc = await db.collection('teams').doc(teamId).get();
-          if (!teamDoc.exists) return null;
-          const leaderId = teamDoc.data()?.leaderId;
+      if (teamId) {
+        const team = await db.collection('teams').doc(teamId).get();
+        const leaderId = team.data()?.leaderId;
 
-          if (leaderId) {
-            const message = `A tarefa "${newValue.title}" foi submetida para aprovação.`;
-            const linkTo = `/dashboard/approvals`;
-            const creatorName = taskCreatorDoc.data()?.name || 'Um utilizador';
-            await createNotificationsForUsers([leaderId], message, linkTo, creatorName);
-          }
+        if (leaderId) {
+          const message = `A tarefa "${afterData.title}" foi submetida para aprovação.`;
+          const linkTo = `/dashboard/approvals`;
+          const creatorName = taskCreatorDoc.data()?.name || 'Um utilizador';
+          await createNotificationsForUsers([leaderId], message, linkTo, creatorName);
         }
-      } catch (error) {
-        logger.error(`Error notifying leader for task ${context.params.taskId}:`, error);
       }
     }
     return null;
-  });
+});

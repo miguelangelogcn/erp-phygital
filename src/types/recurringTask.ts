@@ -25,14 +25,12 @@ export interface RecurringTask {
   createdAt: Timestamp;
   approvalRequired?: boolean; // Does this task need approval?
   approvalStatus?: ApprovalStatus;
-  proofs?: TaskProof[];
+  proof?: TaskProof; // Changed from proofs to proof
   approvalNotes?: string;
   submittedAt?: Timestamp;
   approverId?: string;
   reviewedAt?: Timestamp;
-  rejectionFeedback?: (Feedback & { timestamp: Timestamp })[];
+  rejectionFeedback?: Feedback[]; // Simplified from (Feedback & { timestamp: Timestamp })[]
 }
 
 export type NewRecurringTask = Omit<RecurringTask, "id" | "createdAt" | "reviewedAt">;
-
-    

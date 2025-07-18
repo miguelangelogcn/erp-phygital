@@ -41,13 +41,13 @@ export interface Task {
   clientId?: string;
   checklist?: ChecklistItem[];
   approvalStatus?: ApprovalStatus;
-  proofs?: TaskProof[];
+  proof?: TaskProof; // Changed from proofs to proof
   approvalNotes?: string;
   submittedAt?: Timestamp;
   approverId?: string;
   reviewedAt?: Timestamp;
   completedAt?: Timestamp;
-  rejectionFeedback?: (Feedback & { timestamp: Timestamp })[];
+  rejectionFeedback?: Feedback[]; // Simplified from (Feedback & { timestamp: Timestamp })[]
 }
 
 // Para criar uma nova tarefa, omitimos o 'id' e tornamos os Timestamps opcionais
@@ -61,5 +61,3 @@ export type NewTask = Omit<Task, "id" | "createdAt" | "updatedAt"> & {
 export type ApprovalTask = (Task | Omit<any, 'status'>) & {
   type: 'tasks' | 'recurringTasks';
 }
-
-    

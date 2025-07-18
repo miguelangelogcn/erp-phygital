@@ -193,27 +193,25 @@ export default function ApprovalsPage() {
                        <TableCell>
                         <Popover>
                           <PopoverTrigger asChild>
-                            <Button variant="outline" size="sm">
+                            <Button variant="outline" size="sm" disabled={!task.proof}>
                               <FileText className="mr-2 h-4 w-4" />
-                              Ver Ficheiros ({task.proofs?.length || 0})
+                              Ver Ficheiro
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent>
                             <div className="space-y-2">
-                                <h4 className="font-medium">Ficheiros de Prova</h4>
-                                {task.proofs && task.proofs.length > 0 ? (
+                                <h4 className="font-medium">Ficheiro de Prova</h4>
+                                {task.proof ? (
                                     <ul className="text-sm list-disc list-inside">
-                                        {task.proofs.map((proof, index) => (
-                                          <li key={index}>
+                                          <li>
                                               <button
                                                   type="button"
-                                                  onClick={() => handleFileClick(proof)}
+                                                  onClick={() => handleFileClick(task.proof!)}
                                                   className="underline flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300"
                                               >
-                                                  {proof.name}
+                                                  {task.proof!.name}
                                               </button>
                                           </li>
-                                        ))}
                                     </ul>
                                 ) : (
                                     <p className="text-sm text-muted-foreground">Nenhum ficheiro.</p>
