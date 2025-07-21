@@ -112,57 +112,71 @@ export const submitTaskForApproval = onCall({ region: "southamerica-east1" }, as
 });
 
 export const reviewTask = onCall({ region: "southamerica-east1" }, async (request) => {
-    const { taskId, taskType, decision, feedback } = request.data;
-    const approverId = request.auth?.uid;
+  const { taskId, taskType, decision, feedback } = request.data;
+  const approverId = request.auth?.uid;
 
-    if (!approverId) {
-      throw new HttpsError("unauthenticated", "O utilizador deve estar autenticado para rever tarefas.");
+  // Log inicial para confirmar que a função foi chamada
+  logger.info(`[START] reviewTask called with taskId: ${taskId}, decision: ${decision}`);
+
+  if (!approverId) {
+    logger.error("[ERROR] Unauthenticated user.");
+    throw new HttpsError("unauthenticated", "O utilizador deve estar autenticado.");
+  }
+  if (!taskId || !taskType || !decision) {
+    logger.error("[ERROR] Invalid arguments.", { taskId, taskType, decision });
+    throw new HttpsError("invalid-argument", "Argumentos inválidos.");
+  }
+
+  const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
+  const taskRef = db.collection(collectionName).doc(taskId);
+  logger.info(`[INFO] Document reference created for: ${collectionName}/${taskId}`);
+
+  try {
+    // Passo 1: Ler o documento primeiro para garantir que existe
+    const docSnap = await taskRef.get();
+    if (!docSnap.exists) {
+      logger.error(`[ERROR] Document not found: ${collectionName}/${taskId}`);
+      throw new HttpsError("not-found", "A tarefa não foi encontrada.");
     }
-    if (!taskId || !taskType || (decision !== 'approved' && decision !== 'rejected')) {
-      throw new HttpsError("invalid-argument", "Faltam dados essenciais ou a decisão é inválida.");
-    }
+    logger.info(`[SUCCESS] Document found. Data:`, docSnap.data());
 
-    const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
-    const taskRef = db.collection(collectionName).doc(taskId);
-    
-    const approverUser = await auth.getUser(approverId);
-    const approverName = approverUser.displayName || "Líder";
-
-    try {
-      const updateData: { [key: string]: any } = {
-        approvalStatus: decision,
-        approverId: approverId,
-        reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+    // Se a decisão for rejeitar, preparamos o feedback
+    if (decision === 'rejected') {
+      const approverUser = await auth.getUser(approverId);
+      const approverName = approverUser.displayName || "Líder";
+      
+      const feedbackToUnion = {
+        notes: feedback.notes || null,
+        audioUrl: feedback.audioUrl || null,
+        files: feedback.files || [],
+        rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
+        rejectedBy: approverName,
       };
 
-      if (decision === 'rejected') {
-        updateData.rejectionFeedback = admin.firestore.FieldValue.arrayUnion({
-            ...feedback,
-            rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
-            rejectedBy: approverName,
-        });
-        if (collectionName === 'tasks') {
-          updateData.status = 'doing';
-        } else {
-          updateData.isCompleted = false;
-        }
-      } else if (decision === 'approved') {
-        if (collectionName === 'tasks') {
-          updateData.status = 'done';
-          updateData.completedAt = admin.firestore.FieldValue.serverTimestamp();
-        } else {
-          updateData.isCompleted = true;
-        }
-      }
+      logger.info("[INFO] Preparing to update with rejection feedback:", feedbackToUnion);
 
-      await taskRef.update(updateData);
-      return { success: true, message: "Revisão da tarefa concluída." };
+      // Passo 2: Tentar a operação de atualização
+      await taskRef.update({
+        approvalStatus: 'rejected',
+        approverId: approverId,
+        reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+        rejectionFeedback: admin.firestore.FieldValue.arrayUnion(feedbackToUnion),
+        status: collectionName === 'tasks' ? 'doing' : undefined,
+        isCompleted: collectionName === 'recurringTasks' ? false : undefined,
+      });
 
-    } catch (error: any) {
-      logger.error(`Erro ao rever a tarefa ${taskId}:`, error);
-      throw new HttpsError("internal", "Ocorreu um erro ao processar a sua revisão.");
+      logger.info("[SUCCESS] Document updated successfully with rejection.");
     }
+    // Adicione aqui a lógica para 'approved' se também quiser depurá-la
+
+    return { success: true, message: "Revisão concluída (modo de depuração)." };
+
+  } catch (error: any) {
+    logger.error(`[FATAL ERROR] An exception was caught in reviewTask for taskId ${taskId}:`, error);
+    throw new HttpsError("internal", `Erro interno no servidor: ${error.message}`);
+  }
 });
+
 
 export const resetRecurringTasks = onSchedule({
     schedule: "59 23 * * 0",
@@ -315,4 +329,3 @@ export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEve
     if (!event.data) return;
     return handleItemUpdate(event.data, "evento", "/dashboard/calendar?openEvent=", event.params.eventId);
 });
-
