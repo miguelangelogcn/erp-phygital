@@ -1,7 +1,8 @@
 // src/lib/firebase/services/clients.ts
 import { collection, getDocs, orderBy, query, addDoc, doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase/config";
+import { db, functions } from "@/lib/firebase/config";
 import type { Client, NewClient } from "@/types/client";
+import { httpsCallable } from "firebase/functions";
 
 /**
  * Fetches all clients from the 'clients' collection in Firestore, ordered by name.
@@ -59,5 +60,20 @@ export async function addClient(clientData: NewClient): Promise<string> {
     } catch (error) {
         console.error("Error adding client: ", error);
         throw new Error("Failed to add client to Firestore.");
+    }
+}
+
+/**
+ * Deletes a client by calling the 'deleteClient' cloud function.
+ * @param {string} clientId - The id of the client to delete.
+ */
+export async function deleteClient(clientId: string): Promise<any> {
+    const deleteClientCallable = httpsCallable(functions, 'deleteClient');
+    try {
+        const result = await deleteClientCallable({ clientId });
+        return result;
+    } catch (error) {
+        console.error("Error calling deleteClient function:", error);
+        throw error;
     }
 }
