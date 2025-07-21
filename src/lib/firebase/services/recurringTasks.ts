@@ -88,6 +88,7 @@ export async function addRecurringTask(
           ...taskData,
           createdAt: serverTimestamp(),
           approvalStatus: null,
+          rejectionFeedback: [],
       });
       return docRef.id;
     } catch (error) {
@@ -187,5 +188,3 @@ export async function updateRecurringTaskOrderAndDay(
     throw new Error("Failed to update recurring tasks.");
   }
 }
-
-    

@@ -133,6 +133,7 @@ export async function addTask(taskData: NewTask): Promise<string> {
       ...taskData,
       createdAt: serverTimestamp(),
       approvalStatus: null,
+      rejectionFeedback: [],
     });
     return docRef.id;
   } catch (error) {
@@ -227,5 +228,3 @@ export async function deleteTask(taskId: string): Promise<any> {
         throw error;
     }
 }
-
-    
