@@ -115,10 +115,15 @@ export function EventModal({ isOpen, onClose, event, onEventChange }: EventModal
           throw new Error("Título, início e fim são obrigatórios.");
       }
       
-      const eventPayload = {
-          ...data,
-          assistantIds: data.assistantIds || [],
-          scripts: data.scripts?.map(script => ({ ...script, id: script.id || crypto.randomUUID() })) || [],
+       const eventPayload: NewCalendarEvent = {
+        title: data.title,
+        startDateTime: data.startDateTime,
+        endDateTime: data.endDateTime,
+        clientId: data.clientId || '',
+        responsibleId: data.responsibleId || '',
+        assistantIds: data.assistantIds || [],
+        scripts: data.scripts?.map(script => ({ ...script, id: script.id || crypto.randomUUID() })) || [],
+        color: data.color || '#3788d8',
       };
 
 
