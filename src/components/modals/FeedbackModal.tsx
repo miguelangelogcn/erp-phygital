@@ -80,11 +80,11 @@ export function FeedbackModal({ isOpen, onClose, onSubmitSuccess, isSubmitting, 
             })
         );
       
-        const feedbackPayload = {
-            notes,
-            audioUrl: uploadedAudioUrl,
-            files: uploadedAttachments,
-        };
+        // Constrói o payload de feedback de forma segura
+        const feedbackPayload: { [key: string]: any } = {};
+        if (notes) feedbackPayload.notes = notes;
+        if (uploadedAudioUrl) feedbackPayload.audioUrl = uploadedAudioUrl;
+        if (uploadedAttachments.length > 0) feedbackPayload.files = uploadedAttachments;
 
         await reviewTaskCallable({
             taskId: task.id,
@@ -94,7 +94,7 @@ export function FeedbackModal({ isOpen, onClose, onSubmitSuccess, isSubmitting, 
         });
 
         toast({ title: "Feedback Enviado", description: "A tarefa foi marcada como rejeitada." });
-        onSubmitSuccess(task.id); // This will close the modal and refetch data from the parent
+        onSubmitSuccess(task.id);
         
     } catch (error: any) {
       console.error("Erro ao submeter o feedback:", error);
