@@ -146,81 +146,13 @@ export const submitTaskForApproval = onCall({ region: "southamerica-east1" }, as
 });
 
 export const reviewTask = onCall({ region: "southamerica-east1" }, async (request) => {
-  const { taskId, taskType, decision, feedback } = request.data;
-  logger.info(`[reviewTask] Iniciada para taskId: ${taskId}, taskType: ${taskType}, decision: ${decision}`);
+  logger.info("--- [INÍCIO DO LOG DE DEPURACAO REVIEW-TASK] ---");
+  logger.info("Dados recebidos (request.data):", request.data);
+  logger.info("Informações de autenticação (request.auth):", request.auth);
+  logger.info("--- [FIM DO LOG DE DEPURACAO REVIEW-TASK] ---");
 
-  const approverId = request.auth?.uid;
-
-  if (!approverId) {
-    logger.error("[reviewTask] Falha: Utilizador não autenticado.");
-    throw new HttpsError("unauthenticated", "O utilizador deve estar autenticado para rever tarefas.");
-  }
-  if (!taskId || !taskType || (decision !== 'approved' && decision !== 'rejected')) {
-    logger.error("[reviewTask] Falha: Argumentos inválidos.", { taskId, taskType, decision });
-    throw new HttpsError("invalid-argument", "Faltam dados essenciais ou a decisão é inválida.");
-  }
-
-  const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
-  const taskRef = db.collection(collectionName).doc(taskId);
-
-  try {
-    const approverUser = await auth.getUser(approverId);
-    const approverName = approverUser.displayName || "Líder";
-    logger.info(`[reviewTask] Aprovador: ${approverName} (${approverId})`);
-
-    const updateData: { [key: string]: any } = {
-      approvalStatus: decision,
-      approverId: approverId,
-      reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
-
-    if (decision === 'rejected') {
-      logger.info("[reviewTask] Decisão: Rejeitado. Processando feedback.", { rawFeedback: feedback });
-
-      // Lógica de limpeza robusta para o objeto de feedback
-      const cleanFeedback: { [key: string]: any } = {};
-      if (feedback.notes) {
-        cleanFeedback.notes = feedback.notes;
-      }
-      if (feedback.audioUrl) {
-        cleanFeedback.audioUrl = feedback.audioUrl;
-      }
-      if (feedback.files && Array.isArray(feedback.files) && feedback.files.length > 0) {
-        cleanFeedback.files = feedback.files;
-      }
-      logger.info("[reviewTask] Objeto de feedback após limpeza:", { cleanFeedback });
-
-      updateData.rejectionFeedback = admin.firestore.FieldValue.arrayUnion({
-          ...cleanFeedback,
-          rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
-          rejectedBy: approverName,
-      });
-
-      if (collectionName === 'tasks') {
-        updateData.status = 'doing';
-      } else {
-        updateData.isCompleted = false;
-      }
-    } else if (decision === 'approved') {
-      logger.info("[reviewTask] Decisão: Aprovado.");
-      if (collectionName === 'tasks') {
-        updateData.status = 'done';
-        updateData.completedAt = admin.firestore.FieldValue.serverTimestamp();
-      } else {
-        updateData.isCompleted = true;
-      }
-    }
-
-    logger.info("[reviewTask] Objeto de atualização final:", { updateData });
-    await taskRef.update(updateData);
-    logger.info(`[reviewTask] Tarefa ${taskId} atualizada com sucesso.`);
-    
-    return { success: true, message: "Revisão da tarefa concluída." };
-
-  } catch (error: any) {
-    logger.error(`[reviewTask] Erro ao rever a tarefa ${taskId}:`, { errorMessage: error.message, errorStack: error.stack, errorObject: error });
-    throw new HttpsError("internal", "Ocorreu um erro ao processar a sua revisão.");
-  }
+  // Apenas para teste, retornamos um sucesso sem tocar na base de dados.
+  return { success: true, message: "Teste de depuração bem-sucedido." };
 });
 
 export const resetRecurringTasks = onSchedule({
@@ -374,12 +306,5 @@ export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEve
     if (!event.data) return;
     return handleItemUpdate(event.data, "evento", "/dashboard/calendar?openEvent=", event.params.eventId);
 });
-
-    
-
-
-
-
-    
 
     
