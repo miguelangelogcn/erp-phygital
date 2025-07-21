@@ -158,7 +158,7 @@ export const reviewTask = onCall({ region: "southamerica-east1" }, async (reques
 
     const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
     const taskRef = db.collection(collectionName).doc(taskId);
-    
+
     try {
       const approverUser = await auth.getUser(approverId);
       const approverName = approverUser.displayName || "Líder";
@@ -171,19 +171,16 @@ export const reviewTask = onCall({ region: "southamerica-east1" }, async (reques
 
       if (decision === 'rejected') {
         const cleanFeedback: { [key: string]: any } = {};
-        if (feedback.notes) {
-          cleanFeedback.notes = feedback.notes;
-        }
-        if (feedback.audioUrl) {
-          cleanFeedback.audioUrl = feedback.audioUrl;
-        }
+        if (feedback.notes) cleanFeedback.notes = feedback.notes;
+        if (feedback.audioUrl) cleanFeedback.audioUrl = feedback.audioUrl;
         if (feedback.files && Array.isArray(feedback.files) && feedback.files.length > 0) {
           cleanFeedback.files = feedback.files;
         }
 
+        // Correção Definitiva: Usar new Date() para o timestamp dentro do array
         updateData.rejectionFeedback = admin.firestore.FieldValue.arrayUnion({
             ...cleanFeedback,
-            rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
+            rejectedAt: new Date(), // <-- AQUI ESTÁ A CORREÇÃO
             rejectedBy: approverName,
         });
         
@@ -205,7 +202,7 @@ export const reviewTask = onCall({ region: "southamerica-east1" }, async (reques
       return { success: true, message: "Revisão da tarefa concluída." };
 
     } catch (error: any) {
-      logger.error(`Erro ao rever a tarefa ${taskId}:`, error);
+      logger.error(`[reviewTask] Erro ao rever a tarefa ${taskId}:`, error);
       throw new HttpsError("internal", "Ocorreu um erro ao processar a sua revisão.");
     }
 });
