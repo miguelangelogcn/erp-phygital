@@ -73,17 +73,11 @@ export const deleteUser = onCall({ region: "southamerica-east1" }, async (reques
 // --- FUNÇÕES DE GESTÃO DE TAREFAS ---
 
 export const deleteTask = onCall({ region: "southamerica-east1" }, async (request) => {
-    logger.info("Função 'deleteTask' chamada com os dados:", request.data);
     const { taskId, taskType } = request.data;
-
     if (!taskId || !taskType) {
-        logger.error("Validação falhou: taskId ou taskType em falta.", request.data);
         throw new HttpsError("invalid-argument", "Faltam dados essenciais (taskId, taskType).");
     }
-
     const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
-    logger.info(`A tentar apagar o documento: ${taskId} da coleção: ${collectionName}`);
-
     try {
         await db.collection(collectionName).doc(taskId).delete();
         logger.info(`Tarefa ${taskId} da coleção ${collectionName} foi apagada com sucesso.`);
@@ -110,7 +104,7 @@ export const submitTaskForApproval = onCall({ region: "southamerica-east1" }, as
             approvalNotes: notes || null,
             submittedAt: admin.firestore.FieldValue.serverTimestamp()
         });
-        return { success: true, message: "Tarefa submetida com sucesso." };
+        return { success: true };
     } catch (error: any) {
         logger.error(`Erro ao submeter a tarefa ${taskId} para aprovação:`, error);
         throw new HttpsError("internal", "Ocorreu um erro ao submeter a tarefa.");
@@ -249,7 +243,7 @@ const handleItemUpdate = async (
     change: { before: admin.firestore.DocumentSnapshot; after: admin.firestore.DocumentSnapshot },
     itemType: string,
     linkPath: string,
-    eventId: string,
+    eventId: string
 ) => {
     const beforeData = change.before.data();
     const afterData = change.after.data();
@@ -281,7 +275,6 @@ const handleItemUpdate = async (
     const newAssistants = afterAssistants.filter((id: string) => !beforeAssistants.has(id));
 
     if (newAssistants.length > 0) {
-        // Idealmente, teríamos o ID de quem editou. Usando 'Sistema' como fallback.
         const editorName = 'Sistema'; 
         const message = `Você foi adicionado como auxiliar na ${itemType}: "${afterData.title}"`;
         const linkTo = `${linkPath}${eventId}`;
@@ -322,3 +315,5 @@ export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEve
     if (!event.data) return;
     return handleItemUpdate(event.data, "evento", "/dashboard/calendar?openEvent=", event.params.eventId);
 });
+
+    
