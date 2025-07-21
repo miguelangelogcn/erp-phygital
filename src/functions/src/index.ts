@@ -170,22 +170,15 @@ export const reviewTask = onCall({ region: "southamerica-east1" }, async (reques
       };
 
       if (decision === 'rejected') {
-        const cleanFeedback: { [key: string]: any } = {};
-        if (feedback.notes) {
-          cleanFeedback.notes = feedback.notes;
-        }
-        if (feedback.audioUrl) {
-          cleanFeedback.audioUrl = feedback.audioUrl;
-        }
-        if (feedback.files && Array.isArray(feedback.files) && feedback.files.length > 0) {
-          cleanFeedback.files = feedback.files;
-        }
+        const feedbackToUnion = {
+          notes: feedback.notes || null,
+          audioUrl: feedback.audioUrl || null,
+          files: feedback.files || [],
+          rejectedAt: new Date(),
+          rejectedBy: approverName,
+        };
 
-        updateData.rejectionFeedback = admin.firestore.FieldValue.arrayUnion({
-            ...cleanFeedback,
-            rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
-            rejectedBy: approverName,
-        });
+        updateData.rejectionFeedback = admin.firestore.FieldValue.arrayUnion(feedbackToUnion);
         
         if (collectionName === 'tasks') {
           updateData.status = 'doing';
