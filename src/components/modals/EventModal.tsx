@@ -117,6 +117,7 @@ export function EventModal({ isOpen, onClose, event, onEventChange }: EventModal
       
       const eventPayload = {
           ...data,
+          assistantIds: data.assistantIds || [],
           scripts: data.scripts?.map(script => ({ ...script, id: script.id || crypto.randomUUID() })) || [],
       };
 
