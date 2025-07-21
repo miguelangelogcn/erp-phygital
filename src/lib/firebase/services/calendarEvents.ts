@@ -7,22 +7,23 @@ import {
   doc,
   serverTimestamp
 } from "firebase/firestore";
-import { db, functions } from "@/lib/firebase/config";
+import { db } from "@/lib/firebase/config";
 import type { NewCalendarEvent } from "@/types/calendarEvent";
-import { httpsCallable } from "firebase/functions";
-
-const createCalendarEventCallable = httpsCallable(functions, 'createCalendarEvent');
 
 /**
- * Adds a new event to the 'calendarEvents' collection by calling a cloud function.
+ * Adds a new event to the 'calendarEvents' collection in Firestore.
  * @param {NewCalendarEvent} eventData - The data for the new event.
- * @returns {Promise<any>} The result from the cloud function.
+ * @returns {Promise<string>} The ID of the newly created document.
  */
-export async function addCalendarEvent(eventData: NewCalendarEvent): Promise<any> {
+export async function addCalendarEvent(eventData: NewCalendarEvent): Promise<string> {
     try {
-        return await createCalendarEventCallable(eventData);
+        const docRef = await addDoc(collection(db, "calendarEvents"), {
+            ...eventData,
+            createdAt: serverTimestamp()
+        });
+        return docRef.id;
     } catch (error) {
-        console.error("Error calling createCalendarEvent function: ", error);
+        console.error("Error adding calendar event: ", error);
         throw new Error("Failed to add calendar event.");
     }
 }
