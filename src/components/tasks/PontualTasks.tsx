@@ -287,8 +287,8 @@ export default function PontualTasks() {
         onConfirm: async () => {
             setIsSubmitting(true);
             try {
-                await deleteTaskService(taskId, 'tasks');
-                toast({ title: "Sucesso", description: "Tarefa excluída." });
+                const result = await deleteTaskService(taskId, 'tasks');
+                toast({ title: "Sucesso", description: result.data.message });
                 setIsEditModalOpen(false);
                 setEditingTask(null);
             } catch (error: any) {
@@ -464,5 +464,3 @@ export default function PontualTasks() {
     </div>
   );
 }
-
-    

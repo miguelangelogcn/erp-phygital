@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { onRecurringTasksUpdate, updateRecurringTask, deleteRecurringTask, updateRecurringTaskChecklist } from "@/lib/firebase/services/recurringTasks";
+import { onRecurringTasksUpdate, updateRecurringTask, deleteRecurringTask as deleteRecurringTaskService, updateRecurringTaskChecklist } from "@/lib/firebase/services/recurringTasks";
 import { getUsers } from "@/lib/firebase/services/users";
 import { getClients } from "@/lib/firebase/services/clients";
 
@@ -193,14 +193,11 @@ export default function RecurringTasks() {
     if (!deletingTaskId) return;
     setIsSubmitting(true);
     try {
-        const taskId = deletingTaskId;
-        const taskType = 'recurringTasks';
-        console.log("A chamar a função 'deleteTask' com os seguintes dados:", { taskId, taskType });
-        await deleteRecurringTask(taskId);
-        toast({ title: "Sucesso!", description: "Tarefa recorrente excluída." });
+        const result = await deleteRecurringTaskService(deletingTaskId);
+        toast({ title: "Sucesso!", description: result.data.message });
         handleCloseModal();
-    } catch (error) {
-        toast({ variant: "destructive", title: "Erro", description: "Não foi possível excluir a tarefa." });
+    } catch (error: any) {
+        toast({ variant: "destructive", title: "Erro", description: error.message || "Não foi possível excluir a tarefa." });
     } finally {
         setIsSubmitting(false);
         setIsAlertOpen(false);
@@ -383,5 +380,3 @@ export default function RecurringTasks() {
     </div>
   );
 }
-
-    

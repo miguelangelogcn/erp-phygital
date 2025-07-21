@@ -7,7 +7,6 @@ import {
   updateDoc,
   serverTimestamp,
   addDoc,
-  deleteDoc,
   writeBatch,
   where,
   QueryConstraint
@@ -144,9 +143,9 @@ export async function updateRecurringTaskCompletion(taskId: string, isCompleted:
  * Deletes a recurring task by calling the 'deleteTask' cloud function.
  * @param {string} taskId - The id of the recurring task to delete.
  */
-export async function deleteRecurringTask(taskId: string): Promise<void> {
+export async function deleteRecurringTask(taskId: string): Promise<any> {
   try {
-    await deleteTaskCallable({ taskId, taskType: 'recurringTasks' });
+    return await deleteTaskCallable({ taskId, taskType: 'recurringTasks' });
   } catch (error: any) {
     console.error("Error deleting recurring task: ", error);
     throw error;
@@ -188,5 +187,3 @@ export async function updateRecurringTaskOrderAndDay(
     throw new Error("Failed to update recurring tasks.");
   }
 }
-
-    

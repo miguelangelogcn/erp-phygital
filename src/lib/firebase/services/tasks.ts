@@ -220,10 +220,9 @@ export async function updateTaskStatusAndOrder(
  * @param {string} taskId - The id of the task to delete.
  * @param {'tasks' | 'recurringTasks'} taskType - The type of the task.
  */
-export async function deleteTask(taskId: string, taskType: 'tasks' | 'recurringTasks'): Promise<void> {
+export async function deleteTask(taskId: string, taskType: 'tasks' | 'recurringTasks'): Promise<any> {
     try {
-        console.log("A chamar a função 'deleteTask' com os seguintes dados:", { taskId, taskType });
-        await deleteTaskCallable({ taskId, taskType });
+        return await deleteTaskCallable({ taskId, taskType });
     } catch (error: any) {
         console.error("Error calling deleteTask function: ", error);
         throw error;

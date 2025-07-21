@@ -316,4 +316,3 @@ export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEve
     return handleItemUpdate(event.data, "evento", "/dashboard/calendar?openEvent=", event.params.eventId);
 });
 
-    
