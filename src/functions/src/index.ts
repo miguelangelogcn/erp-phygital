@@ -69,22 +69,56 @@ export const deleteUser = onCall({ region: "southamerica-east1" }, async (reques
   }
 });
 
+// --- FUNÇÕES DE GESTÃO DE CLIENTES ---
+
+export const deleteClient = onCall({ region: "southamerica-east1" }, async (request) => {
+    const { clientId } = request.data;
+
+    if (!clientId || typeof clientId !== 'string') {
+        logger.error("Validação falhou: 'clientId' inválido.", { clientId });
+        throw new HttpsError("invalid-argument", "O 'clientId' é inválido ou não foi fornecido.");
+    }
+
+    try {
+        const clientDocRef = db.collection("clients").doc(clientId);
+        await clientDocRef.delete();
+        logger.info(`Cliente ${clientId} foi excluído com sucesso.`);
+        return { success: true, message: "Cliente excluído com sucesso." };
+    } catch (error: any) {
+        logger.error(`Erro ao excluir o cliente ${clientId} no Firestore:`, error);
+        throw new HttpsError("internal", "Ocorreu um erro interno ao tentar excluir o cliente.");
+    }
+});
+
 
 // --- FUNÇÕES DE GESTÃO DE TAREFAS ---
 
 export const deleteTask = onCall({ region: "southamerica-east1" }, async (request) => {
+    logger.info("A iniciar 'deleteTask' com os dados recebidos:", request.data);
+
     const { taskId, taskType } = request.data;
-    if (!taskId || !taskType) {
-        throw new HttpsError("invalid-argument", "Faltam dados essenciais (taskId, taskType).");
+
+    // Validação rigorosa dos tipos e da existência dos dados
+    if (typeof taskId !== 'string' || taskId.trim() === '') {
+        logger.error("Validação falhou: 'taskId' inválido.", { taskId, taskType });
+        throw new HttpsError("invalid-argument", "O 'taskId' é inválido ou não foi fornecido.");
     }
-    const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
+    if (typeof taskType !== 'string' || !['tasks', 'recurringTasks'].includes(taskType)) {
+        logger.error("Validação falhou: 'taskType' inválido.", { taskId, taskType });
+        throw new HttpsError("invalid-argument", "O 'taskType' é inválido ou não foi fornecido.");
+    }
+
+    const collectionName = taskType; // Já sabemos que é 'tasks' ou 'recurringTasks'
+    logger.info(`A tentar apagar o documento: ${taskId} da coleção: ${collectionName}`);
+
     try {
-        await db.collection(collectionName).doc(taskId).delete();
+        const taskDocRef = db.collection(collectionName).doc(taskId);
+        await taskDocRef.delete();
         logger.info(`Tarefa ${taskId} da coleção ${collectionName} foi apagada com sucesso.`);
         return { success: true, message: "Tarefa excluída com sucesso." };
     } catch (error: any) {
-        logger.error(`Erro ao apagar a tarefa ${taskId} da coleção ${collectionName}:`, error);
-        throw new HttpsError("internal", "Ocorreu um erro ao apagar a tarefa.");
+        logger.error(`Erro ao apagar a tarefa ${taskId} no Firestore:`, error);
+        throw new HttpsError("internal", "Ocorreu um erro interno ao tentar apagar a tarefa.");
     }
 });
 
@@ -112,71 +146,69 @@ export const submitTaskForApproval = onCall({ region: "southamerica-east1" }, as
 });
 
 export const reviewTask = onCall({ region: "southamerica-east1" }, async (request) => {
-  const { taskId, taskType, decision, feedback } = request.data;
-  const approverId = request.auth?.uid;
+    const { taskId, taskType, decision, feedback } = request.data;
+    const approverId = request.auth?.uid;
 
-  // Log inicial para confirmar que a função foi chamada
-  logger.info(`[START] reviewTask called with taskId: ${taskId}, decision: ${decision}`);
-
-  if (!approverId) {
-    logger.error("[ERROR] Unauthenticated user.");
-    throw new HttpsError("unauthenticated", "O utilizador deve estar autenticado.");
-  }
-  if (!taskId || !taskType || !decision) {
-    logger.error("[ERROR] Invalid arguments.", { taskId, taskType, decision });
-    throw new HttpsError("invalid-argument", "Argumentos inválidos.");
-  }
-
-  const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
-  const taskRef = db.collection(collectionName).doc(taskId);
-  logger.info(`[INFO] Document reference created for: ${collectionName}/${taskId}`);
-
-  try {
-    // Passo 1: Ler o documento primeiro para garantir que existe
-    const docSnap = await taskRef.get();
-    if (!docSnap.exists) {
-      logger.error(`[ERROR] Document not found: ${collectionName}/${taskId}`);
-      throw new HttpsError("not-found", "A tarefa não foi encontrada.");
+    if (!approverId) {
+      throw new HttpsError("unauthenticated", "O utilizador deve estar autenticado para rever tarefas.");
     }
-    logger.info(`[SUCCESS] Document found. Data:`, docSnap.data());
+    if (!taskId || !taskType || (decision !== 'approved' && decision !== 'rejected')) {
+      throw new HttpsError("invalid-argument", "Faltam dados essenciais ou a decisão é inválida.");
+    }
 
-    // Se a decisão for rejeitar, preparamos o feedback
-    if (decision === 'rejected') {
+    const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
+    const taskRef = db.collection(collectionName).doc(taskId);
+    
+    try {
       const approverUser = await auth.getUser(approverId);
       const approverName = approverUser.displayName || "Líder";
-      
-      const feedbackToUnion = {
-        notes: feedback.notes || null,
-        audioUrl: feedback.audioUrl || null,
-        files: feedback.files || [],
-        rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
-        rejectedBy: approverName,
-      };
 
-      logger.info("[INFO] Preparing to update with rejection feedback:", feedbackToUnion);
-
-      // Passo 2: Tentar a operação de atualização
-      await taskRef.update({
-        approvalStatus: 'rejected',
+      const updateData: { [key: string]: any } = {
+        approvalStatus: decision,
         approverId: approverId,
         reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
-        rejectionFeedback: admin.firestore.FieldValue.arrayUnion(feedbackToUnion),
-        status: collectionName === 'tasks' ? 'doing' : undefined,
-        isCompleted: collectionName === 'recurringTasks' ? false : undefined,
-      });
+      };
 
-      logger.info("[SUCCESS] Document updated successfully with rejection.");
+      if (decision === 'rejected') {
+        const cleanFeedback: { [key: string]: any } = {};
+        if (feedback.notes) {
+          cleanFeedback.notes = feedback.notes;
+        }
+        if (feedback.audioUrl) {
+          cleanFeedback.audioUrl = feedback.audioUrl;
+        }
+        if (feedback.files && Array.isArray(feedback.files) && feedback.files.length > 0) {
+          cleanFeedback.files = feedback.files;
+        }
+
+        updateData.rejectionFeedback = admin.firestore.FieldValue.arrayUnion({
+            ...cleanFeedback,
+            rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
+            rejectedBy: approverName,
+        });
+        
+        if (collectionName === 'tasks') {
+          updateData.status = 'doing';
+        } else {
+          updateData.isCompleted = false;
+        }
+      } else if (decision === 'approved') {
+        if (collectionName === 'tasks') {
+          updateData.status = 'done';
+          updateData.completedAt = admin.firestore.FieldValue.serverTimestamp();
+        } else {
+          updateData.isCompleted = true;
+        }
+      }
+
+      await taskRef.update(updateData);
+      return { success: true, message: "Revisão da tarefa concluída." };
+
+    } catch (error: any) {
+      logger.error(`Erro ao rever a tarefa ${taskId}:`, error);
+      throw new HttpsError("internal", "Ocorreu um erro ao processar a sua revisão.");
     }
-    // Adicione aqui a lógica para 'approved' se também quiser depurá-la
-
-    return { success: true, message: "Revisão concluída (modo de depuração)." };
-
-  } catch (error: any) {
-    logger.error(`[FATAL ERROR] An exception was caught in reviewTask for taskId ${taskId}:`, error);
-    throw new HttpsError("internal", `Erro interno no servidor: ${error.message}`);
-  }
 });
-
 
 export const resetRecurringTasks = onSchedule({
     schedule: "59 23 * * 0",
