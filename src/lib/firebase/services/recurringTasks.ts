@@ -141,6 +141,22 @@ export async function updateRecurringTaskCompletion(taskId: string, isCompleted:
 
 
 /**
+ * Sets the startedAt timestamp for a recurring task.
+ * @param {string} taskId - The ID of the recurring task to start.
+ */
+export async function startRecurringTask(taskId: string): Promise<void> {
+  try {
+    const taskDocRef = doc(db, "recurringTasks", taskId);
+    await updateDoc(taskDocRef, {
+      startedAt: serverTimestamp()
+    });
+  } catch (error) {
+    console.error("Error starting recurring task: ", error);
+    throw new Error("Failed to mark recurring task as started.");
+  }
+}
+
+/**
  * Deletes a recurring task by calling the 'deleteTask' cloud function.
  * @param {string} taskId - The id of the recurring task to delete.
  */
