@@ -29,7 +29,7 @@ export type OptionType = {
 interface MultiSelectProps {
   options: OptionType[];
   selected: string[];
-  onChange: React.Dispatch<React.SetStateAction<string[]>>;
+  onChange: (selected: string[]) => void;
   className?: string;
   placeholder?: string;
   disabled?: boolean;
@@ -46,13 +46,14 @@ function MultiSelect({
   const [open, setOpen] = React.useState(false);
 
   const handleSelect = (value: string) => {
-    onChange((prev) =>
-      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
-    );
+    const newSelected = selected.includes(value)
+      ? selected.filter((v) => v !== value)
+      : [...selected, value];
+    onChange(newSelected);
   };
 
   const handleRemove = (value: string) => {
-    onChange((prev) => prev.filter((v) => v !== value));
+    onChange(selected.filter((v) => v !== value));
   };
   
   const selectedLabels = selected.map(
