@@ -6,9 +6,10 @@ import { useAuthState } from "react-firebase-hooks/auth";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/config";
 import type { User as FirebaseUser } from "firebase/auth";
-import type { User as AppUser } from "@/types/user";
+import type { AppUser } from "@/types/user";
 import { Loader2 } from "lucide-react";
 import type { Team } from "@/types/team";
+import type { Role } from "@/types/role";
 
 
 interface AuthContextType {
@@ -46,6 +47,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (userDocSnap.exists()) {
               const appUser = { id: userDocSnap.id, ...userDocSnap.data() } as AppUser;
               
+              // Herdando permissões do cargo (role)
+              if (appUser.roleId) {
+                  const roleDocRef = doc(db, "roles", appUser.roleId);
+                  const roleDocSnap = await getDoc(roleDocRef);
+                  if (roleDocSnap.exists()) {
+                      const roleData = roleDocSnap.data() as Role;
+                      const rolePermissions = roleData.permissions || [];
+                      const userPermissions = appUser.permissions || [];
+                      
+                      // Unir permissões do cargo e do usuário, sem duplicatas
+                      const combinedPermissions = [...new Set([...rolePermissions, ...userPermissions])];
+                      appUser.permissions = combinedPermissions;
+                  }
+              }
+
               if (!teamSnapshot.empty) {
                 appUser.isLeader = true;
                 const myTeam = teamSnapshot.docs[0].data() as Team;
