@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import {
   Dialog,
   DialogContent,
@@ -25,12 +26,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Trash2 } from 'lucide-react';
+import { Loader2, Trash2, PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getClients } from '@/lib/firebase/services/clients';
 import { getUsers } from '@/lib/firebase/services/users';
 import { addCalendarEvent, updateCalendarEvent, deleteCalendarEvent } from '@/lib/firebase/services/calendarEvents';
-import type { CalendarEvent, NewCalendarEvent } from '@/types/calendarEvent';
+import type { CalendarEvent, NewCalendarEvent, Script } from '@/types/calendarEvent';
 import type { Client } from '@/types/client';
 import type { User } from '@/types/user';
 import { Timestamp } from 'firebase/firestore';
@@ -50,7 +51,6 @@ const toDateTimeLocal = (date: Date): string => {
 };
 
 export function EventModal({ isOpen, onClose, event, onEventChange }: EventModalProps) {
-  const [formData, setFormData] = useState<Partial<NewCalendarEvent>>({});
   const [clients, setClients] = useState<Client[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +59,22 @@ export function EventModal({ isOpen, onClose, event, onEventChange }: EventModal
   const { toast } = useToast();
 
   const userOptions = users.map(u => ({ value: u.id, label: u.name }));
+
+  const { register, control, handleSubmit, reset } = useForm<NewCalendarEvent>({
+    defaultValues: {
+      title: '',
+      clientId: '',
+      responsibleId: '',
+      assistantIds: [],
+      scripts: [],
+      color: '#3788d8',
+    }
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: 'scripts',
+  });
 
   useEffect(() => {
     if (isOpen) {
@@ -69,62 +85,41 @@ export function EventModal({ isOpen, onClose, event, onEventChange }: EventModal
           setUsers(usersData);
           
           if (event) {
-            setFormData({
-              title: event.title || '',
-              startDateTime: event.startDateTime,
-              endDateTime: event.endDateTime,
-              clientId: event.clientId || '',
-              responsibleId: event.responsibleId || '',
-              assistantIds: event.assistantIds || [],
-              scripts: event.scripts || '',
-              color: event.color || '#3788d8',
+            reset({
+              ...event,
+              scripts: event.scripts || [],
             });
           } else {
-             setFormData({ color: '#3788d8', assistantIds: [] });
+             reset({
+                title: '',
+                startDateTime: new Timestamp(new Date().getTime() / 1000, 0),
+                endDateTime: new Timestamp(new Date().getTime() / 1000 + 3600, 0),
+                clientId: '',
+                responsibleId: '',
+                assistantIds: [],
+                scripts: [],
+                color: '#3788d8',
+            });
           }
         })
         .catch(() => toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível carregar os dados necessários.' }))
         .finally(() => setLoading(false));
-    } else {
-        // Reset form when modal closes
-        setFormData({});
     }
-  }, [isOpen, event, toast]);
+  }, [isOpen, event, reset, toast]);
+  
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSelectChange = (name: string, value: string | string[]) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const { name, value } = e.target;
-      if (value) {
-          const date = new Date(value);
-          setFormData(prev => ({...prev, [name]: Timestamp.fromDate(date)}));
-      }
-  };
-
-  const handleSubmit = async () => {
+  const onSubmit = async (data: NewCalendarEvent) => {
     setIsSubmitting(true);
     try {
-      if (!formData.title || !formData.startDateTime || !formData.endDateTime) {
+      if (!data.title || !data.startDateTime || !data.endDateTime) {
           throw new Error("Título, início e fim são obrigatórios.");
       }
-
-      const eventPayload: NewCalendarEvent = {
-        title: formData.title,
-        startDateTime: formData.startDateTime,
-        endDateTime: formData.endDateTime,
-        clientId: formData.clientId,
-        responsibleId: formData.responsibleId,
-        assistantIds: formData.assistantIds || [],
-        scripts: formData.scripts,
-        color: formData.color,
+      
+      const eventPayload = {
+          ...data,
+          scripts: data.scripts?.map(script => ({ ...script, id: script.id || crypto.randomUUID() })) || [],
       };
+
 
       if (event?.id) {
         await updateCalendarEvent(event.id, eventPayload);
@@ -160,7 +155,7 @@ export function EventModal({ isOpen, onClose, event, onEventChange }: EventModal
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>{event?.id ? 'Editar Evento' : 'Criar Novo Evento'}</DialogTitle>
           <DialogDescription>
@@ -170,88 +165,153 @@ export function EventModal({ isOpen, onClose, event, onEventChange }: EventModal
         {loading ? (
             <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>
         ) : (
-          <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="title" className="text-right">Título</Label>
-              <Input id="title" name="title" value={formData.title || ''} onChange={handleChange} className="col-span-3" required />
-            </div>
-             <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="startDateTime" className="text-right">Início</Label>
-                <Input
-                    id="startDateTime"
-                    name="startDateTime"
-                    type="datetime-local"
-                    value={formData.startDateTime ? toDateTimeLocal(formData.startDateTime.toDate()) : ''}
-                    onChange={handleDateChange}
-                    className="col-span-3"
-                    required
-                />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="endDateTime" className="text-right">Fim</Label>
-                <Input
-                    id="endDateTime"
-                    name="endDateTime"
-                    type="datetime-local"
-                    value={formData.endDateTime ? toDateTimeLocal(formData.endDateTime.toDate()) : ''}
-                    onChange={handleDateChange}
-                    className="col-span-3"
-                    required
-                />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="clientId" className="text-right">Cliente</Label>
-               <Select name="clientId" value={formData.clientId} onValueChange={(value) => handleSelectChange('clientId', value)}>
-                  <SelectTrigger className="col-span-3"><SelectValue placeholder="Selecione um cliente" /></SelectTrigger>
-                  <SelectContent>
-                    {clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-            </div>
-             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="responsibleId" className="text-right">Responsável</Label>
-                <Select name="responsibleId" value={formData.responsibleId} onValueChange={(value) => handleSelectChange('responsibleId', value)}>
-                  <SelectTrigger className="col-span-3"><SelectValue placeholder="Selecione um responsável" /></SelectTrigger>
-                  <SelectContent>
-                     {users.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-            </div>
-             <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="assistantIds" className="text-right">Auxiliares</Label>
-                <div className="col-span-3">
-                   <MultiSelect
-                        options={userOptions}
-                        selected={formData.assistantIds || []}
-                        onChange={(selected) => handleSelectChange('assistantIds', selected)}
-                        placeholder="Selecione auxiliares"
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
+              <div className="md:col-span-1 space-y-4">
+                 <div>
+                  <Label htmlFor="title">Título</Label>
+                  <Input id="title" {...register("title")} required />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <Label htmlFor="startDateTime">Início</Label>
+                         <Controller
+                            name="startDateTime"
+                            control={control}
+                            render={({ field }) => (
+                                <Input
+                                    id="startDateTime"
+                                    type="datetime-local"
+                                    value={field.value ? toDateTimeLocal(field.value.toDate()) : ''}
+                                    onChange={(e) => field.onChange(Timestamp.fromDate(new Date(e.target.value)))}
+                                    required
+                                />
+                            )}
+                        />
+                    </div>
+                    <div>
+                        <Label htmlFor="endDateTime">Fim</Label>
+                         <Controller
+                            name="endDateTime"
+                            control={control}
+                            render={({ field }) => (
+                                <Input
+                                    id="endDateTime"
+                                    type="datetime-local"
+                                    value={field.value ? toDateTimeLocal(field.value.toDate()) : ''}
+                                    onChange={(e) => field.onChange(Timestamp.fromDate(new Date(e.target.value)))}
+                                    required
+                                />
+                            )}
+                        />
+                    </div>
+                </div>
+                 <div>
+                  <Label htmlFor="clientId">Cliente</Label>
+                   <Controller
+                      name="clientId"
+                      control={control}
+                      render={({ field }) => (
+                         <Select onValueChange={field.onChange} value={field.value}>
+                            <SelectTrigger><SelectValue placeholder="Selecione um cliente" /></SelectTrigger>
+                            <SelectContent>
+                                {clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                      )}
                     />
                 </div>
-            </div>
-             <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="color" className="text-right">Cor</Label>
-                <Input id="color" name="color" type="color" value={formData.color || '#3788d8'} onChange={handleChange} className="col-span-3 h-10 p-1" />
-            </div>
-            <div className="grid grid-cols-4 items-start gap-4">
-              <Label htmlFor="scripts" className="text-right pt-2">Roteiros</Label>
-              <Textarea id="scripts" name="scripts" value={formData.scripts || ''} onChange={handleChange} className="col-span-3" placeholder="Cole aqui os roteiros ou notas..." />
-            </div>
-          </div>
-        )}
-        <DialogFooter>
-            {event?.id && (
-                <Button variant="destructive" onClick={() => setIsAlertOpen(true)} disabled={isSubmitting}>
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Excluir
-                </Button>
-            )}
-           <div className="flex-grow"></div>
-          <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting || loading}>
-            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Salvar'}
-          </Button>
-        </DialogFooter>
+                <div>
+                  <Label htmlFor="responsibleId">Responsável</Label>
+                    <Controller
+                      name="responsibleId"
+                      control={control}
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <SelectTrigger><SelectValue placeholder="Selecione um responsável" /></SelectTrigger>
+                          <SelectContent>
+                            {users.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                </div>
+                <div>
+                    <Label htmlFor="assistantIds">Auxiliares</Label>
+                    <Controller
+                        name="assistantIds"
+                        control={control}
+                        render={({ field }) => (
+                            <MultiSelect
+                                options={userOptions}
+                                selected={field.value || []}
+                                onChange={field.onChange as any}
+                                placeholder="Selecione auxiliares"
+                            />
+                        )}
+                    />
+                </div>
+                <div>
+                    <Label htmlFor="color">Cor do Evento</Label>
+                    <Input id="color" type="color" {...register("color")} className="h-10 p-1" />
+                </div>
+              </div>
 
+              <div className="md:col-span-1 space-y-4">
+                <div className="flex justify-between items-center">
+                    <Label>Roteiros</Label>
+                    <Button type="button" size="sm" variant="outline" onClick={() => append({ id: crypto.randomUUID(), title: '', targetAudience: '', hook: '', development: '', cta: '' })}>
+                        <PlusCircle className="mr-2" /> Adicionar Roteiro
+                    </Button>
+                </div>
+                 <div className="space-y-4">
+                  {fields.map((field, index) => (
+                    <div key={field.id} className="p-4 border rounded-lg space-y-3 relative">
+                      <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2" onClick={() => remove(index)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                      <div>
+                        <Label htmlFor={`scripts.${index}.title`}>Título do Roteiro</Label>
+                        <Input id={`scripts.${index}.title`} {...register(`scripts.${index}.title`)} />
+                      </div>
+                      <div>
+                        <Label htmlFor={`scripts.${index}.targetAudience`}>Público-alvo</Label>
+                        <Input id={`scripts.${index}.targetAudience`} {...register(`scripts.${index}.targetAudience`)} />
+                      </div>
+                      <div>
+                        <Label htmlFor={`scripts.${index}.hook`}>Gancho (Hook)</Label>
+                        <Textarea id={`scripts.${index}.hook`} {...register(`scripts.${index}.hook`)} rows={2} />
+                      </div>
+                      <div>
+                        <Label htmlFor={`scripts.${index}.development`}>Desenvolvimento</Label>
+                        <Textarea id={`scripts.${index}.development`} {...register(`scripts.${index}.development`)} rows={4}/>
+                      </div>
+                      <div>
+                        <Label htmlFor={`scripts.${index}.cta`}>CTA (Call to Action)</Label>
+                        <Input id={`scripts.${index}.cta`} {...register(`scripts.${index}.cta`)} />
+                      </div>
+                    </div>
+                  ))}
+                 </div>
+              </div>
+            </div>
+
+             <DialogFooter className="pt-4 border-t">
+                {event?.id && (
+                    <Button type="button" variant="destructive" onClick={() => setIsAlertOpen(true)} disabled={isSubmitting}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Excluir
+                    </Button>
+                )}
+               <div className="flex-grow"></div>
+              <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>Cancelar</Button>
+              <Button type="submit" disabled={isSubmitting || loading}>
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Salvar'}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+       
          <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
             <AlertDialogContent>
                 <AlertDialogHeader>
@@ -269,5 +329,3 @@ export function EventModal({ isOpen, onClose, event, onEventChange }: EventModal
     </Dialog>
   );
 }
-
-  
