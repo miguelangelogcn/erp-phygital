@@ -1,6 +1,15 @@
 // src/types/calendarEvent.ts
 import type { Timestamp } from "firebase/firestore";
 
+export interface Script {
+  id: string;
+  title?: string;
+  targetAudience?: string;
+  hook?: string;
+  development?: string;
+  cta?: string;
+}
+
 export interface CalendarEvent {
   id: string;
   title: string;
@@ -9,7 +18,7 @@ export interface CalendarEvent {
   clientId?: string;
   responsibleId?: string;
   assistantIds?: string[];
-  scripts?: string;
+  scripts?: Script[];
   color?: string; // e.g., hex code
 }
 
