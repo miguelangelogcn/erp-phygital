@@ -287,8 +287,11 @@ export default function PontualTasks() {
         onConfirm: async () => {
             setIsSubmitting(true);
             try {
-                await deleteTaskService(taskId, 'tasks');
-                toast({ title: "Sucesso", description: "Tarefa excluída com sucesso." });
+                if (typeof taskId !== 'string' || taskId.trim() === '') {
+                    throw new Error("ID da tarefa inválido.");
+                }
+                const result: any = await deleteTaskService(taskId);
+                toast({ title: "Sucesso", description: result.data.message });
                 setIsEditModalOpen(false);
                 setEditingTask(null);
             } catch (error: any) {
@@ -464,3 +467,5 @@ export default function PontualTasks() {
     </div>
   );
 }
+
+    

@@ -145,11 +145,9 @@ export async function updateRecurringTaskCompletion(taskId: string, isCompleted:
  */
 export async function deleteRecurringTask(taskId: string): Promise<any> {
   try {
-    // We just call the function, the component will show the toast on success
     return await deleteTaskCallable({ taskId, taskType: 'recurringTasks' });
   } catch (error: any) {
-    console.error("Error deleting recurring task: ", error);
-    // Re-throw the error to be caught by the component
+    console.error("Error calling deleteTask for a recurring task: ", error);
     throw error;
   }
 }
@@ -189,3 +187,5 @@ export async function updateRecurringTaskOrderAndDay(
     throw new Error("Failed to update recurring tasks.");
   }
 }
+
+    

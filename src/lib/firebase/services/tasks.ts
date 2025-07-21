@@ -218,15 +218,14 @@ export async function updateTaskStatusAndOrder(
 /**
  * Deletes a task from Firestore using a Cloud Function.
  * @param {string} taskId - The id of the task to delete.
- * @param {'tasks' | 'recurringTasks'} taskType - The type of the task.
  */
-export async function deleteTask(taskId: string, taskType: 'tasks' | 'recurringTasks'): Promise<any> {
+export async function deleteTask(taskId: string): Promise<any> {
     try {
-        // We just call the function, the component will show the toast on success
-        return await deleteTaskCallable({ taskId, taskType });
+        return await deleteTaskCallable({ taskId, taskType: 'tasks' });
     } catch (error: any) {
-        console.error("Error calling deleteTask function: ", error);
-        // Re-throw the error to be caught by the component
+        console.error("Error calling deleteTask function for a pontual task: ", error);
         throw error;
     }
 }
+
+    

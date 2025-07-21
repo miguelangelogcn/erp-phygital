@@ -73,18 +73,31 @@ export const deleteUser = onCall({ region: "southamerica-east1" }, async (reques
 // --- FUNÇÕES DE GESTÃO DE TAREFAS ---
 
 export const deleteTask = onCall({ region: "southamerica-east1" }, async (request) => {
+    logger.info("A iniciar 'deleteTask' com os dados recebidos:", request.data);
+
     const { taskId, taskType } = request.data;
-    if (!taskId || !taskType) {
-        throw new HttpsError("invalid-argument", "Faltam dados essenciais (taskId, taskType).");
+
+    // Validação rigorosa dos tipos e da existência dos dados
+    if (typeof taskId !== 'string' || taskId.trim() === '') {
+        logger.error("Validação falhou: 'taskId' inválido.", { taskId, taskType });
+        throw new HttpsError("invalid-argument", "O 'taskId' é inválido ou não foi fornecido.");
     }
-    const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
+    if (typeof taskType !== 'string' || !['tasks', 'recurringTasks'].includes(taskType)) {
+        logger.error("Validação falhou: 'taskType' inválido.", { taskId, taskType });
+        throw new HttpsError("invalid-argument", "O 'taskType' é inválido ou não foi fornecido.");
+    }
+
+    const collectionName = taskType; // Já sabemos que é 'tasks' ou 'recurringTasks'
+    logger.info(`A tentar apagar o documento: ${taskId} da coleção: ${collectionName}`);
+
     try {
-        await db.collection(collectionName).doc(taskId).delete();
+        const taskDocRef = db.collection(collectionName).doc(taskId);
+        await taskDocRef.delete();
         logger.info(`Tarefa ${taskId} da coleção ${collectionName} foi apagada com sucesso.`);
         return { success: true, message: "Tarefa excluída com sucesso." };
     } catch (error: any) {
-        logger.error(`Erro ao apagar a tarefa ${taskId} da coleção ${collectionName}:`, error);
-        throw new HttpsError("internal", "Ocorreu um erro ao apagar a tarefa.");
+        logger.error(`Erro ao apagar a tarefa ${taskId} no Firestore:`, error);
+        throw new HttpsError("internal", "Ocorreu um erro interno ao tentar apagar a tarefa.");
     }
 });
 
@@ -315,3 +328,5 @@ export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEve
     if (!event.data) return;
     return handleItemUpdate(event.data, "evento", "/dashboard/calendar?openEvent=", event.params.eventId);
 });
+
+    
