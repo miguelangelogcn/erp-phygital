@@ -170,8 +170,15 @@ export const reviewTask = onCall({ region: "southamerica-east1" }, async (reques
       };
 
       if (decision === 'rejected') {
+        const sanitizedFeedback = { ...feedback };
+        Object.keys(sanitizedFeedback).forEach(key => {
+            if (sanitizedFeedback[key] === undefined) {
+                delete sanitizedFeedback[key];
+            }
+        });
+        
         updateData.rejectionFeedback = admin.firestore.FieldValue.arrayUnion({
-            ...feedback,
+            ...sanitizedFeedback,
             rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
             rejectedBy: approverName,
         });
@@ -351,4 +358,5 @@ export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEve
 });
 
     
+
 
