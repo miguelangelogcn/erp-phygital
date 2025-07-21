@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { onRecurringTasksUpdate, updateRecurringTask, deleteRecurringTask as deleteRecurringTaskService, updateRecurringTaskChecklist } from "@/lib/firebase/services/recurringTasks";
+import { onRecurringTasksUpdate, updateRecurringTask, deleteRecurringTask as deleteRecurringTaskService, updateRecurringTaskChecklist, startRecurringTask } from "@/lib/firebase/services/recurringTasks";
 import { getUsers } from "@/lib/firebase/services/users";
 import { getClients } from "@/lib/firebase/services/clients";
 
@@ -230,6 +230,23 @@ export default function RecurringTasks() {
       setTaskForApproval(task);
       setIsApprovalModalOpen(true);
   };
+  
+  const handleStartTask = async (e: React.MouseEvent, taskId: string) => {
+    e.stopPropagation();
+    try {
+        await startRecurringTask(taskId);
+        toast({
+            title: "Tarefa Iniciada!",
+            description: "A tarefa foi marcada como iniciada.",
+        });
+    } catch (error) {
+        toast({
+            variant: "destructive",
+            title: "Erro",
+            description: "Não foi possível iniciar a tarefa.",
+        });
+    }
+  };
 
 
   if (loading) {
@@ -294,15 +311,22 @@ export default function RecurringTasks() {
                       onClick={() => handleCardClick(task)}
                     >
                       <div className="flex items-start gap-3">
-                         <Checkbox
-                            id={`task-complete-${task.id}`}
-                            checked={task.isCompleted || task.approvalStatus === 'approved'}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleToggleCompletion(task);
-                            }}
-                            className="mt-1"
-                          />
+                         <div className="mt-1">
+                            {!task.startedAt ? (
+                                <Button size="sm" className="h-auto px-2 py-1 text-xs" onClick={(e) => handleStartTask(e, task.id)}>
+                                    Iniciar
+                                </Button>
+                            ) : (
+                                <Checkbox
+                                    id={`task-complete-${task.id}`}
+                                    checked={task.isCompleted || task.approvalStatus === 'approved'}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleToggleCompletion(task);
+                                    }}
+                                />
+                            )}
+                         </div>
                         <div className="flex-1">
                             <div className="flex items-start justify-between gap-2">
                                 <p className={cn(
@@ -383,5 +407,3 @@ export default function RecurringTasks() {
     </div>
   );
 }
-
-    
