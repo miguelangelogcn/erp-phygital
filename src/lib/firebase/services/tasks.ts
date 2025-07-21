@@ -222,9 +222,11 @@ export async function updateTaskStatusAndOrder(
  */
 export async function deleteTask(taskId: string, taskType: 'tasks' | 'recurringTasks'): Promise<any> {
     try {
+        // We just call the function, the component will show the toast on success
         return await deleteTaskCallable({ taskId, taskType });
     } catch (error: any) {
         console.error("Error calling deleteTask function: ", error);
+        // Re-throw the error to be caught by the component
         throw error;
     }
 }

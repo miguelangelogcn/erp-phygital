@@ -193,8 +193,8 @@ export default function RecurringTasks() {
     if (!deletingTaskId) return;
     setIsSubmitting(true);
     try {
-        const result = await deleteRecurringTaskService(deletingTaskId);
-        toast({ title: "Sucesso!", description: result.data.message });
+        await deleteRecurringTaskService(deletingTaskId);
+        toast({ title: "Sucesso!", description: "Tarefa recorrente excluída com sucesso." });
         handleCloseModal();
     } catch (error: any) {
         toast({ variant: "destructive", title: "Erro", description: error.message || "Não foi possível excluir a tarefa." });
