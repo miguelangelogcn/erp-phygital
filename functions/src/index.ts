@@ -170,18 +170,23 @@ export const reviewTask = onCall({ region: "southamerica-east1" }, async (reques
       };
 
       if (decision === 'rejected') {
-        const sanitizedFeedback = { ...feedback };
-        Object.keys(sanitizedFeedback).forEach(key => {
-            if (sanitizedFeedback[key] === undefined) {
-                delete sanitizedFeedback[key];
-            }
-        });
-        
+        const cleanFeedback: { [key: string]: any } = {};
+        if (feedback.notes) {
+          cleanFeedback.notes = feedback.notes;
+        }
+        if (feedback.audioUrl) {
+          cleanFeedback.audioUrl = feedback.audioUrl;
+        }
+        if (feedback.files && feedback.files.length > 0) {
+          cleanFeedback.files = feedback.files;
+        }
+
         updateData.rejectionFeedback = admin.firestore.FieldValue.arrayUnion({
-            ...sanitizedFeedback,
+            ...cleanFeedback,
             rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
             rejectedBy: approverName,
         });
+
         if (collectionName === 'tasks') {
           updateData.status = 'doing';
         } else {
@@ -360,3 +365,6 @@ export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEve
     
 
 
+
+
+    
