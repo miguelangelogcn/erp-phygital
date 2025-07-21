@@ -51,8 +51,10 @@ export function CreateRecurringTaskModal({ children, onTaskCreated }: CreateRecu
 
           let filteredResponsibles: User[];
           if (userData.isLeader && userData.teamMemberIds) {
+            // Se for líder, a lista de responsáveis inclui todos os membros da equipe.
             filteredResponsibles = usersData.filter((u: User) => userData.teamMemberIds!.includes(u.id));
           } else {
+            // Se não for líder, a lista contém apenas o próprio usuário.
             filteredResponsibles = usersData.filter((u: User) => u.id === userData.id);
           }
 
@@ -125,5 +127,3 @@ export function CreateRecurringTaskModal({ children, onTaskCreated }: CreateRecu
     </Dialog>
   );
 }
-
-  

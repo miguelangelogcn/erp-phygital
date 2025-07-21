@@ -52,10 +52,10 @@ export function CreateTaskModal({ children, onTaskCreated }: CreateTaskModalProp
 
           let filteredResponsibles: User[];
           if (userData.isLeader && userData.teamMemberIds) {
-            // Leader can assign to team members
+            // Se for líder, a lista de responsáveis inclui todos os membros da equipe.
             filteredResponsibles = usersData.filter((u: User) => userData.teamMemberIds!.includes(u.id));
           } else {
-            // Employee can only assign to themselves
+            // Se não for líder, a lista contém apenas o próprio usuário.
             filteredResponsibles = usersData.filter((u: User) => u.id === userData.id);
           }
           
@@ -130,5 +130,3 @@ export function CreateTaskModal({ children, onTaskCreated }: CreateTaskModalProp
     </Dialog>
   );
 }
-
-  
