@@ -2,8 +2,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { getClientById } from "@/lib/firebase/services/clients";
+import { useParams, useRouter } from "next/navigation";
+import { getClientById, deleteClient } from "@/lib/firebase/services/clients";
 import type { Client } from "@/types/client";
 import {
   Card,
@@ -17,12 +17,28 @@ import { Separator } from "@/components/ui/separator";
 import { Loader2, ArrowLeft, Briefcase, DollarSign, Edit, KeyRound, Megaphone, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+
 
 export default function ClientDetailPage() {
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const params = useParams();
+  const router = useRouter();
+  const { toast } = useToast();
   const id = params.id as string;
 
   useEffect(() => {
@@ -47,6 +63,33 @@ export default function ClientDetailPage() {
 
     fetchClient();
   }, [id]);
+  
+  const handleDeleteClick = () => {
+    setIsAlertOpen(true);
+  };
+  
+  const handleConfirmDelete = async () => {
+    if (!id) return;
+    setIsDeleting(true);
+    try {
+        await deleteClient(id);
+        toast({
+            title: "Sucesso!",
+            description: "O cliente foi excluído com sucesso."
+        });
+        router.push("/dashboard/clients");
+    } catch (err: any) {
+        toast({
+            variant: "destructive",
+            title: "Erro ao excluir",
+            description: err.message || "Não foi possível excluir o cliente."
+        });
+    } finally {
+        setIsDeleting(false);
+        setIsAlertOpen(false);
+    }
+  }
+
 
   if (loading) {
     return (
@@ -65,6 +108,7 @@ export default function ClientDetailPage() {
   }
 
   return (
+    <>
     <main className="p-4 md:p-6">
       <div className="mb-4">
         <Button variant="outline" asChild>
@@ -91,7 +135,7 @@ export default function ClientDetailPage() {
                     <Edit className="h-4 w-4" />
                     <span className="sr-only">Editar Cliente</span>
                 </Button>
-                 <Button variant="destructive" size="icon">
+                 <Button variant="destructive" size="icon" onClick={handleDeleteClick}>
                     <Trash2 className="h-4 w-4" />
                      <span className="sr-only">Excluir Cliente</span>
                 </Button>
@@ -142,7 +186,25 @@ export default function ClientDetailPage() {
         </CardContent>
       </Card>
     </main>
+
+     <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem a certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Isto irá excluir o cliente
+              permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} disabled={isDeleting}>
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
-
-    
