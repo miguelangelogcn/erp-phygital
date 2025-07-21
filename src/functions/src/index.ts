@@ -337,5 +337,3 @@ export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEve
     const triggeredBy = "Sistema";
     return createNotificationsForUsers(userIdsToNotify, message, linkTo, triggeredBy);
 });
-
-    
