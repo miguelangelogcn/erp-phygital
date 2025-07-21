@@ -292,7 +292,7 @@ export default function RecurringTasks() {
         </Card>
        )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4 items-start">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4 items-start">
         {dayColumns.map((column) => (
           <Card key={column.id} className="flex flex-col min-h-[150px]">
             <CardHeader>
