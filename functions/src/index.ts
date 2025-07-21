@@ -69,6 +69,27 @@ export const deleteUser = onCall({ region: "southamerica-east1" }, async (reques
   }
 });
 
+// --- FUNÇÕES DE GESTÃO DE CLIENTES ---
+
+export const deleteClient = onCall({ region: "southamerica-east1" }, async (request) => {
+    const { clientId } = request.data;
+
+    if (!clientId || typeof clientId !== 'string') {
+        logger.error("Validação falhou: 'clientId' inválido.", { clientId });
+        throw new HttpsError("invalid-argument", "O 'clientId' é inválido ou não foi fornecido.");
+    }
+
+    try {
+        const clientDocRef = db.collection("clients").doc(clientId);
+        await clientDocRef.delete();
+        logger.info(`Cliente ${clientId} foi excluído com sucesso.`);
+        return { success: true, message: "Cliente excluído com sucesso." };
+    } catch (error: any) {
+        logger.error(`Erro ao excluir o cliente ${clientId} no Firestore:`, error);
+        throw new HttpsError("internal", "Ocorreu um erro interno ao tentar excluir o cliente.");
+    }
+});
+
 
 // --- FUNÇÕES DE GESTÃO DE TAREFAS ---
 
@@ -330,3 +351,4 @@ export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEve
 });
 
     
+
