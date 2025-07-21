@@ -146,13 +146,68 @@ export const submitTaskForApproval = onCall({ region: "southamerica-east1" }, as
 });
 
 export const reviewTask = onCall({ region: "southamerica-east1" }, async (request) => {
-  logger.info("--- [INÍCIO DO LOG DE DEPURACAO REVIEW-TASK] ---");
-  logger.info("Dados recebidos (request.data):", request.data);
-  logger.info("Informações de autenticação (request.auth):", request.auth);
-  logger.info("--- [FIM DO LOG DE DEPURACAO REVIEW-TASK] ---");
+    const { taskId, taskType, decision, feedback } = request.data;
+    const approverId = request.auth?.uid;
 
-  // Apenas para teste, retornamos um sucesso sem tocar na base de dados.
-  return { success: true, message: "Teste de depuração bem-sucedido." };
+    if (!approverId) {
+      throw new HttpsError("unauthenticated", "O utilizador deve estar autenticado para rever tarefas.");
+    }
+    if (!taskId || !taskType || (decision !== 'approved' && decision !== 'rejected')) {
+      throw new HttpsError("invalid-argument", "Faltam dados essenciais ou a decisão é inválida.");
+    }
+
+    const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
+    const taskRef = db.collection(collectionName).doc(taskId);
+    
+    try {
+      const approverUser = await auth.getUser(approverId);
+      const approverName = approverUser.displayName || "Líder";
+
+      const updateData: { [key: string]: any } = {
+        approvalStatus: decision,
+        approverId: approverId,
+        reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      if (decision === 'rejected') {
+        const cleanFeedback: { [key: string]: any } = {};
+        if (feedback.notes) {
+          cleanFeedback.notes = feedback.notes;
+        }
+        if (feedback.audioUrl) {
+          cleanFeedback.audioUrl = feedback.audioUrl;
+        }
+        if (feedback.files && Array.isArray(feedback.files) && feedback.files.length > 0) {
+          cleanFeedback.files = feedback.files;
+        }
+
+        updateData.rejectionFeedback = admin.firestore.FieldValue.arrayUnion({
+            ...cleanFeedback,
+            rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
+            rejectedBy: approverName,
+        });
+        
+        if (collectionName === 'tasks') {
+          updateData.status = 'doing';
+        } else {
+          updateData.isCompleted = false;
+        }
+      } else if (decision === 'approved') {
+        if (collectionName === 'tasks') {
+          updateData.status = 'done';
+          updateData.completedAt = admin.firestore.FieldValue.serverTimestamp();
+        } else {
+          updateData.isCompleted = true;
+        }
+      }
+
+      await taskRef.update(updateData);
+      return { success: true, message: "Revisão da tarefa concluída." };
+
+    } catch (error: any) {
+      logger.error(`Erro ao rever a tarefa ${taskId}:`, error);
+      throw new HttpsError("internal", "Ocorreu um erro ao processar a sua revisão.");
+    }
 });
 
 export const resetRecurringTasks = onSchedule({
@@ -306,5 +361,7 @@ export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEve
     if (!event.data) return;
     return handleItemUpdate(event.data, "evento", "/dashboard/calendar?openEvent=", event.params.eventId);
 });
+
+    
 
     
