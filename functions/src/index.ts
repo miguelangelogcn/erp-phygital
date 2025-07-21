@@ -1,3 +1,4 @@
+
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -212,12 +213,9 @@ const createNotificationsForUsers = async (userIds: string[], message: string, l
   }
 };
 
-const handleItemCreation = async (snap: admin.firestore.DocumentSnapshot, itemType: string, linkPath: string) => {
+const handleItemCreation = async (snap: admin.firestore.DocumentSnapshot, itemType: string, linkPath: string, eventId: string) => {
     logger.info(`[handleItemCreation] Acionado para ${itemType} com ID: ${snap.id}`);
-    if (!snap.exists) {
-        logger.warn("[handleItemCreation] Snapshot não existe.");
-        return;
-    }
+    
     const data = snap.data();
     if (!data) {
         logger.warn("[handleItemCreation] Dados do documento estão vazios.");
@@ -232,9 +230,9 @@ const handleItemCreation = async (snap: admin.firestore.DocumentSnapshot, itemTy
     const creator = await auth.getUser(data.responsibleId);
     const creatorName = creator.displayName || 'Sistema';
     const message = `${creatorName} atribuiu-lhe ${itemType}: "${data.title}"`;
-    const linkTo = `${linkPath}${snap.id}`;
+    const linkTo = `${linkPath}${eventId}`;
     
-    let userIdsToNotify: string[] = [data.responsibleId, ...(data.assistantIds || [])];
+    let userIdsToNotify: string[] = [data.responsibleId];
     
     logger.info("[handleItemCreation] Lista final de IDs para notificar:", userIdsToNotify);
     return createNotificationsForUsers(userIdsToNotify, message, linkTo, creatorName);
@@ -244,7 +242,8 @@ const handleItemCreation = async (snap: admin.firestore.DocumentSnapshot, itemTy
 const handleItemUpdate = async (
     change: { before: admin.firestore.DocumentSnapshot; after: admin.firestore.DocumentSnapshot },
     itemType: string,
-    linkPath: string
+    linkPath: string,
+    eventId: string
 ) => {
     const beforeData = change.before.data();
     const afterData = change.after.data();
@@ -276,10 +275,9 @@ const handleItemUpdate = async (
     const newAssistants = afterAssistants.filter((id: string) => !beforeAssistants.has(id));
 
     if (newAssistants.length > 0) {
-        // Idealmente, teríamos o ID de quem editou. Usando 'Sistema' como fallback.
         const editorName = 'Sistema'; 
         const message = `Você foi adicionado como auxiliar na ${itemType}: "${afterData.title}"`;
-        const linkTo = `${linkPath}${change.after.id}`;
+        const linkTo = `${linkPath}${eventId}`;
         await createNotificationsForUsers(newAssistants, message, linkTo, editorName);
     }
 };
@@ -287,30 +285,35 @@ const handleItemUpdate = async (
 
 // --- Gatilhos para a coleção 'tasks' ---
 export const onTaskCreated = onDocumentCreated({ document: "tasks/{taskId}", region: "southamerica-east1" }, (event) => {
-    return handleItemCreation(event.data, "uma nova tarefa", "/dashboard/tasks?openTask=");
+    if (!event.data) return;
+    return handleItemCreation(event.data, "uma nova tarefa", "/dashboard/tasks?openTask=", event.params.taskId);
 });
 
 export const onTaskUpdated = onDocumentUpdated({ document: "tasks/{taskId}", region: "southamerica-east1" }, async (event) => {
     if (!event.data) return;
-    return handleItemUpdate(event.data, "tarefa", "/dashboard/tasks?openTask=");
+    return handleItemUpdate(event.data, "tarefa", "/dashboard/tasks?openTask=", event.params.taskId);
 });
 
 // --- Gatilhos para a coleção 'recurringTasks' ---
 export const onRecurringTaskCreated = onDocumentCreated({ document: "recurringTasks/{taskId}", region: "southamerica-east1" }, (event) => {
-    return handleItemCreation(event.data, "uma nova tarefa recorrente", "/dashboard/tasks?tab=recurring&openTask=");
+    if (!event.data) return;
+    return handleItemCreation(event.data, "uma nova tarefa recorrente", "/dashboard/tasks?tab=recurring&openTask=", event.params.taskId);
 });
 
 export const onRecurringTaskUpdated = onDocumentUpdated({ document: "recurringTasks/{taskId}", region: "southamerica-east1" }, async (event) => {
     if (!event.data) return;
-    return handleItemUpdate(event.data, "tarefa recorrente", "/dashboard/tasks?tab=recurring&openTask=");
+    return handleItemUpdate(event.data, "tarefa recorrente", "/dashboard/tasks?tab=recurring&openTask=", event.params.taskId);
 });
 
 // --- Gatilhos para a coleção 'calendarEvents' ---
 export const onCalendarEventCreated = onDocumentCreated({ document: "calendarEvents/{eventId}", region: "southamerica-east1" }, (event) => {
-    return handleItemCreation(event.data, "um novo evento", "/dashboard/calendar?openEvent=");
+    if (!event.data) return;
+    return handleItemCreation(event.data, "um novo evento", "/dashboard/calendar?openEvent=", event.params.eventId);
 });
 
 export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEvents/{eventId}", region: "southamerica-east1" }, async (event) => {
     if (!event.data) return;
-    return handleItemUpdate(event.data, "evento", "/dashboard/calendar?openEvent=");
+    return handleItemUpdate(event.data, "evento", "/dashboard/calendar?openEvent=", event.params.eventId);
 });
+
+    
