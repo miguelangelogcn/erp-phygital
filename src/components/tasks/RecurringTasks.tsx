@@ -7,7 +7,7 @@ import { onRecurringTasksUpdate, updateRecurringTask, deleteRecurringTask as del
 import { getUsers } from "@/lib/firebase/services/users";
 import { getClients } from "@/lib/firebase/services/clients";
 
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, PlusCircle, X, AlertCircle, Clock, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -298,22 +298,31 @@ export default function RecurringTasks() {
             <CardHeader>
               <CardTitle>{column.title} ({column.tasks.length})</CardTitle>
             </CardHeader>
-            <CardContent className="flex-grow">
+            <CardContent className="flex-grow space-y-4">
               {column.tasks.length > 0 ? (
-                <div className="space-y-2">
-                  {column.tasks.map((task) => (
-                    <Card
-                      key={task.id}
-                      className={cn(
-                          "p-3 transition-shadow hover:shadow-md cursor-pointer",
-                          task.isCompleted && "bg-muted/50"
-                      )}
-                      onClick={() => handleCardClick(task)}
-                    >
-                      <div className="flex items-start gap-3">
-                         <div className="mt-1">
-                            {!task.startedAt ? (
-                                <Button size="sm" className="h-auto px-2 py-1 text-xs" onClick={(e) => handleStartTask(e, task.id)}>
+                column.tasks.map((task) => (
+                  <Card
+                    key={task.id}
+                    className={cn(
+                      "transition-shadow hover:shadow-md cursor-pointer flex flex-col",
+                      task.isCompleted && "bg-muted/50"
+                    )}
+                    onClick={() => handleCardClick(task)}
+                  >
+                    <CardContent className="p-4 flex-grow">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <p className={cn(
+                            "font-semibold",
+                            (task.isCompleted || task.approvalStatus === 'approved') && "line-through text-muted-foreground"
+                        )}>{task.title}</p>
+                        {getApprovalBadge(task.approvalStatus)}
+                      </div>
+                      {task.description && <p className="text-sm text-muted-foreground truncate">{task.description}</p>}
+                    </CardContent>
+                    <CardFooter className="p-4 pt-2">
+                        <div className="w-full flex justify-end">
+                             {!task.startedAt ? (
+                                <Button size="sm" onClick={(e) => handleStartTask(e, task.id)}>
                                     Iniciar
                                 </Button>
                             ) : (
@@ -326,21 +335,10 @@ export default function RecurringTasks() {
                                     }}
                                 />
                             )}
-                         </div>
-                        <div className="flex-1">
-                            <div className="flex items-start justify-between gap-2">
-                                <p className={cn(
-                                    "font-semibold pr-2",
-                                    (task.isCompleted || task.approvalStatus === 'approved') && "line-through text-muted-foreground"
-                                )}>{task.title}</p>
-                                {getApprovalBadge(task.approvalStatus)}
-                            </div>
-                            {task.description && <p className="text-sm text-muted-foreground truncate">{task.description}</p>}
                         </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
+                    </CardFooter>
+                  </Card>
+                ))
               ) : (
                 <p className="text-sm text-muted-foreground text-center pt-4">Nenhuma tarefa.</p>
               )}
