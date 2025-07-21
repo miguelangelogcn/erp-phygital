@@ -2,11 +2,15 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase/config";
 import {
   SidebarProvider,
   Sidebar,
   SidebarHeader,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarInset,
@@ -15,8 +19,9 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { Briefcase, Users, ListTodo, Shield, UserSquare, CheckSquare, Calendar } from "lucide-react";
+import { Briefcase, Users, ListTodo, Shield, UserSquare, CheckSquare, Calendar, LogOut } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { NotificationsBell } from "../notifications/NotificationsBell";
 
 export default function DashboardLayoutComponent({
@@ -25,11 +30,27 @@ export default function DashboardLayoutComponent({
   children: React.ReactNode;
 }) {
   const { userData } = useAuth();
+  const router = useRouter();
+  const { toast } = useToast();
+
   const canManageEmployees = userData?.permissions?.includes("manage_employees");
   const canManageRoles = userData?.permissions?.includes("manage_roles");
   const canManageTeams = userData?.permissions?.includes("manage_teams");
   const canManageCalendar = userData?.permissions?.includes("manage_calendar");
-  const isLeader = userData?.isLeader || false; // Assume isLeader is part of userData
+  const isLeader = userData?.isLeader || false;
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push('/');
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao sair",
+        description: error.message || "Não foi possível completar o logout.",
+      });
+    }
+  };
 
   return (
     <SidebarProvider>
@@ -117,6 +138,17 @@ export default function DashboardLayoutComponent({
               </SidebarGroup>
             </SidebarMenu>
           </SidebarContent>
+          <SidebarFooter>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={handleLogout}
+                className="hover:bg-destructive/20 text-red-500"
+              >
+                <LogOut />
+                Sair
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarFooter>
         </Sidebar>
         <SidebarInset>
           <main>{children}</main>
