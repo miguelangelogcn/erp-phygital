@@ -19,7 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 interface FeedbackModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmitSuccess: () => void;
+  onSubmitSuccess: (taskId: string) => void;
   isSubmitting: boolean;
   setIsSubmitting: (isSubmitting: boolean) => void;
   task: ApprovalTask | null;
@@ -94,7 +94,7 @@ export function FeedbackModal({ isOpen, onClose, onSubmitSuccess, isSubmitting, 
         });
 
         toast({ title: "Feedback Enviado", description: "A tarefa foi marcada como rejeitada." });
-        onSubmitSuccess(); // This will close the modal and refetch data from the parent
+        onSubmitSuccess(task.id); // This will close the modal and refetch data from the parent
         
     } catch (error: any) {
       console.error("Erro ao submeter o feedback:", error);

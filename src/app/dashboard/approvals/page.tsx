@@ -110,7 +110,8 @@ export default function ApprovalsPage() {
         description: result.data.message,
       });
 
-      fetchData(); // Refetch data
+      // Update state locally instead of refetching
+      setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -132,9 +133,10 @@ export default function ApprovalsPage() {
     setIsViewerOpen(true);
   };
   
-  const handleFeedbackSuccess = () => {
+  const handleFeedbackSuccess = (taskId: string) => {
     setIsFeedbackModalOpen(false);
-    fetchData(); // Recarrega os dados para atualizar a lista
+    // Update state locally instead of refetching
+    setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
   };
 
 
@@ -263,7 +265,7 @@ export default function ApprovalsPage() {
         <FeedbackModal
           isOpen={isFeedbackModalOpen}
           onClose={() => setIsFeedbackModalOpen(false)}
-          onSubmitSuccess={handleFeedbackSuccess}
+          onSubmitSuccess={() => handleFeedbackSuccess(taskForFeedback.id)}
           isSubmitting={!!isSubmitting}
           setIsSubmitting={(submitting) => setIsSubmitting(submitting ? taskForFeedback.id : null)}
           task={taskForFeedback}
