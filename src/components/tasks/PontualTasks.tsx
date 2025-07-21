@@ -287,14 +287,12 @@ export default function PontualTasks() {
         onConfirm: async () => {
             setIsSubmitting(true);
             try {
-                const taskType = 'tasks';
-                console.log("A chamar a função 'deleteTask' com os seguintes dados:", { taskId, taskType });
-                await deleteTaskService(taskId);
+                await deleteTaskService(taskId, 'tasks');
                 toast({ title: "Sucesso", description: "Tarefa excluída." });
                 setIsEditModalOpen(false);
                 setEditingTask(null);
-            } catch (error) {
-                 toast({ variant: "destructive", title: "Erro ao excluir", description: "Não foi possível excluir a tarefa." });
+            } catch (error: any) {
+                 toast({ variant: "destructive", title: "Erro ao excluir", description: error.message || "Não foi possível excluir a tarefa." });
             } finally {
                 setIsSubmitting(false);
             }
@@ -308,7 +306,7 @@ export default function PontualTasks() {
     <div>
         <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold">Tarefas a Realizar</h2>
-            <CreateTaskModal>
+            <CreateTaskModal onTaskCreated={() => { /* Optional: can refetch or rely on snapshot */ }}>
                 <Button variant="gradient">
                     <PlusCircle className="mr-2" /> Criar Nova Tarefa
                 </Button>

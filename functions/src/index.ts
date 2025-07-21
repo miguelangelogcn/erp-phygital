@@ -74,14 +74,15 @@ export const deleteUser = onCall({ region: "southamerica-east1" }, async (reques
 export const deleteTask = onCall({ region: "southamerica-east1" }, async (request) => {
     const { taskId, taskType } = request.data;
     if (!taskId || !taskType) {
-        throw new HttpsError("invalid-argument", "Faltam dados essenciais.");
+        throw new HttpsError("invalid-argument", "Faltam dados essenciais (taskId, taskType).");
     }
     const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
     try {
         await db.collection(collectionName).doc(taskId).delete();
-        return { success: true };
+        logger.info(`Tarefa ${taskId} da coleção ${collectionName} foi apagada com sucesso.`);
+        return { success: true, message: "Tarefa excluída com sucesso." };
     } catch (error: any) {
-        logger.error(`Erro ao apagar a tarefa ${taskId}:`, error);
+        logger.error(`Erro ao apagar a tarefa ${taskId} da coleção ${collectionName}:`, error);
         throw new HttpsError("internal", "Ocorreu um erro ao apagar a tarefa.");
     }
 });
@@ -211,14 +212,17 @@ const createNotificationsForUsers = async (userIds: string[], message: string, l
   }
 };
 
-const handleItemCreation = async (snap: any, itemType: string, linkPath: string) => {
+const handleItemCreation = async (snap: admin.firestore.DocumentSnapshot, itemType: string, linkPath: string) => {
     logger.info(`[handleItemCreation] Acionado para ${itemType} com ID: ${snap.id}`);
-    if (!snap) {
-        logger.warn("[handleItemCreation] Snapshot nulo ou indefinido.");
+    if (!snap.exists) {
+        logger.warn("[handleItemCreation] Snapshot não existe.");
         return;
     }
     const data = snap.data();
-    logger.info("[handleItemCreation] Dados do documento:", data);
+    if (!data) {
+        logger.warn("[handleItemCreation] Dados do documento estão vazios.");
+        return;
+    }
 
     if (!data.responsibleId) {
         logger.warn("[handleItemCreation] 'responsibleId' em falta.");
@@ -230,24 +234,56 @@ const handleItemCreation = async (snap: any, itemType: string, linkPath: string)
     const message = `${creatorName} atribuiu-lhe ${itemType}: "${data.title}"`;
     const linkTo = `${linkPath}${snap.id}`;
     
-    let userIdsToNotify: string[] = [];
-    if (data.responsibleId) {
-        userIdsToNotify.push(data.responsibleId);
-    }
-
-    logger.info("[handleItemCreation] Campo assistantIds:", data.assistantIds);
-    logger.info("[handleItemCreation] Tipo de assistantIds:", typeof data.assistantIds);
-    logger.info("[handleItemCreation] É um array?", Array.isArray(data.assistantIds));
-
-    if (data.assistantIds && Array.isArray(data.assistantIds) && data.assistantIds.length > 0) {
-        userIdsToNotify = [...userIdsToNotify, ...data.assistantIds];
-    } else {
-        logger.warn("[handleItemCreation] 'assistantIds' está vazio, não é um array, ou não existe.");
-    }
-
+    let userIdsToNotify: string[] = [data.responsibleId, ...(data.assistantIds || [])];
+    
     logger.info("[handleItemCreation] Lista final de IDs para notificar:", userIdsToNotify);
     return createNotificationsForUsers(userIdsToNotify, message, linkTo, creatorName);
 };
+
+
+const handleItemUpdate = async (
+    change: { before: admin.firestore.DocumentSnapshot; after: admin.firestore.DocumentSnapshot },
+    itemType: string,
+    linkPath: string
+) => {
+    const beforeData = change.before.data();
+    const afterData = change.after.data();
+
+    if (!beforeData || !afterData) {
+        logger.warn(`[handleItemUpdate] Dados em falta para ${itemType} com ID: ${change.after.id}`);
+        return;
+    }
+
+    // Notificação para tarefa enviada para aprovação
+    if (afterData.approvalStatus === 'pending' && beforeData.approvalStatus !== 'pending') {
+        const taskCreatorDoc = await db.collection('users').doc(afterData.responsibleId).get();
+        const teamId = taskCreatorDoc.data()?.teamId;
+        if (teamId) {
+            const team = await db.collection('teams').doc(teamId).get();
+            const leaderId = team.data()?.leaderId;
+            if (leaderId) {
+                const message = `A ${itemType} "${afterData.title}" foi submetida para aprovação.`;
+                const linkTo = `/dashboard/approvals`;
+                const creatorName = taskCreatorDoc.data()?.name || 'Um utilizador';
+                await createNotificationsForUsers([leaderId], message, linkTo, creatorName);
+            }
+        }
+    }
+
+    // Notificação para novos assistentes
+    const beforeAssistants = new Set(beforeData.assistantIds || []);
+    const afterAssistants = afterData.assistantIds || [];
+    const newAssistants = afterAssistants.filter((id: string) => !beforeAssistants.has(id));
+
+    if (newAssistants.length > 0) {
+        // Idealmente, teríamos o ID de quem editou. Usando 'Sistema' como fallback.
+        const editorName = 'Sistema'; 
+        const message = `Você foi adicionado como auxiliar na ${itemType}: "${afterData.title}"`;
+        const linkTo = `${linkPath}${change.after.id}`;
+        await createNotificationsForUsers(newAssistants, message, linkTo, editorName);
+    }
+};
+
 
 // --- Gatilhos para a coleção 'tasks' ---
 export const onTaskCreated = onDocumentCreated({ document: "tasks/{taskId}", region: "southamerica-east1" }, (event) => {
@@ -255,27 +291,9 @@ export const onTaskCreated = onDocumentCreated({ document: "tasks/{taskId}", reg
 });
 
 export const onTaskUpdated = onDocumentUpdated({ document: "tasks/{taskId}", region: "southamerica-east1" }, async (event) => {
-    const afterData = event.data?.after.data();
-    const beforeData = event.data?.before.data();
-    if (!afterData || !beforeData) return;
-
-    if (afterData.approvalStatus === 'pending' && beforeData.approvalStatus !== 'pending') {
-        const taskCreatorDoc = await db.collection('users').doc(afterData.responsibleId).get();
-        const teamId = taskCreatorDoc.data()?.teamId;
-        if (teamId) {
-            const team = await db.collection('teams').doc(teamId).get();
-            const leaderId = team.data()?.leaderId;
-            if (leaderId) {
-                const message = `A tarefa "${afterData.title}" foi submetida para aprovação.`;
-                const linkTo = `/dashboard/approvals`;
-                const creatorName = taskCreatorDoc.data()?.name || 'Um utilizador';
-                await createNotificationsForUsers([leaderId], message, linkTo, creatorName);
-            }
-        }
-    }
-    return;
+    if (!event.data) return;
+    return handleItemUpdate(event.data, "tarefa", "/dashboard/tasks?openTask=");
 });
-
 
 // --- Gatilhos para a coleção 'recurringTasks' ---
 export const onRecurringTaskCreated = onDocumentCreated({ document: "recurringTasks/{taskId}", region: "southamerica-east1" }, (event) => {
@@ -283,27 +301,9 @@ export const onRecurringTaskCreated = onDocumentCreated({ document: "recurringTa
 });
 
 export const onRecurringTaskUpdated = onDocumentUpdated({ document: "recurringTasks/{taskId}", region: "southamerica-east1" }, async (event) => {
-    const afterData = event.data?.after.data();
-    const beforeData = event.data?.before.data();
-    if (!afterData || !beforeData) return;
-
-    if (afterData.approvalStatus === 'pending' && beforeData.approvalStatus !== 'pending') {
-        const taskCreatorDoc = await db.collection('users').doc(afterData.responsibleId).get();
-        const teamId = taskCreatorDoc.data()?.teamId;
-        if (teamId) {
-            const team = await db.collection('teams').doc(teamId).get();
-            const leaderId = team.data()?.leaderId;
-            if (leaderId) {
-                const message = `A tarefa recorrente "${afterData.title}" foi submetida para aprovação.`;
-                const linkTo = `/dashboard/approvals`;
-                const creatorName = taskCreatorDoc.data()?.name || 'Um utilizador';
-                await createNotificationsForUsers([leaderId], message, linkTo, creatorName);
-            }
-        }
-    }
-    return;
+    if (!event.data) return;
+    return handleItemUpdate(event.data, "tarefa recorrente", "/dashboard/tasks?tab=recurring&openTask=");
 });
-
 
 // --- Gatilhos para a coleção 'calendarEvents' ---
 export const onCalendarEventCreated = onDocumentCreated({ document: "calendarEvents/{eventId}", region: "southamerica-east1" }, (event) => {
@@ -311,21 +311,6 @@ export const onCalendarEventCreated = onDocumentCreated({ document: "calendarEve
 });
 
 export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEvents/{eventId}", region: "southamerica-east1" }, async (event) => {
-    const afterData = event.data?.after.data();
-    const beforeData = event.data?.before.data();
-    if (!afterData || !beforeData) return;
-
-    const message = `O evento de calendário "${afterData.title}" foi atualizado.`;
-    const linkTo = `/dashboard/calendar?openEvent=${event.params.eventId}`;
-    
-    let userIdsToNotify: string[] = [];
-    if (afterData.responsibleId) {
-        userIdsToNotify.push(afterData.responsibleId);
-    }
-    if (afterData.assistantIds && Array.isArray(afterData.assistantIds)) {
-        userIdsToNotify = [...userIdsToNotify, ...afterData.assistantIds];
-    }
-    
-    const triggeredBy = "Sistema";
-    return createNotificationsForUsers(userIdsToNotify, message, linkTo, triggeredBy);
+    if (!event.data) return;
+    return handleItemUpdate(event.data, "evento", "/dashboard/calendar?openEvent=");
 });
