@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase/config";
 import {
@@ -19,7 +19,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { Briefcase, Users, ListTodo, Shield, UserSquare, CheckSquare, Calendar, LogOut, BrainCircuit } from "lucide-react";
+import { Briefcase, Users, ListTodo, Shield, UserSquare, CheckSquare, Calendar, LogOut, BrainCircuit, LayoutDashboard } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { NotificationsBell } from "../notifications/NotificationsBell";
@@ -31,19 +31,22 @@ export default function DashboardLayoutComponent({
 }) {
   const { userData } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const { toast } = useToast();
 
   const canManageEmployees = userData?.permissions?.includes("manage_employees");
   const canManageRoles = userData?.permissions?.includes("manage_roles");
   const canManageTeams = userData?.permissions?.includes("manage_teams");
   const canManageCalendar = userData?.permissions?.includes("manage_calendar");
+  const canManageClients = userData?.permissions?.includes("manage_clients");
+  const canManageTasks = userData?.permissions?.includes("manage_tasks");
   const canManageMentors = userData?.permissions?.includes("manage_mentors");
   const isLeader = userData?.isLeader || false;
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      router.push('/');
+      router.push('/login');
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -52,6 +55,27 @@ export default function DashboardLayoutComponent({
       });
     }
   };
+
+  const menuItems = [
+      { href: "/central", icon: LayoutDashboard, label: "Central de Tarefas", show: true },
+      { href: "/tasks", icon: ListTodo, label: "Painel de Tarefas", show: canManageTasks },
+      { href: "/clients", icon: Briefcase, label: "Gerenciar Clientes", show: canManageClients },
+      { href: "/calendar", icon: Calendar, label: "Calendário de Gravações", show: canManageCalendar },
+      { href: "/mentors", icon: BrainCircuit, label: "Mentores de IA", show: canManageMentors },
+      { href: "/approvals", icon: CheckSquare, label: "Aprovações Pendentes", show: isLeader },
+  ];
+
+  const adminMenuItems = [
+      { href: "/employees", icon: Users, label: "Gerenciar Funcionários", show: canManageEmployees },
+      { href: "/roles", icon: Shield, label: "Gerenciar Cargos", show: canManageRoles },
+      { href: "/teams", icon: UserSquare, label: "Gerenciar Equipes", show: canManageTeams },
+  ];
+
+  // Don't render the layout on the login page
+  if (pathname === '/login') {
+    return <>{children}</>;
+  }
+
 
   return (
     <SidebarProvider>
@@ -66,85 +90,34 @@ export default function DashboardLayoutComponent({
           <SidebarContent>
             <SidebarMenu>
               <SidebarGroup>
-                <SidebarGroupLabel>GESTÃO</SidebarGroupLabel>
-                {canManageEmployees && (
-                  <SidebarMenuItem>
-                    <Link href="/employees">
-                      <SidebarMenuButton>
-                        <Users className="text-primary" />
-                        Gerenciar Funcionários
-                      </SidebarMenuButton>
-                    </Link>
-                  </SidebarMenuItem>
-                )}
-                {canManageRoles && (
-                  <SidebarMenuItem>
-                    <Link href="/roles">
-                      <SidebarMenuButton>
-                        <Shield className="text-primary" />
-                        Gerenciar Cargos
-                      </SidebarMenuButton>
-                    </Link>
-                  </SidebarMenuItem>
-                )}
-                 {canManageTeams && (
-                  <SidebarMenuItem>
-                    <Link href="/teams">
-                      <SidebarMenuButton>
-                        <UserSquare className="text-primary" />
-                        Gerenciar Equipes
-                      </SidebarMenuButton>
-                    </Link>
-                  </SidebarMenuItem>
-                )}
-                {isLeader && (
-                   <SidebarMenuItem>
-                    <Link href="/approvals">
-                      <SidebarMenuButton>
-                        <CheckSquare className="text-primary" />
-                        Aprovações Pendentes
-                      </SidebarMenuButton>
-                    </Link>
-                  </SidebarMenuItem>
-                )}
-              </SidebarGroup>
-              <SidebarGroup>
                 <SidebarGroupLabel>OPERAÇÕES</SidebarGroupLabel>
-                 <SidebarMenuItem>
-                    <Link href="/clients">
-                      <SidebarMenuButton>
-                        <Briefcase className="text-primary" />
-                        Gerenciar Clientes
-                      </SidebarMenuButton>
-                    </Link>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <Link href="/tasks">
-                      <SidebarMenuButton>
-                        <ListTodo className="text-primary" />
-                        Painel de Tarefas
-                      </SidebarMenuButton>
-                    </Link>
-                  </SidebarMenuItem>
-                   {canManageCalendar && (
-                     <SidebarMenuItem>
-                        <Link href="/calendar">
-                          <SidebarMenuButton>
-                            <Calendar className="text-primary" />
-                            Calendário de Gravações
-                          </SidebarMenuButton>
+                 {menuItems.map(item => item.show && (
+                    <SidebarMenuItem key={item.href}>
+                        <Link href={item.href}>
+                            <SidebarMenuButton isActive={pathname === item.href}>
+                                <item.icon className="text-primary" />
+                                {item.label}
+                            </SidebarMenuButton>
                         </Link>
-                     </SidebarMenuItem>
-                   )}
-                   <SidebarMenuItem>
-                      <Link href="/mentors">
-                        <SidebarMenuButton>
-                          <BrainCircuit className="text-primary" />
-                          Mentores de IA
-                        </SidebarMenuButton>
-                      </Link>
-                   </SidebarMenuItem>
+                    </SidebarMenuItem>
+                 ))}
               </SidebarGroup>
+
+              {(canManageEmployees || canManageRoles || canManageTeams) && (
+                 <SidebarGroup>
+                    <SidebarGroupLabel>GESTÃO</SidebarGroupLabel>
+                    {adminMenuItems.map(item => item.show && (
+                        <SidebarMenuItem key={item.href}>
+                            <Link href={item.href}>
+                                <SidebarMenuButton isActive={pathname === item.href}>
+                                    <item.icon className="text-primary" />
+                                    {item.label}
+                                </SidebarMenuButton>
+                            </Link>
+                        </SidebarMenuItem>
+                    ))}
+                 </SidebarGroup>
+              )}
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter>
