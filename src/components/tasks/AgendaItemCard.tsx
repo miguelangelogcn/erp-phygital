@@ -5,6 +5,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ListTodo, Repeat, Video, Clock } from 'lucide-react';
+import { PriorityBadge } from '../ui/PriorityBadge';
 
 export type AgendaItem = {
     id: string;
@@ -65,11 +66,12 @@ export function AgendaItemCard({ item, onClick }: AgendaItemCardProps) {
             )}
         </div>
       </CardHeader>
-      {item.status && (
-        <CardContent className="p-4 pt-2">
+      <CardContent className="p-4 pt-2 flex items-center gap-2">
+          {item.status && (
             <Badge variant="secondary">{item.status}</Badge>
-        </CardContent>
-      )}
+          )}
+          <PriorityBadge priority={item.priority} />
+      </CardContent>
     </Card>
   );
 }

@@ -25,6 +25,7 @@ import type { SelectOption } from "@/types/common";
 import type { User } from "@/types/user";
 import { cn } from "@/lib/utils";
 import { SubmitForApprovalModal } from "../modals/SubmitForApprovalModal";
+import { PriorityBadge } from "../ui/PriorityBadge";
 
 interface DayColumn {
   id: number;
@@ -343,7 +344,8 @@ export default function RecurringTasks() {
                         )}>{task.title}</p>
                         {getApprovalBadge(task.approvalStatus)}
                       </div>
-                      {task.description && <p className="text-sm text-muted-foreground truncate">{task.description}</p>}
+                      <PriorityBadge priority={task.priority} />
+                      {task.description && <p className="text-sm text-muted-foreground truncate mt-2">{task.description}</p>}
                     </CardContent>
                     <CardFooter className="p-4 pt-2">
                         <div className="w-full flex justify-end">
@@ -431,5 +433,3 @@ export default function RecurringTasks() {
     </div>
   );
 }
-
-    
