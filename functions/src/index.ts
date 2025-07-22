@@ -61,8 +61,8 @@ export const updateUser = onCall({ region: "southamerica-east1" }, async (reques
     const finalData = { ...existingData, ...dataToUpdate };
 
     // Validamos se os campos essenciais estão presentes no objeto final.
-    if (!finalData.name || !finalData.roleId || !Array.isArray(finalData.permissions)) {
-        throw new HttpsError("invalid-argument", "Os dados finais estão incompletos (nome, roleId, permissões).");
+    if (!finalData.name || !Array.isArray(finalData.permissions)) {
+        throw new HttpsError("invalid-argument", "Os dados finais estão incompletos (nome, permissões).");
     }
 
     // Atualizamos o documento com o objeto completo e fundido.
