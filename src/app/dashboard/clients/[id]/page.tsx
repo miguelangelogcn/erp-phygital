@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, ArrowLeft, Briefcase, DollarSign, Edit, KeyRound, Megaphone, Trash2 } from "lucide-react";
+import { Loader2, ArrowLeft, Briefcase, DollarSign, Edit, KeyRound, Megaphone, Trash2, Facebook } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -168,7 +168,16 @@ export default function ClientDetailPage() {
                 </div>
 
                 <div className="space-y-4">
-                    <h3 className="font-semibold text-lg flex items-center"><Edit className="mr-2"/> Estratégia e Acessos</h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-lg flex items-center"><Edit className="mr-2"/> Estratégia e Acessos</h3>
+                       <Button 
+                         variant="outline"
+                         onClick={() => toast({ title: "Em Breve!", description: "A integração com a Meta está em desenvolvimento."})}
+                       >
+                         <Facebook className="mr-2 h-4 w-4" />
+                         Vincular Conta do Facebook
+                       </Button>
+                    </div>
                      <div>
                         <p className="font-medium">Linha Editorial:</p>
                         <p className="text-sm text-muted-foreground">{client.editorialLine || "Não definida."}</p>
