@@ -481,6 +481,81 @@ export const metaAuthCallback = onRequest({ region: "southamerica-east1" }, asyn
 });
 
 
+export const syncMetaCampaigns = onSchedule({
+    schedule: "every 2 hours", // "0 */2 * * *"
+    timeZone: "America/Sao_Paulo",
+    region: "southamerica-east1"
+}, async (event) => {
+    logger.info("A iniciar a sincronização das campanhas da Meta...");
+    const clientsRef = db.collection("clients");
+    const integratedClientsQuery = clientsRef.where("metaIntegration.adAccountId", "!=", null);
+    
+    const querySnapshot = await integratedClientsQuery.get();
+    if (querySnapshot.empty) {
+        logger.info("Nenhum cliente com integração da Meta encontrada.");
+        return;
+    }
+
+    for (const clientDoc of querySnapshot.docs) {
+        const clientData = clientDoc.data();
+        const clientId = clientDoc.id;
+        const adAccountId = clientData.metaIntegration.adAccountId;
+        const encryptedToken = clientData.metaIntegration.userAccessToken;
+        const tokenExpiresAt = clientData.metaIntegration.tokenExpiresAt.toDate();
+
+        if (new Date() > tokenExpiresAt) {
+            logger.warn(`Token para o cliente ${clientId} expirou. A ignorar a sincronização.`);
+            // TODO: Adicionar lógica para notificar sobre token expirado
+            continue;
+        }
+
+        try {
+            const accessToken = decrypt(encryptedToken);
+            const campaignsUrl = new URL(`https://graph.facebook.com/v19.0/${adAccountId}/campaigns`);
+            const fields = "id,name,objective,status,insights.fields(spend,impressions,clicks,cpc,cpm,ctr)";
+            campaignsUrl.searchParams.append("fields", fields);
+            campaignsUrl.searchParams.append("access_token", accessToken);
+
+            const response = await axios.get(campaignsUrl.toString());
+            const campaigns = response.data.data;
+
+            if (!campaigns || campaigns.length === 0) {
+                logger.info(`Nenhuma campanha encontrada para o cliente ${clientId}.`);
+                continue;
+            }
+
+            const batch = db.batch();
+            const campaignsCollectionRef = clientDoc.ref.collection("metaCampaigns");
+            
+            campaigns.forEach((campaign: any) => {
+                const campaignRef = campaignsCollectionRef.doc(campaign.id);
+                const insights = campaign.insights ? campaign.insights.data[0] : {};
+
+                const campaignData = {
+                    id: campaign.id,
+                    name: campaign.name,
+                    objective: campaign.objective,
+                    status: campaign.status,
+                    spend: parseFloat(insights.spend || '0'),
+                    impressions: parseInt(insights.impressions || '0', 10),
+                    clicks: parseInt(insights.clicks || '0', 10),
+                    cpc: parseFloat(insights.cpc || '0'),
+                    cpm: parseFloat(insights.cpm || '0'),
+                    ctr: parseFloat(insights.ctr || '0'),
+                    lastSyncedAt: admin.firestore.FieldValue.serverTimestamp()
+                };
+                batch.set(campaignRef, campaignData, { merge: true });
+            });
+            
+            await batch.commit();
+            logger.info(`Sincronizadas ${campaigns.length} campanhas para o cliente ${clientId}.`);
+
+        } catch (error: any) {
+            logger.error(`Erro ao sincronizar campanhas para o cliente ${clientId}:`, error.response ? error.response.data : error.message);
+        }
+    }
+});
+
 
 // --- Gatilhos para a coleção 'tasks' ---
 export const onTaskCreated = onDocumentCreated({ document: "tasks/{taskId}", region: "southamerica-east1" }, (event) => {
