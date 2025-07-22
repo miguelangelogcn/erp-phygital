@@ -209,24 +209,30 @@ export default function RecurringTasks() {
   };
 
   const handleChecklistItemChange = async (taskId: string, checklist: RecurringChecklistItem[]) => {
-      // Optimistic update
       const originalTasks = [...allTasks];
       const updatedTasks = allTasks.map(task => 
           task.id === taskId ? { ...task, checklist } : task
       );
       setAllTasks(updatedTasks);
       
+      // Also update the single editing task if it's the one being changed
+      if (editingTask && editingTask.id === taskId) {
+        setEditingTask({ ...editingTask, checklist });
+      }
+
       try {
           await updateRecurringTaskChecklist(taskId, checklist);
       } catch (error) {
-          // Revert on error
           setAllTasks(originalTasks);
+           if (editingTask && editingTask.id === taskId) {
+              const originalTask = originalTasks.find(t => t.id === taskId);
+              if (originalTask) setEditingTask(originalTask);
+           }
           toast({ variant: "destructive", title: "Erro no Checklist", description: "Não foi possível atualizar o item." });
       }
   }
 
   const handleToggleCompletion = async (task: RecurringTask) => {
-      // Logic changed: always open approval modal
       if (task.checklist && !task.checklist.every(item => item.isCompleted)) {
           toast({
               variant: "destructive",
@@ -355,7 +361,7 @@ export default function RecurringTasks() {
         ))}
       </div>
 
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      <Dialog open={isModalOpen} onOpenChange={(open) => !open && handleCloseModal()}>
         <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Editar Tarefa Recorrente</DialogTitle>
