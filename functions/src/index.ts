@@ -155,15 +155,15 @@ export const deleteTask = onCall({ region: "southamerica-east1" }, async (reques
 // --- FUNÇÕES DE APROVAÇÃO E TAREFAS RECORRENTES ---
 
 export const submitTaskForApproval = onCall({ region: "southamerica-east1" }, async (request) => {
-    const { taskId, taskType, proof, notes } = request.data;
-    if (!taskId || !taskType || !proof) {
-        throw new HttpsError("invalid-argument", "Faltam dados essenciais.");
+    const { taskId, taskType, proofs, notes } = request.data;
+    if (!taskId || !taskType || !proofs || !Array.isArray(proofs)) {
+        throw new HttpsError("invalid-argument", "Faltam dados essenciais ou o formato das provas é inválido.");
     }
     const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
     try {
         await db.collection(collectionName).doc(taskId).update({
             approvalStatus: 'pending',
-            proof: proof,
+            proofs: proofs,
             approvalNotes: notes || null,
             submittedAt: admin.firestore.FieldValue.serverTimestamp()
         });
