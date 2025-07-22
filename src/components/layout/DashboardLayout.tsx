@@ -136,16 +136,14 @@ export default function DashboardLayoutComponent({
                         </Link>
                      </SidebarMenuItem>
                    )}
-                   {canManageMentors && (
-                     <SidebarMenuItem>
-                        <Link href="/dashboard/mentors">
-                          <SidebarMenuButton>
-                            <BrainCircuit className="text-primary" />
-                            Mentores de IA
-                          </SidebarMenuButton>
-                        </Link>
-                     </SidebarMenuItem>
-                   )}
+                   <SidebarMenuItem>
+                      <Link href="/dashboard/mentors">
+                        <SidebarMenuButton>
+                          <BrainCircuit className="text-primary" />
+                          Mentores de IA
+                        </SidebarMenuButton>
+                      </Link>
+                   </SidebarMenuItem>
               </SidebarGroup>
             </SidebarMenu>
           </SidebarContent>
