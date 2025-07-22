@@ -40,18 +40,47 @@ export const createUser = onCall({ region: "southamerica-east1" }, async (reques
 });
 
 export const updateUser = onCall({ region: "southamerica-east1" }, async (request) => {
-    const { uid, name, roleId, teamId, permissions } = request.data;
-    if (!uid || !name || !roleId || !permissions) {
-        throw new HttpsError("invalid-argument", "Faltam dados essenciais (uid, nome, roleId, permissões).");
+  const { uid, ...dataToUpdate } = request.data;
+  
+  if (!uid) {
+    throw new HttpsError("invalid-argument", "O UID do utilizador é obrigatório.");
+  }
+
+  try {
+    // Primeiro, buscamos os dados existentes do utilizador para garantir que não sobrescrevemos nada acidentalmente.
+    const userDocRef = db.collection("users").doc(uid);
+    const userDoc = await userDocRef.get();
+
+    if (!userDoc.exists) {
+      throw new HttpsError("not-found", "Utilizador não encontrado.");
     }
-    try {
-        await db.collection("users").doc(uid).update({ name, roleId, teamId: teamId || null, permissions });
-        await auth.updateUser(uid, { displayName: name });
-        return { success: true, message: "Funcionário atualizado com sucesso." };
-    } catch (error: any) {
-        logger.error(`Erro ao atualizar o utilizador ${uid}:`, error);
-        throw new HttpsError("internal", "Ocorreu um erro ao atualizar o utilizador.");
+
+    const existingData = userDoc.data();
+
+    // Juntamos os dados existentes com os novos dados recebidos.
+    const finalData = { ...existingData, ...dataToUpdate };
+
+    // Validamos se os campos essenciais estão presentes no objeto final.
+    if (!finalData.name || !finalData.roleId || !Array.isArray(finalData.permissions)) {
+        throw new HttpsError("invalid-argument", "Os dados finais estão incompletos (nome, roleId, permissões).");
     }
+
+    // Atualizamos o documento com o objeto completo e fundido.
+    await userDocRef.update(finalData);
+
+    // Também atualizamos o custom claim, se o roleId foi alterado.
+    if (dataToUpdate.roleId && dataToUpdate.roleId !== existingData?.roleId) {
+      await auth.setCustomUserClaims(uid, { roleId: dataToUpdate.roleId });
+    }
+    
+    return { success: true, message: "Utilizador atualizado com sucesso." };
+  } catch (error: any) {
+    logger.error("Erro ao atualizar o utilizador:", error);
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+    throw new HttpsError("internal", "Ocorreu um erro ao atualizar o utilizador.");
+  }
 });
 
 export const deleteUser = onCall({ region: "southamerica-east1" }, async (request) => {
