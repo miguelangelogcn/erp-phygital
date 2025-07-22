@@ -19,7 +19,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { Briefcase, Users, ListTodo, Shield, UserSquare, CheckSquare, Calendar, LogOut, BrainCircuit, LayoutDashboard, Home } from "lucide-react";
+import { Briefcase, Users, ListTodo, Shield, UserSquare, CheckSquare, Calendar, LogOut, BrainCircuit, Home } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { NotificationsBell } from "../notifications/NotificationsBell";
@@ -93,12 +93,12 @@ export default function DashboardLayoutComponent({
                 <SidebarGroupLabel>OPERAÇÕES</SidebarGroupLabel>
                  {menuItems.map(item => item.show && (
                     <SidebarMenuItem key={item.href}>
-                        <Link href={item.href}>
-                            <SidebarMenuButton isActive={pathname.startsWith(item.href)}>
-                                <item.icon className="text-primary" />
-                                {item.label}
-                            </SidebarMenuButton>
-                        </Link>
+                      <Link href={item.href}>
+                        <SidebarMenuButton isActive={pathname.startsWith(item.href)}>
+                          <item.icon className="text-primary" />
+                          {item.label}
+                        </SidebarMenuButton>
+                      </Link>
                     </SidebarMenuItem>
                  ))}
               </SidebarGroup>
