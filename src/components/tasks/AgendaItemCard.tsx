@@ -14,6 +14,7 @@ export type AgendaItem = {
     endTime?: string | null;
     status?: string;
     clientName?: string;
+    priority?: 'alta' | 'media' | 'baixa';
 };
 
 interface AgendaItemCardProps {

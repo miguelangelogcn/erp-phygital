@@ -25,6 +25,12 @@ import type { Client } from "@/types/client";
 import type { User } from "@/types/user";
 import { MultiSelect } from "../ui/multi-select";
 
+const priorityOrder: { [key: string]: number } = {
+  alta: 1,
+  media: 2,
+  baixa: 3,
+};
+
 export default function CentralTasks() {
   const [date, setDate] = useState<Date>(new Date());
   const [agendaItems, setAgendaItems] = useState<AgendaItem[]>([]);
@@ -133,6 +139,7 @@ export default function CentralTasks() {
                   type: 'task',
                   status: statusMap[task.status] || task.status,
                   clientName: getClientName(task.clientId),
+                  priority: task.priority,
               };
           }
       });
@@ -147,6 +154,7 @@ export default function CentralTasks() {
                   type: 'recurring',
                   status: task.isCompleted ? 'Concluído' : 'Pendente',
                   clientName: getClientName(task.clientId),
+                  priority: task.priority,
               };
           }
       });
@@ -167,11 +175,19 @@ export default function CentralTasks() {
       });
       
       const sortedItems = Object.values(combinedItems).sort((a, b) => {
+        const priorityA = priorityOrder[a.priority || 'baixa'] || 3;
+        const priorityB = priorityOrder[b.priority || 'baixa'] || 3;
+
+        if (priorityA !== priorityB) {
+            return priorityA - priorityB;
+        }
+
         if (a.startTime && b.startTime) {
           return a.startTime.localeCompare(b.startTime);
         }
         if (a.startTime) return -1;
         if (b.startTime) return 1;
+        
         return a.title.localeCompare(b.title);
       });
 
