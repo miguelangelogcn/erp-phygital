@@ -26,7 +26,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      router.push("/central");
+      router.push("/inicio");
     } catch (err: any) {
       setError(err.message);
     }

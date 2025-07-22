@@ -34,13 +34,6 @@ type QuickAccessPage = {
 
 const quickAccessPages: QuickAccessPage[] = [
   {
-    title: "Central de Tarefas",
-    description: "Sua visão diária de tarefas e eventos.",
-    href: "/central",
-    icon: LayoutDashboard,
-    requiredPermission: null,
-  },
-  {
     title: "Painel de Tarefas",
     description: "Gerencie o fluxo de trabalho da sua equipe.",
     href: "/tasks",
@@ -112,6 +105,21 @@ export default function InicioPage() {
     }
     return userData?.permissions?.includes(page.requiredPermission);
   });
+  
+  // Adiciona a "Central de Tarefas" no início se o usuário não for líder,
+  // ou se for líder mas não tiver outras permissões de gestão.
+  const showCentralTasks = !userData?.isLeader || (userData?.isLeader && availablePages.length <= 1);
+
+  if (showCentralTasks) {
+    availablePages.unshift({
+       title: "Central de Tarefas",
+       description: "Sua visão diária de tarefas e eventos.",
+       href: "/tasks",
+       icon: LayoutDashboard,
+       requiredPermission: null,
+    });
+  }
+
 
   return (
     <main className="p-4 md:p-6">

@@ -31,7 +31,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   }
   
   if(user && pathname === '/login') {
-      router.push('/central');
+      router.push('/inicio');
       return (
          <div className="flex min-h-screen w-full items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin" />

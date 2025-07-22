@@ -58,7 +58,6 @@ export default function DashboardLayoutComponent({
 
   const menuItems = [
       { href: "/inicio", icon: Home, label: "Início", show: true },
-      { href: "/central", icon: LayoutDashboard, label: "Central de Tarefas", show: true },
       { href: "/tasks", icon: ListTodo, label: "Painel de Tarefas", show: canManageTasks },
       { href: "/clients", icon: Briefcase, label: "Gerenciar Clientes", show: canManageClients },
       { href: "/calendar", icon: Calendar, label: "Calendário de Gravações", show: canManageCalendar },
@@ -95,8 +94,7 @@ export default function DashboardLayoutComponent({
                  {menuItems.map(item => item.show && (
                     <SidebarMenuItem key={item.href}>
                         <Link href={item.href}>
-                            <SidebarMenuButton isActive={pathname.startsWith(item.href)}
->
+                            <SidebarMenuButton isActive={pathname.startsWith(item.href)}>
                                 <item.icon className="text-primary" />
                                 {item.label}
                             </SidebarMenuButton>
@@ -111,8 +109,7 @@ export default function DashboardLayoutComponent({
                     {adminMenuItems.map(item => item.show && (
                         <SidebarMenuItem key={item.href}>
                             <Link href={item.href}>
-                                <SidebarMenuButton isActive={pathname.startsWith(item.href)}
->
+                                <SidebarMenuButton isActive={pathname.startsWith(item.href)}>
                                     <item.icon className="text-primary" />
                                     {item.label}
                                 </SidebarMenuButton>
@@ -131,7 +128,7 @@ export default function DashboardLayoutComponent({
               >
                 <LogOut />
                 Sair
-              </SidebarMenuButton>
+              </Button>
             </SidebarMenuItem>
           </SidebarFooter>
         </Sidebar>

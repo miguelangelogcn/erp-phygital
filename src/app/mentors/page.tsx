@@ -1,4 +1,4 @@
-// src/app/dashboard/mentors/page.tsx
+// src/app/mentors/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
