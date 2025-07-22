@@ -1,9 +1,19 @@
 
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onCall, HttpsError, onRequest } from "firebase-functions/v2/https";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import axios from "axios";
+import * as dotenv from "dotenv";
+import * as crypto from "crypto";
+
+dotenv.config();
+
+// Configurações de encriptação (NÃO MUDE A CHAVE APÓS DEFINIDA)
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString("hex");
+const IV_LENGTH = 16;
+
 
 // Inicialização segura do Admin SDK
 if (!admin.apps.length) {
@@ -12,6 +22,28 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 const auth = admin.auth();
+
+
+// --- FUNÇÕES DE ENCRIPTAÇÃO ---
+
+function encrypt(text: string): string {
+    const iv = crypto.randomBytes(IV_LENGTH);
+    const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY, 'hex'), iv);
+    let encrypted = cipher.update(text);
+    encrypted = Buffer.concat([encrypted, cipher.final()]);
+    return iv.toString('hex') + ':' + encrypted.toString('hex');
+}
+
+function decrypt(text: string): string {
+    const textParts = text.split(':');
+    const iv = Buffer.from(textParts.shift()!, 'hex');
+    const encryptedText = Buffer.from(textParts.join(':'), 'hex');
+    const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY, 'hex'), iv);
+    let decrypted = decipher.update(encryptedText);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    return decrypted.toString();
+}
+
 
 // --- FUNÇÕES DE GESTÃO DE UTILIZADORES ---
 
@@ -47,7 +79,6 @@ export const updateUser = onCall({ region: "southamerica-east1" }, async (reques
   }
 
   try {
-    // Primeiro, buscamos os dados existentes do utilizador para garantir que não sobrescrevemos nada acidentalmente.
     const userDocRef = db.collection("users").doc(uid);
     const userDoc = await userDocRef.get();
 
@@ -56,19 +87,14 @@ export const updateUser = onCall({ region: "southamerica-east1" }, async (reques
     }
 
     const existingData = userDoc.data();
-
-    // Juntamos os dados existentes com os novos dados recebidos.
     const finalData = { ...existingData, ...dataToUpdate };
 
-    // Validamos se os campos essenciais estão presentes no objeto final.
     if (!finalData.name || !Array.isArray(finalData.permissions)) {
         throw new HttpsError("invalid-argument", "Os dados finais estão incompletos (nome, permissões).");
     }
 
-    // Atualizamos o documento com o objeto completo e fundido.
     await userDocRef.update(finalData);
 
-    // Também atualizamos o custom claim, se o roleId foi alterado.
     if (dataToUpdate.roleId && dataToUpdate.roleId !== existingData?.roleId) {
       await auth.setCustomUserClaims(uid, { roleId: dataToUpdate.roleId });
     }
@@ -127,7 +153,6 @@ export const deleteTask = onCall({ region: "southamerica-east1" }, async (reques
 
     const { taskId, taskType } = request.data;
 
-    // Validação rigorosa dos tipos e da existência dos dados
     if (typeof taskId !== 'string' || taskId.trim() === '') {
         logger.error("Validação falhou: 'taskId' inválido.", { taskId, taskType });
         throw new HttpsError("invalid-argument", "O 'taskId' é inválido ou não foi fornecido.");
@@ -137,7 +162,7 @@ export const deleteTask = onCall({ region: "southamerica-east1" }, async (reques
         throw new HttpsError("invalid-argument", "O 'taskType' é inválido ou não foi fornecido.");
     }
 
-    const collectionName = taskType; // Já sabemos que é 'tasks' ou 'recurringTasks'
+    const collectionName = taskType;
     logger.info(`A tentar apagar o documento: ${taskId} da coleção: ${collectionName}`);
 
     try {
@@ -206,10 +231,9 @@ export const reviewTask = onCall({ region: "southamerica-east1" }, async (reques
           cleanFeedback.files = feedback.files;
         }
 
-        // Correção Definitiva: Usar new Date() para o timestamp dentro do array
         updateData.rejectionFeedback = admin.firestore.FieldValue.arrayUnion({
             ...cleanFeedback,
-            rejectedAt: new Date(), // <-- AQUI ESTÁ A CORREÇÃO
+            rejectedAt: new Date(), 
             rejectedBy: approverName,
         });
         
@@ -259,7 +283,7 @@ export const resetRecurringTasks = onSchedule({
           checklist: newChecklist,
           approvalStatus: null,
           rejectionFeedback: [],
-          proof: [],
+          proofs: [],
       });
     });
 
@@ -325,7 +349,6 @@ const handleItemUpdate = async (
         return;
     }
 
-    // Notificação para tarefa enviada para aprovação
     if (afterData.approvalStatus === 'pending' && beforeData.approvalStatus !== 'pending') {
         const taskCreatorDoc = await db.collection('users').doc(afterData.responsibleId).get();
         const teamId = taskCreatorDoc.data()?.teamId;
@@ -341,7 +364,6 @@ const handleItemUpdate = async (
         }
     }
 
-    // Notificação para novos assistentes
     const beforeAssistants = new Set(beforeData.assistantIds || []);
     const afterAssistants = afterData.assistantIds || [];
     const newAssistants = afterAssistants.filter((id: string) => !beforeAssistants.has(id));
@@ -353,6 +375,111 @@ const handleItemUpdate = async (
         await createNotificationsForUsers(newAssistants, message, linkTo, editorName);
     }
 };
+
+// --- INTEGRAÇÃO COM A META ---
+
+const META_APP_ID = process.env.META_APP_ID;
+const META_APP_SECRET = process.env.META_APP_SECRET;
+
+export const startMetaAuth = onRequest({ region: "southamerica-east1" }, (req, res) => {
+    const { clientId } = req.query;
+
+    if (!clientId || typeof clientId !== 'string') {
+        res.status(400).send("O 'clientId' do ERP é obrigatório.");
+        return;
+    }
+
+    const redirectUri = `${process.env.FUNCTIONS_BASE_URL || `https://${req.hostname}`}/metaAuthCallback`;
+    
+    const authUrl = new URL("https://www.facebook.com/v19.0/dialog/oauth");
+    authUrl.searchParams.append("client_id", META_APP_ID!);
+    authUrl.searchParams.append("redirect_uri", redirectUri);
+    authUrl.searchParams.append("state", clientId); // Usamos o state para passar o nosso clientId
+    authUrl.searchParams.append("scope", "ads_read,read_insights");
+
+    res.redirect(authUrl.toString());
+});
+
+export const metaAuthCallback = onRequest({ region: "southamerica-east1" }, async (req, res) => {
+    const { code, state, error } = req.query;
+
+    if (error) {
+        logger.error("Erro no callback do OAuth da Meta:", error);
+        res.status(400).send(`Ocorreu um erro: ${error}`);
+        return;
+    }
+
+    if (!code || typeof code !== 'string' || !state || typeof state !== 'string') {
+        res.status(400).send("Código de autorização ou estado inválido.");
+        return;
+    }
+
+    const clientId = state; // O state é o nosso clientId interno
+    const redirectUri = `${process.env.FUNCTIONS_BASE_URL || `https://${req.hostname}`}/metaAuthCallback`;
+
+    try {
+        // 1. Trocar o código pelo access_token
+        const tokenUrl = new URL("https://graph.facebook.com/v19.0/oauth/access_token");
+        tokenUrl.searchParams.append("client_id", META_APP_ID!);
+        tokenUrl.searchParams.append("redirect_uri", redirectUri);
+        tokenUrl.searchParams.append("client_secret", META_APP_SECRET!);
+        tokenUrl.searchParams.append("code", code);
+
+        const tokenResponse = await axios.get(tokenUrl.toString());
+        const accessToken = tokenResponse.data.access_token;
+        const expiresIn = tokenResponse.data.expires_in;
+
+        if (!accessToken) {
+            throw new Error("Não foi possível obter o token de acesso.");
+        }
+
+        // 2. Trocar por um token de longa duração (opcional mas recomendado)
+        const longLivedTokenUrl = new URL("https://graph.facebook.com/oauth/access_token");
+        longLivedTokenUrl.searchParams.append("grant_type", "fb_exchange_token");
+        longLivedTokenUrl.searchParams.append("client_id", META_APP_ID!);
+        longLivedTokenUrl.searchParams.append("client_secret", META_APP_SECRET!);
+        longLivedTokenUrl.searchParams.append("fb_exchange_token", accessToken);
+        
+        const longLivedTokenResponse = await axios.get(longLivedTokenUrl.toString());
+        const longLivedAccessToken = longLivedTokenResponse.data.access_token;
+        const longLivedExpiresIn = longLivedTokenResponse.data.expires_in;
+
+
+        // 3. Obter as contas de anúncios
+        const adAccountsUrl = new URL("https://graph.facebook.com/v19.0/me/adaccounts");
+        adAccountsUrl.searchParams.append("access_token", longLivedAccessToken);
+        adAccountsUrl.searchParams.append("fields", "id,name");
+
+        const adAccountsResponse = await axios.get(adAccountsUrl.toString());
+        const adAccounts = adAccountsResponse.data.data;
+
+        if (!adAccounts || adAccounts.length === 0) {
+            throw new Error("Nenhuma conta de anúncios encontrada para este utilizador.");
+        }
+
+        // Usar a primeira conta por defeito
+        const adAccountId = adAccounts[0].id;
+        const encryptedToken = encrypt(longLivedAccessToken);
+        const tokenExpiresAt = admin.firestore.Timestamp.fromMillis(Date.now() + longLivedExpiresIn * 1000);
+
+
+        // 4. Salvar no Firestore
+        const clientDocRef = db.collection("clients").doc(clientId);
+        await clientDocRef.update({
+            "metaIntegration.adAccountId": adAccountId,
+            "metaIntegration.userAccessToken": encryptedToken,
+            "metaIntegration.tokenExpiresAt": tokenExpiresAt,
+        });
+
+        logger.info(`Integração da Meta concluída para o cliente ${clientId}`);
+        res.send("Autenticação com a Meta concluída com sucesso! Pode fechar esta janela.");
+
+    } catch (e: any) {
+        logger.error("Erro durante o processo de callback da Meta:", e.response ? e.response.data : e.message);
+        res.status(500).send("Ocorreu um erro interno ao processar a autenticação da Meta.");
+    }
+});
+
 
 
 // --- Gatilhos para a coleção 'tasks' ---
@@ -387,7 +514,3 @@ export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEve
     if (!event.data) return;
     return handleItemUpdate(event.data, "evento", "/dashboard/calendar?openEvent=", event.params.eventId);
 });
-
-    
-
-    
