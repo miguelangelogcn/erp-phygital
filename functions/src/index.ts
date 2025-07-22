@@ -427,8 +427,7 @@ export const metaAuthCallback = onRequest({ region: "southamerica-east1" }, asyn
 
         const tokenResponse = await axios.get(tokenUrl.toString());
         const accessToken = tokenResponse.data.access_token;
-        const expiresIn = tokenResponse.data.expires_in;
-
+        
         if (!accessToken) {
             throw new Error("Não foi possível obter o token de acesso.");
         }
