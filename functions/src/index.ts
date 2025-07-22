@@ -7,7 +7,7 @@ import * as logger from "firebase-functions/logger";
 import axios from "axios";
 import * as dotenv from "dotenv";
 import * as crypto from "crypto";
-import * as cors from "cors";
+import cors from "cors";
 import { defineString } from "firebase-functions/params";
 
 const corsHandler = cors({ origin: true });
@@ -34,14 +34,6 @@ const auth = admin.auth();
 
 
 // --- FUNÇÕES DE ENCRIPTAÇÃO ---
-
-function encrypt(text: string): string {
-    const iv = crypto.randomBytes(IV_LENGTH);
-    const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY, 'hex'), iv);
-    let encrypted = cipher.update(text);
-    encrypted = Buffer.concat([encrypted, cipher.final()]);
-    return iv.toString('hex') + ':' + encrypted.toString('hex');
-}
 
 function decrypt(text: string): string {
     const textParts = text.split(':');
