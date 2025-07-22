@@ -7,6 +7,15 @@ import * as logger from "firebase-functions/logger";
 import axios from "axios";
 import * as dotenv from "dotenv";
 import * as crypto from "crypto";
+import * as cors from "cors";
+import { defineString } from "firebase-functions/params";
+
+const corsHandler = cors({ origin: true });
+
+// Defina as suas variáveis de ambiente para segurança
+const metaAppId = defineString("META_APP_ID");
+const metaAppSecret = defineString("META_APP_SECRET");
+
 
 dotenv.config();
 
@@ -378,105 +387,77 @@ const handleItemUpdate = async (
 
 // --- INTEGRAÇÃO COM A META ---
 
-const META_APP_ID = process.env.META_APP_ID;
-const META_APP_SECRET = process.env.META_APP_SECRET;
-
 export const startMetaAuth = onRequest({ region: "southamerica-east1" }, (req, res) => {
-    const { clientId } = req.query;
+    corsHandler(req, res, () => {
+        const { clientId } = req.query;
+        if (typeof clientId !== 'string') {
+            res.status(400).send("Client ID is required.");
+            return;
+        }
 
-    if (!clientId || typeof clientId !== 'string') {
-        res.status(400).send("O 'clientId' do ERP é obrigatório.");
-        return;
-    }
+        const redirectUri = `https://southamerica-east1-phygital-login.cloudfunctions.net/metaAuthCallback`;
+        const scope = "ads_read,read_insights";
+        const state = JSON.stringify({ clientId }); // Passando o clientId através do state
 
-    const redirectUri = `${process.env.FUNCTIONS_BASE_URL || `https://${req.hostname}`}/metaAuthCallback`;
-    
-    const authUrl = new URL("https://www.facebook.com/v19.0/dialog/oauth");
-    authUrl.searchParams.append("client_id", META_APP_ID!);
-    authUrl.searchParams.append("redirect_uri", redirectUri);
-    authUrl.searchParams.append("state", clientId); // Usamos o state para passar o nosso clientId
-    authUrl.searchParams.append("scope", "ads_read,read_insights");
-
-    res.redirect(authUrl.toString());
+        const authUrl = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${metaAppId.value()}&redirect_uri=${redirectUri}&state=${encodeURIComponent(state)}&scope=${scope}`;
+        
+        logger.info(`Redirecting user to Meta for auth for clientId: ${clientId}`);
+        res.redirect(authUrl);
+    });
 });
 
 export const metaAuthCallback = onRequest({ region: "southamerica-east1" }, async (req, res) => {
-    const { code, state, error } = req.query;
+    corsHandler(req, res, async () => {
+        const { code, state } = req.query;
 
-    if (error) {
-        logger.error("Erro no callback do OAuth da Meta:", error);
-        res.status(400).send(`Ocorreu um erro: ${error}`);
-        return;
-    }
-
-    if (!code || typeof code !== 'string' || !state || typeof state !== 'string') {
-        res.status(400).send("Código de autorização ou estado inválido.");
-        return;
-    }
-
-    const clientId = state; // O state é o nosso clientId interno
-    const redirectUri = `${process.env.FUNCTIONS_BASE_URL || `https://${req.hostname}`}/metaAuthCallback`;
-
-    try {
-        // 1. Trocar o código pelo access_token
-        const tokenUrl = new URL("https://graph.facebook.com/v19.0/oauth/access_token");
-        tokenUrl.searchParams.append("client_id", META_APP_ID!);
-        tokenUrl.searchParams.append("redirect_uri", redirectUri);
-        tokenUrl.searchParams.append("client_secret", META_APP_SECRET!);
-        tokenUrl.searchParams.append("code", code);
-
-        const tokenResponse = await axios.get(tokenUrl.toString());
-        const accessToken = tokenResponse.data.access_token;
-        
-        if (!accessToken) {
-            throw new Error("Não foi possível obter o token de acesso.");
+        if (typeof code !== 'string' || typeof state !== 'string') {
+            res.status(400).send("Authorization code and state are required.");
+            return;
         }
 
-        // 2. Trocar por um token de longa duração (opcional mas recomendado)
-        const longLivedTokenUrl = new URL("https://graph.facebook.com/oauth/access_token");
-        longLivedTokenUrl.searchParams.append("grant_type", "fb_exchange_token");
-        longLivedTokenUrl.searchParams.append("client_id", META_APP_ID!);
-        longLivedTokenUrl.searchParams.append("client_secret", META_APP_SECRET!);
-        longLivedTokenUrl.searchParams.append("fb_exchange_token", accessToken);
-        
-        const longLivedTokenResponse = await axios.get(longLivedTokenUrl.toString());
-        const longLivedAccessToken = longLivedTokenResponse.data.access_token;
-        const longLivedExpiresIn = longLivedTokenResponse.data.expires_in;
+        const { clientId } = JSON.parse(decodeURIComponent(state));
+        const redirectUri = `https://southamerica-east1-phygital-login.cloudfunctions.net/metaAuthCallback`;
 
+        try {
+            // Trocar código por token de acesso
+            const tokenUrl = `https://graph.facebook.com/v20.0/oauth/access_token`;
+            const tokenResponse = await axios.get(tokenUrl, {
+                params: {
+                    client_id: metaAppId.value(),
+                    redirect_uri: redirectUri,
+                    client_secret: metaAppSecret.value(),
+                    code: code,
+                }
+            });
 
-        // 3. Obter as contas de anúncios
-        const adAccountsUrl = new URL("https://graph.facebook.com/v19.0/me/adaccounts");
-        adAccountsUrl.searchParams.append("access_token", longLivedAccessToken);
-        adAccountsUrl.searchParams.append("fields", "id,name");
+            const accessToken = tokenResponse.data.access_token;
 
-        const adAccountsResponse = await axios.get(adAccountsUrl.toString());
-        const adAccounts = adAccountsResponse.data.data;
+            // Buscar as contas de anúncios do utilizador
+            const adAccountsUrl = `https://graph.facebook.com/v20.0/me/adaccounts?access_token=${accessToken}&fields=account_id,name`;
+            const adAccountsResponse = await axios.get(adAccountsUrl);
+            const adAccounts = adAccountsResponse.data.data;
 
-        if (!adAccounts || adAccounts.length === 0) {
-            throw new Error("Nenhuma conta de anúncios encontrada para este utilizador.");
+            if (!adAccounts || adAccounts.length === 0) {
+                 res.status(404).send("Nenhuma conta de anúncios encontrada para este utilizador.");
+                 return;
+            }
+
+            // Por simplicidade, vamos usar a primeira conta de anúncios encontrada
+            const adAccountId = adAccounts[0].account_id;
+            
+            // Salvar no Firestore
+            await db.collection('clients').doc(clientId).update({
+                'metaIntegration.adAccountId': adAccountId,
+                'metaIntegration.userAccessToken': accessToken,
+            });
+
+            res.send("<script>window.close();</script>");
+
+        } catch (error: any) {
+            logger.error("Error in Meta OAuth callback:", error.response?.data || error.message);
+            res.status(500).send("Ocorreu um erro ao vincular a conta.");
         }
-
-        // Usar a primeira conta por defeito
-        const adAccountId = adAccounts[0].id;
-        const encryptedToken = encrypt(longLivedAccessToken);
-        const tokenExpiresAt = admin.firestore.Timestamp.fromMillis(Date.now() + longLivedExpiresIn * 1000);
-
-
-        // 4. Salvar no Firestore
-        const clientDocRef = db.collection("clients").doc(clientId);
-        await clientDocRef.update({
-            "metaIntegration.adAccountId": adAccountId,
-            "metaIntegration.userAccessToken": encryptedToken,
-            "metaIntegration.tokenExpiresAt": tokenExpiresAt,
-        });
-
-        logger.info(`Integração da Meta concluída para o cliente ${clientId}`);
-        res.send("Autenticação com a Meta concluída com sucesso! Pode fechar esta janela.");
-
-    } catch (e: any) {
-        logger.error("Erro durante o processo de callback da Meta:", e.response ? e.response.data : e.message);
-        res.status(500).send("Ocorreu um erro interno ao processar a autenticação da Meta.");
-    }
+    });
 });
 
 
