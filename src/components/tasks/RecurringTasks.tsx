@@ -42,6 +42,12 @@ const initialDays: DayColumn[] = [
   { id: 7, title: 'Domingo', tasks: [] },
 ];
 
+const priorityOrder: { [key: string]: number } = {
+  alta: 1,
+  media: 2,
+  baixa: 3,
+};
+
 export default function RecurringTasks() {
   const { userData } = useAuth();
   const [allTasks, setAllTasks] = useState<RecurringTask[]>([]);
@@ -126,7 +132,13 @@ export default function RecurringTasks() {
 
   useEffect(() => {
       const newDayColumns: DayColumn[] = JSON.parse(JSON.stringify(initialDays));
-      filteredTasks.forEach((task) => {
+      const sortedTasks = [...filteredTasks].sort((a, b) => {
+        const priorityA = priorityOrder[a.priority || 'baixa'] || 3;
+        const priorityB = priorityOrder[b.priority || 'baixa'] || 3;
+        return priorityA - priorityB;
+      });
+
+      sortedTasks.forEach((task) => {
           const targetColumn = newDayColumns.find(col => col.id === task.dayOfWeek);
           if (targetColumn) {
             targetColumn.tasks.push(task);
@@ -419,3 +431,5 @@ export default function RecurringTasks() {
     </div>
   );
 }
+
+    

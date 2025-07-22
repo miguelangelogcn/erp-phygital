@@ -66,6 +66,12 @@ const initialColumns: Columns = {
     done: { id: "done", title: "Feito", tasks: [] },
 }
 
+const priorityOrder: { [key: string]: number } = {
+  alta: 1,
+  media: 2,
+  baixa: 3,
+};
+
 export default function PontualTasks() {
   const { userData } = useAuth();
   const [allTasks, setAllTasks] = useState<Task[]>([]);
@@ -170,12 +176,25 @@ export default function PontualTasks() {
       doing: { id: "doing", title: "Fazendo", tasks: [] },
       done: { id: "done", title: "Feito", tasks: [] },
     };
-    filteredTasks.forEach((task) => {
+
+    const sortedTasks = [...filteredTasks].sort((a, b) => {
+        const priorityA = priorityOrder[a.priority || 'baixa'] || 3;
+        const priorityB = priorityOrder[b.priority || 'baixa'] || 3;
+        if (priorityA !== priorityB) {
+            return priorityA - priorityB;
+        }
+        return (a.order || 0) - (b.order || 0);
+    });
+    
+    sortedTasks.forEach((task) => {
       if (newColumns[task.status]) {
         newColumns[task.status].tasks.push(task)
       }
     });
-    Object.values(newColumns).forEach(col => col.tasks.sort((a, b) => (a.order || 0) - (b.order || 0)));
+
+    // We no longer need to sort here as it's done before grouping
+    // Object.values(newColumns).forEach(col => col.tasks.sort((a, b) => (a.order || 0) - (b.order || 0)));
+    
     setColumns(newColumns);
   }, [filteredTasks]);
 
@@ -467,5 +486,7 @@ export default function PontualTasks() {
     </div>
   );
 }
+
+    
 
     
