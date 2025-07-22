@@ -19,7 +19,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { Briefcase, Users, ListTodo, Shield, UserSquare, CheckSquare, Calendar, LogOut, BrainCircuit, LayoutDashboard } from "lucide-react";
+import { Briefcase, Users, ListTodo, Shield, UserSquare, CheckSquare, Calendar, LogOut, BrainCircuit, LayoutDashboard, Home } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { NotificationsBell } from "../notifications/NotificationsBell";
@@ -57,6 +57,7 @@ export default function DashboardLayoutComponent({
   };
 
   const menuItems = [
+      { href: "/inicio", icon: Home, label: "Início", show: true },
       { href: "/central", icon: LayoutDashboard, label: "Central de Tarefas", show: true },
       { href: "/tasks", icon: ListTodo, label: "Painel de Tarefas", show: canManageTasks },
       { href: "/clients", icon: Briefcase, label: "Gerenciar Clientes", show: canManageClients },
@@ -94,7 +95,8 @@ export default function DashboardLayoutComponent({
                  {menuItems.map(item => item.show && (
                     <SidebarMenuItem key={item.href}>
                         <Link href={item.href}>
-                            <SidebarMenuButton isActive={pathname === item.href}>
+                            <SidebarMenuButton isActive={pathname.startsWith(item.href)}
+>
                                 <item.icon className="text-primary" />
                                 {item.label}
                             </SidebarMenuButton>
@@ -109,7 +111,8 @@ export default function DashboardLayoutComponent({
                     {adminMenuItems.map(item => item.show && (
                         <SidebarMenuItem key={item.href}>
                             <Link href={item.href}>
-                                <SidebarMenuButton isActive={pathname === item.href}>
+                                <SidebarMenuButton isActive={pathname.startsWith(item.href)}
+>
                                     <item.icon className="text-primary" />
                                     {item.label}
                                 </SidebarMenuButton>
