@@ -81,8 +81,7 @@ export async function updateMentor(mentorId: string, mentorData: Partial<NewAiMe
   try {
     const mentorDocRef = doc(db, MENTORS_COLLECTION, mentorId);
     await updateDoc(mentorDocRef, mentorData);
-  } catch (error)_
- {
+  } catch (error) {
     console.error("Error updating mentor: ", error);
     throw new Error("Failed to update mentor in Firestore.");
   }
