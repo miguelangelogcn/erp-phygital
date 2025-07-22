@@ -57,7 +57,6 @@ export default function DashboardLayoutComponent({
   };
 
   const menuItems = [
-      { href: "/inicio", icon: Home, label: "Início", show: true },
       { href: "/tasks", icon: ListTodo, label: "Painel de Tarefas", show: canManageTasks },
       { href: "/clients", icon: Briefcase, label: "Gerenciar Clientes", show: canManageClients },
       { href: "/calendar", icon: Calendar, label: "Calendário de Gravações", show: canManageCalendar },
@@ -89,6 +88,14 @@ export default function DashboardLayoutComponent({
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu>
+              <SidebarMenuItem>
+                <Link href="/inicio" passHref>
+                  <SidebarMenuButton isActive={pathname.startsWith("/inicio")}>
+                    <Home className="text-primary" />
+                    Início
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
               <SidebarGroup>
                 <SidebarGroupLabel>OPERAÇÕES</SidebarGroupLabel>
                  {menuItems.map(item => item.show && (
