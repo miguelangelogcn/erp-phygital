@@ -69,7 +69,7 @@ export default function DashboardLayoutComponent({
                 <SidebarGroupLabel>GESTÃO</SidebarGroupLabel>
                 {canManageEmployees && (
                   <SidebarMenuItem>
-                    <Link href="/dashboard/employees">
+                    <Link href="/employees">
                       <SidebarMenuButton>
                         <Users className="text-primary" />
                         Gerenciar Funcionários
@@ -79,7 +79,7 @@ export default function DashboardLayoutComponent({
                 )}
                 {canManageRoles && (
                   <SidebarMenuItem>
-                    <Link href="/dashboard/roles">
+                    <Link href="/roles">
                       <SidebarMenuButton>
                         <Shield className="text-primary" />
                         Gerenciar Cargos
@@ -89,7 +89,7 @@ export default function DashboardLayoutComponent({
                 )}
                  {canManageTeams && (
                   <SidebarMenuItem>
-                    <Link href="/dashboard/teams">
+                    <Link href="/teams">
                       <SidebarMenuButton>
                         <UserSquare className="text-primary" />
                         Gerenciar Equipes
@@ -99,7 +99,7 @@ export default function DashboardLayoutComponent({
                 )}
                 {isLeader && (
                    <SidebarMenuItem>
-                    <Link href="/dashboard/approvals">
+                    <Link href="/approvals">
                       <SidebarMenuButton>
                         <CheckSquare className="text-primary" />
                         Aprovações Pendentes
@@ -111,7 +111,7 @@ export default function DashboardLayoutComponent({
               <SidebarGroup>
                 <SidebarGroupLabel>OPERAÇÕES</SidebarGroupLabel>
                  <SidebarMenuItem>
-                    <Link href="/dashboard/clients">
+                    <Link href="/clients">
                       <SidebarMenuButton>
                         <Briefcase className="text-primary" />
                         Gerenciar Clientes
@@ -119,7 +119,7 @@ export default function DashboardLayoutComponent({
                     </Link>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <Link href="/dashboard/tasks">
+                    <Link href="/tasks">
                       <SidebarMenuButton>
                         <ListTodo className="text-primary" />
                         Painel de Tarefas
@@ -128,7 +128,7 @@ export default function DashboardLayoutComponent({
                   </SidebarMenuItem>
                    {canManageCalendar && (
                      <SidebarMenuItem>
-                        <Link href="/dashboard/calendar">
+                        <Link href="/calendar">
                           <SidebarMenuButton>
                             <Calendar className="text-primary" />
                             Calendário de Gravações
@@ -137,7 +137,7 @@ export default function DashboardLayoutComponent({
                      </SidebarMenuItem>
                    )}
                    <SidebarMenuItem>
-                      <Link href="/dashboard/mentors">
+                      <Link href="/mentors">
                         <SidebarMenuButton>
                           <BrainCircuit className="text-primary" />
                           Mentores de IA

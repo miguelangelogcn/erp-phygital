@@ -1,9 +1,27 @@
-
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+// Forçando a atualização do deploy em 2024-08-01T20:23:41.229Z
+import { onCall, HttpsError, onRequest } from "firebase-functions/v2/https";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import axios from "axios";
+import * as dotenv from "dotenv";
+import * as crypto from "crypto";
+import cors from "cors";
+import { defineString } from "firebase-functions/params";
+
+const corsHandler = cors({ origin: true });
+
+// Defina as suas variáveis de ambiente para segurança
+const metaAppId = defineString("META_APP_ID");
+const metaAppSecret = defineString("META_APP_SECRET");
+
+
+dotenv.config();
+
+// Configurações de encriptação (NÃO MUDE A CHAVE APÓS DEFINIDA)
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString("hex");
+
 
 // Inicialização segura do Admin SDK
 if (!admin.apps.length) {
@@ -12,6 +30,20 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 const auth = admin.auth();
+
+
+// --- FUNÇÕES DE ENCRIPTAÇÃO ---
+
+function decrypt(text: string): string {
+    const textParts = text.split(':');
+    const iv = Buffer.from(textParts.shift()!, 'hex');
+    const encryptedText = Buffer.from(textParts.join(':'), 'hex');
+    const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY, 'hex'), iv);
+    let decrypted = decipher.update(encryptedText);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    return decrypted.toString();
+}
+
 
 // --- FUNÇÕES DE GESTÃO DE UTILIZADORES ---
 
@@ -40,18 +72,41 @@ export const createUser = onCall({ region: "southamerica-east1" }, async (reques
 });
 
 export const updateUser = onCall({ region: "southamerica-east1" }, async (request) => {
-    const { uid, name, roleId, teamId, permissions } = request.data;
-    if (!uid || !name || !roleId || !permissions) {
-        throw new HttpsError("invalid-argument", "Faltam dados essenciais (uid, nome, roleId, permissões).");
+  const { uid, ...dataToUpdate } = request.data;
+  
+  if (!uid) {
+    throw new HttpsError("invalid-argument", "O UID do utilizador é obrigatório.");
+  }
+
+  try {
+    const userDocRef = db.collection("users").doc(uid);
+    const userDoc = await userDocRef.get();
+
+    if (!userDoc.exists) {
+      throw new HttpsError("not-found", "Utilizador não encontrado.");
     }
-    try {
-        await db.collection("users").doc(uid).update({ name, roleId, teamId: teamId || null, permissions });
-        await auth.updateUser(uid, { displayName: name });
-        return { success: true, message: "Funcionário atualizado com sucesso." };
-    } catch (error: any) {
-        logger.error(`Erro ao atualizar o utilizador ${uid}:`, error);
-        throw new HttpsError("internal", "Ocorreu um erro ao atualizar o utilizador.");
+
+    const existingData = userDoc.data();
+    const finalData = { ...existingData, ...dataToUpdate };
+
+    if (!finalData.name || !Array.isArray(finalData.permissions)) {
+        throw new HttpsError("invalid-argument", "Os dados finais estão incompletos (nome, permissões).");
     }
+
+    await userDocRef.update(finalData);
+
+    if (dataToUpdate.roleId && dataToUpdate.roleId !== existingData?.roleId) {
+      await auth.setCustomUserClaims(uid, { roleId: dataToUpdate.roleId });
+    }
+    
+    return { success: true, message: "Utilizador atualizado com sucesso." };
+  } catch (error: any) {
+    logger.error("Erro ao atualizar o utilizador:", error);
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+    throw new HttpsError("internal", "Ocorreu um erro ao atualizar o utilizador.");
+  }
 });
 
 export const deleteUser = onCall({ region: "southamerica-east1" }, async (request) => {
@@ -98,7 +153,6 @@ export const deleteTask = onCall({ region: "southamerica-east1" }, async (reques
 
     const { taskId, taskType } = request.data;
 
-    // Validação rigorosa dos tipos e da existência dos dados
     if (typeof taskId !== 'string' || taskId.trim() === '') {
         logger.error("Validação falhou: 'taskId' inválido.", { taskId, taskType });
         throw new HttpsError("invalid-argument", "O 'taskId' é inválido ou não foi fornecido.");
@@ -108,7 +162,7 @@ export const deleteTask = onCall({ region: "southamerica-east1" }, async (reques
         throw new HttpsError("invalid-argument", "O 'taskType' é inválido ou não foi fornecido.");
     }
 
-    const collectionName = taskType; // Já sabemos que é 'tasks' ou 'recurringTasks'
+    const collectionName = taskType;
     logger.info(`A tentar apagar o documento: ${taskId} da coleção: ${collectionName}`);
 
     try {
@@ -126,15 +180,15 @@ export const deleteTask = onCall({ region: "southamerica-east1" }, async (reques
 // --- FUNÇÕES DE APROVAÇÃO E TAREFAS RECORRENTES ---
 
 export const submitTaskForApproval = onCall({ region: "southamerica-east1" }, async (request) => {
-    const { taskId, taskType, proof, notes } = request.data;
-    if (!taskId || !taskType || !proof) {
-        throw new HttpsError("invalid-argument", "Faltam dados essenciais.");
+    const { taskId, taskType, proofs, notes } = request.data;
+    if (!taskId || !taskType || !proofs || !Array.isArray(proofs)) {
+        throw new HttpsError("invalid-argument", "Faltam dados essenciais ou o formato das provas é inválido.");
     }
     const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
     try {
         await db.collection(collectionName).doc(taskId).update({
             approvalStatus: 'pending',
-            proof: proof,
+            proofs: proofs,
             approvalNotes: notes || null,
             submittedAt: admin.firestore.FieldValue.serverTimestamp()
         });
@@ -158,7 +212,7 @@ export const reviewTask = onCall({ region: "southamerica-east1" }, async (reques
 
     const collectionName = taskType === 'tasks' ? 'tasks' : 'recurringTasks';
     const taskRef = db.collection(collectionName).doc(taskId);
-    
+
     try {
       const approverUser = await auth.getUser(approverId);
       const approverName = approverUser.displayName || "Líder";
@@ -170,15 +224,18 @@ export const reviewTask = onCall({ region: "southamerica-east1" }, async (reques
       };
 
       if (decision === 'rejected') {
-        const feedbackToUnion = {
-          notes: feedback.notes || null,
-          audioUrl: feedback.audioUrl || null,
-          files: feedback.files || [],
-          rejectedAt: new Date(),
-          rejectedBy: approverName,
-        };
+        const cleanFeedback: { [key: string]: any } = {};
+        if (feedback.notes) cleanFeedback.notes = feedback.notes;
+        if (feedback.audioUrl) cleanFeedback.audioUrl = feedback.audioUrl;
+        if (feedback.files && Array.isArray(feedback.files) && feedback.files.length > 0) {
+          cleanFeedback.files = feedback.files;
+        }
 
-        updateData.rejectionFeedback = admin.firestore.FieldValue.arrayUnion(feedbackToUnion);
+        updateData.rejectionFeedback = admin.firestore.FieldValue.arrayUnion({
+            ...cleanFeedback,
+            rejectedAt: new Date(), 
+            rejectedBy: approverName,
+        });
         
         if (collectionName === 'tasks') {
           updateData.status = 'doing';
@@ -198,7 +255,7 @@ export const reviewTask = onCall({ region: "southamerica-east1" }, async (reques
       return { success: true, message: "Revisão da tarefa concluída." };
 
     } catch (error: any) {
-      logger.error(`Erro ao rever a tarefa ${taskId}:`, error);
+      logger.error(`[reviewTask] Erro ao rever a tarefa ${taskId}:`, error);
       throw new HttpsError("internal", "Ocorreu um erro ao processar a sua revisão.");
     }
 });
@@ -226,7 +283,7 @@ export const resetRecurringTasks = onSchedule({
           checklist: newChecklist,
           approvalStatus: null,
           rejectionFeedback: [],
-          proof: [],
+          proofs: [],
       });
     });
 
@@ -292,7 +349,6 @@ const handleItemUpdate = async (
         return;
     }
 
-    // Notificação para tarefa enviada para aprovação
     if (afterData.approvalStatus === 'pending' && beforeData.approvalStatus !== 'pending') {
         const taskCreatorDoc = await db.collection('users').doc(afterData.responsibleId).get();
         const teamId = taskCreatorDoc.data()?.teamId;
@@ -301,14 +357,13 @@ const handleItemUpdate = async (
             const leaderId = team.data()?.leaderId;
             if (leaderId) {
                 const message = `A ${itemType} "${afterData.title}" foi submetida para aprovação.`;
-                const linkTo = `/dashboard/approvals`;
+                const linkTo = `/approvals`;
                 const creatorName = taskCreatorDoc.data()?.name || 'Um utilizador';
                 await createNotificationsForUsers([leaderId], message, linkTo, creatorName);
             }
         }
     }
 
-    // Notificação para novos assistentes
     const beforeAssistants = new Set(beforeData.assistantIds || []);
     const afterAssistants = afterData.assistantIds || [];
     const newAssistants = afterAssistants.filter((id: string) => !beforeAssistants.has(id));
@@ -321,36 +376,187 @@ const handleItemUpdate = async (
     }
 };
 
+// --- INTEGRAÇÃO COM A META ---
+
+export const startMetaAuth = onRequest({ region: "southamerica-east1" }, (req, res) => {
+    corsHandler(req, res, () => {
+        const { clientId } = req.query;
+        if (typeof clientId !== 'string') {
+            res.status(400).send("Client ID is required.");
+            return;
+        }
+
+        const redirectUri = `https://southamerica-east1-phygital-login.cloudfunctions.net/metaAuthCallback`;
+        const scope = "ads_read,read_insights";
+        const state = JSON.stringify({ clientId }); // Passando o clientId através do state
+
+        const authUrl = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${metaAppId.value()}&redirect_uri=${redirectUri}&state=${encodeURIComponent(state)}&scope=${scope}`;
+        
+        logger.info(`Redirecting user to Meta for auth for clientId: ${clientId}`);
+        res.redirect(authUrl);
+    });
+});
+
+export const metaAuthCallback = onRequest({ region: "southamerica-east1" }, async (req, res) => {
+    corsHandler(req, res, async () => {
+        const { code, state } = req.query;
+
+        if (typeof code !== 'string' || typeof state !== 'string') {
+            res.status(400).send("Authorization code and state are required.");
+            return;
+        }
+
+        const { clientId } = JSON.parse(decodeURIComponent(state));
+        const redirectUri = `https://southamerica-east1-phygital-login.cloudfunctions.net/metaAuthCallback`;
+
+        try {
+            // Trocar código por token de acesso
+            const tokenUrl = `https://graph.facebook.com/v20.0/oauth/access_token`;
+            const tokenResponse = await axios.get(tokenUrl, {
+                params: {
+                    client_id: metaAppId.value(),
+                    redirect_uri: redirectUri,
+                    client_secret: metaAppSecret.value(),
+                    code: code,
+                }
+            });
+
+            const accessToken = tokenResponse.data.access_token;
+
+            // Buscar as contas de anúncios do utilizador
+            const adAccountsUrl = `https://graph.facebook.com/v20.0/me/adaccounts?access_token=${accessToken}&fields=account_id,name`;
+            const adAccountsResponse = await axios.get(adAccountsUrl);
+            const adAccounts = adAccountsResponse.data.data;
+
+            if (!adAccounts || adAccounts.length === 0) {
+                 res.status(404).send("Nenhuma conta de anúncios encontrada para este utilizador.");
+                 return;
+            }
+
+            // Por simplicidade, vamos usar a primeira conta de anúncios encontrada
+            const adAccountId = adAccounts[0].account_id;
+            
+            // Salvar no Firestore
+            await db.collection('clients').doc(clientId).update({
+                'metaIntegration.adAccountId': adAccountId,
+                'metaIntegration.userAccessToken': accessToken,
+            });
+
+            res.send("<script>window.close();</script>");
+
+        } catch (error: any) {
+            logger.error("Error in Meta OAuth callback:", error.response?.data || error.message);
+            res.status(500).send("Ocorreu um erro ao vincular a conta.");
+        }
+    });
+});
+
+
+export const syncMetaCampaigns = onSchedule({
+    schedule: "every 2 hours", // "0 */2 * * *"
+    timeZone: "America/Sao_Paulo",
+    region: "southamerica-east1"
+}, async (event) => {
+    logger.info("A iniciar a sincronização das campanhas da Meta...");
+    const clientsRef = db.collection("clients");
+    const integratedClientsQuery = clientsRef.where("metaIntegration.adAccountId", "!=", null);
+    
+    const querySnapshot = await integratedClientsQuery.get();
+    if (querySnapshot.empty) {
+        logger.info("Nenhum cliente com integração da Meta encontrada.");
+        return;
+    }
+
+    for (const clientDoc of querySnapshot.docs) {
+        const clientData = clientDoc.data();
+        const clientId = clientDoc.id;
+        const adAccountId = clientData.metaIntegration.adAccountId;
+        const encryptedToken = clientData.metaIntegration.userAccessToken;
+        const tokenExpiresAt = clientData.metaIntegration.tokenExpiresAt.toDate();
+
+        if (new Date() > tokenExpiresAt) {
+            logger.warn(`Token para o cliente ${clientId} expirou. A ignorar a sincronização.`);
+            // TODO: Adicionar lógica para notificar sobre token expirado
+            continue;
+        }
+
+        try {
+            const accessToken = decrypt(encryptedToken);
+            const campaignsUrl = new URL(`https://graph.facebook.com/v19.0/${adAccountId}/campaigns`);
+            const fields = "id,name,objective,status,insights.fields(spend,impressions,clicks,cpc,cpm,ctr)";
+            campaignsUrl.searchParams.append("fields", fields);
+            campaignsUrl.searchParams.append("access_token", accessToken);
+
+            const response = await axios.get(campaignsUrl.toString());
+            const campaigns = response.data.data;
+
+            if (!campaigns || campaigns.length === 0) {
+                logger.info(`Nenhuma campanha encontrada para o cliente ${clientId}.`);
+                continue;
+            }
+
+            const batch = db.batch();
+            const campaignsCollectionRef = clientDoc.ref.collection("metaCampaigns");
+            
+            campaigns.forEach((campaign: any) => {
+                const campaignRef = campaignsCollectionRef.doc(campaign.id);
+                const insights = campaign.insights ? campaign.insights.data[0] : {};
+
+                const campaignData = {
+                    id: campaign.id,
+                    name: campaign.name,
+                    objective: campaign.objective,
+                    status: campaign.status,
+                    spend: parseFloat(insights.spend || '0'),
+                    impressions: parseInt(insights.impressions || '0', 10),
+                    clicks: parseInt(insights.clicks || '0', 10),
+                    cpc: parseFloat(insights.cpc || '0'),
+                    cpm: parseFloat(insights.cpm || '0'),
+                    ctr: parseFloat(insights.ctr || '0'),
+                    lastSyncedAt: admin.firestore.FieldValue.serverTimestamp()
+                };
+                batch.set(campaignRef, campaignData, { merge: true });
+            });
+            
+            await batch.commit();
+            logger.info(`Sincronizadas ${campaigns.length} campanhas para o cliente ${clientId}.`);
+
+        } catch (error: any) {
+            logger.error(`Erro ao sincronizar campanhas para o cliente ${clientId}:`, error.response ? error.response.data : error.message);
+        }
+    }
+});
+
 
 // --- Gatilhos para a coleção 'tasks' ---
 export const onTaskCreated = onDocumentCreated({ document: "tasks/{taskId}", region: "southamerica-east1" }, (event) => {
     if (!event.data) return;
-    return handleItemCreation(event.data, "uma nova tarefa", "/dashboard/tasks?openTask=", event.params.taskId);
+    return handleItemCreation(event.data, "uma nova tarefa", "/tasks?openTask=", event.params.taskId);
 });
 
 export const onTaskUpdated = onDocumentUpdated({ document: "tasks/{taskId}", region: "southamerica-east1" }, async (event) => {
     if (!event.data) return;
-    return handleItemUpdate(event.data, "tarefa", "/dashboard/tasks?openTask=", event.params.taskId);
+    return handleItemUpdate(event.data, "tarefa", "/tasks?openTask=", event.params.taskId);
 });
 
 // --- Gatilhos para a coleção 'recurringTasks' ---
 export const onRecurringTaskCreated = onDocumentCreated({ document: "recurringTasks/{taskId}", region: "southamerica-east1" }, (event) => {
     if (!event.data) return;
-    return handleItemCreation(event.data, "uma nova tarefa recorrente", "/dashboard/tasks?tab=recurring&openTask=", event.params.taskId);
+    return handleItemCreation(event.data, "uma nova tarefa recorrente", "/tasks?tab=recurring&openTask=", event.params.taskId);
 });
 
 export const onRecurringTaskUpdated = onDocumentUpdated({ document: "recurringTasks/{taskId}", region: "southamerica-east1" }, async (event) => {
     if (!event.data) return;
-    return handleItemUpdate(event.data, "tarefa recorrente", "/dashboard/tasks?tab=recurring&openTask=", event.params.taskId);
+    return handleItemUpdate(event.data, "tarefa recorrente", "/tasks?tab=recurring&openTask=", event.params.taskId);
 });
 
 // --- Gatilhos para a coleção 'calendarEvents' ---
 export const onCalendarEventCreated = onDocumentCreated({ document: "calendarEvents/{eventId}", region: "southamerica-east1" }, (event) => {
     if (!event.data) return;
-    return handleItemCreation(event.data, "um novo evento", "/dashboard/calendar?openEvent=", event.params.eventId);
+    return handleItemCreation(event.data, "um novo evento", "/calendar?openEvent=", event.params.eventId);
 });
 
 export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEvents/{eventId}", region: "southamerica-east1" }, async (event) => {
     if (!event.data) return;
-    return handleItemUpdate(event.data, "evento", "/dashboard/calendar?openEvent=", event.params.eventId);
+    return handleItemUpdate(event.data, "evento", "/calendar?openEvent=", event.params.eventId);
 });

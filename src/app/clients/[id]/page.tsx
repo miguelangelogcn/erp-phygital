@@ -77,7 +77,7 @@ export default function ClientDetailPage() {
             title: "Sucesso!",
             description: "O cliente foi excluído com sucesso."
         });
-        router.push("/dashboard/clients");
+        router.push("/clients");
     } catch (err: any) {
         toast({
             variant: "destructive",
@@ -118,7 +118,7 @@ export default function ClientDetailPage() {
     <main className="p-4 md:p-6">
       <div className="mb-4">
         <Button variant="outline" asChild>
-          <Link href="/dashboard/clients">
+          <Link href="/clients">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Voltar para Clientes
           </Link>
@@ -138,7 +138,7 @@ export default function ClientDetailPage() {
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" asChild>
-                    <Link href={`/dashboard/clients/${id}/reports`}>
+                    <Link href={`/clients/${id}/reports`}>
                         <LineChart className="h-4 w-4" />
                         <span className="sr-only">Ver Relatórios</span>
                     </Link>

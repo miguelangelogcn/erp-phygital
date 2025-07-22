@@ -177,7 +177,7 @@ export default function ClientReportsPage() {
       <div className="mb-4 flex justify-between items-center">
         <h1 className="text-2xl font-bold">Relatórios da Meta</h1>
         <Button variant="outline" asChild>
-          <Link href={`/dashboard/clients/${clientId}`}>
+          <Link href={`/clients/${clientId}`}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Voltar para Cliente
           </Link>

@@ -50,7 +50,7 @@ export default function MentorInteractionPage() {
     return (
       <div className="text-center">
         <p>Mentor não encontrado.</p>
-        <Button onClick={() => router.push('/dashboard/mentors')} className="mt-4">
+        <Button onClick={() => router.push('/mentors')} className="mt-4">
           Voltar para a Galeria
         </Button>
       </div>
@@ -66,7 +66,7 @@ export default function MentorInteractionPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard/mentors')}>
+            <Button variant="ghost" size="icon" onClick={() => router.push('/mentors')}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
             Conversando com {mentor.name}

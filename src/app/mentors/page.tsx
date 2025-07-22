@@ -203,7 +203,7 @@ export default function MentorsPage() {
               {mentors.length > 0 ? (
                 mentors.map((mentor) => (
                     <Card asChild key={mentor.id} className="h-full flex flex-col hover:shadow-lg transition-shadow duration-200">
-                        <Link href={`/dashboard/mentors/${mentor.id}`}>
+                        <Link href={`/mentors/${mentor.id}`}>
                             <CardHeader>
                                 <CardTitle className="text-lg">{mentor.name}</CardTitle>
                             </CardHeader>

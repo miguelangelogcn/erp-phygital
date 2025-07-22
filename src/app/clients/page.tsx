@@ -176,7 +176,7 @@ export default function ClientsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {clients.length > 0 ? (
                 clients.map((client) => (
-                  <Link href={`/dashboard/clients/${client.id}`} key={client.id} className="block hover:shadow-lg transition-shadow duration-200 rounded-lg">
+                  <Link href={`/clients/${client.id}`} key={client.id} className="block hover:shadow-lg transition-shadow duration-200 rounded-lg">
                     <Card className="h-full">
                       <CardHeader>
                         <CardTitle className="text-lg">{client.name}</CardTitle>
