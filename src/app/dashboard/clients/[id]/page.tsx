@@ -90,6 +90,12 @@ export default function ClientDetailPage() {
     }
   }
 
+  const handleLinkFacebookAccount = () => {
+    if (!id) return;
+    const functionUrl = `https://southamerica-east1-phygital-login.cloudfunctions.net/startMetaAuth?clientId=${id}`;
+    window.open(functionUrl, 'metaAuthPopup', 'width=600,height=700');
+  };
+
 
   if (loading) {
     return (
@@ -178,7 +184,7 @@ export default function ClientDetailPage() {
                       <h3 className="font-semibold text-lg flex items-center"><Edit className="mr-2"/> Estratégia e Acessos</h3>
                        <Button 
                          variant="outline"
-                         onClick={() => toast({ title: "Em Breve!", description: "A integração com a Meta está em desenvolvimento."})}
+                         onClick={handleLinkFacebookAccount}
                        >
                          <Facebook className="mr-2 h-4 w-4" />
                          Vincular Conta do Facebook
