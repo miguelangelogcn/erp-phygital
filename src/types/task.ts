@@ -41,13 +41,13 @@ export interface Task {
   clientId?: string;
   checklist?: ChecklistItem[];
   approvalStatus?: ApprovalStatus;
-  proof?: TaskProof; // Changed from proofs to proof
+  proofs?: TaskProof[];
   approvalNotes?: string;
   submittedAt?: Timestamp;
   approverId?: string;
   reviewedAt?: Timestamp;
   completedAt?: Timestamp;
-  rejectionFeedback?: Feedback[]; // Simplified from (Feedback & { timestamp: Timestamp })[]
+  rejectionFeedback?: Feedback[];
 }
 
 // Para criar uma nova tarefa, omitimos o 'id' e tornamos os Timestamps opcionais
