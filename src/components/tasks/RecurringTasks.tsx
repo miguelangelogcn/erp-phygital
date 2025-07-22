@@ -209,11 +209,19 @@ export default function RecurringTasks() {
   };
 
   const handleChecklistItemChange = async (taskId: string, checklist: RecurringChecklistItem[]) => {
+      // Optimistic update
+      const originalTasks = [...allTasks];
+      const updatedTasks = allTasks.map(task => 
+          task.id === taskId ? { ...task, checklist } : task
+      );
+      setAllTasks(updatedTasks);
+      
       try {
           await updateRecurringTaskChecklist(taskId, checklist);
-      } catch (error)
- {
-           toast({ variant: "destructive", title: "Erro no Checklist", description: "Não foi possível atualizar o item." });
+      } catch (error) {
+          // Revert on error
+          setAllTasks(originalTasks);
+          toast({ variant: "destructive", title: "Erro no Checklist", description: "Não foi possível atualizar o item." });
       }
   }
 
