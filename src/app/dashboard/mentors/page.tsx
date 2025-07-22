@@ -3,17 +3,28 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getMentors, addMentor } from "@/lib/firebase/services/aiMentors";
+import { getMentors, addMentor, deleteMentor } from "@/lib/firebase/services/aiMentors";
 import type { AiMentor, NewAiMentor } from "@/types/aiMentor";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription
+  CardDescription,
+  CardFooter,
 } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, PlusCircle, BrainCircuit } from "lucide-react";
+import { Loader2, PlusCircle, BrainCircuit, Pencil, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +46,8 @@ export default function MentorsPage() {
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingMentor, setDeletingMentor] = useState<AiMentor | null>(null);
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
   const { toast } = useToast();
   const { userData } = useAuth();
   
@@ -95,7 +108,32 @@ export default function MentorsPage() {
     }
   };
 
+  const handleDeleteClick = (e: React.MouseEvent, mentor: AiMentor) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setDeletingMentor(mentor);
+    setIsAlertOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingMentor) return;
+    setIsSubmitting(true);
+    try {
+      await deleteMentor(deletingMentor.id);
+      toast({ title: "Sucesso!", description: "Mentor excluído." });
+      await fetchMentors();
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Erro ao excluir", description: err.message });
+    } finally {
+      setIsSubmitting(false);
+      setIsAlertOpen(false);
+      setDeletingMentor(null);
+    }
+  };
+
+
   return (
+    <>
     <main className="p-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -164,19 +202,31 @@ export default function MentorsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {mentors.length > 0 ? (
                 mentors.map((mentor) => (
-                  <Link href={`/dashboard/mentors/${mentor.id}`} key={mentor.id} className="block hover:shadow-lg transition-shadow duration-200 rounded-lg">
-                    <Card className="h-full flex flex-col">
-                      <CardHeader>
-                        <CardTitle className="text-lg">{mentor.name}</CardTitle>
-                      </CardHeader>
-                      <CardContent className="flex-grow flex flex-col items-center text-center">
-                        <div className="relative w-32 h-32 rounded-full overflow-hidden mb-4 border-2 border-primary">
-                          <Image src={mentor.avatarUrl} alt={mentor.name} fill style={{ objectFit: 'cover' }} />
-                        </div>
-                        <p className="text-sm text-muted-foreground">{mentor.specialty}</p>
-                      </CardContent>
+                    <Card asChild key={mentor.id} className="h-full flex flex-col hover:shadow-lg transition-shadow duration-200">
+                        <Link href={`/dashboard/mentors/${mentor.id}`}>
+                            <CardHeader>
+                                <CardTitle className="text-lg">{mentor.name}</CardTitle>
+                            </CardHeader>
+                            <CardContent className="flex-grow flex flex-col items-center text-center">
+                                <div className="relative w-32 h-32 rounded-full overflow-hidden mb-4 border-2 border-primary">
+                                <Image src={mentor.avatarUrl} alt={mentor.name} fill style={{ objectFit: 'cover' }} />
+                                </div>
+                                <p className="text-sm text-muted-foreground">{mentor.specialty}</p>
+                            </CardContent>
+                             {canManageMentors && (
+                                <CardFooter className="p-2 border-t justify-end gap-1">
+                                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); e.preventDefault(); /* Lógica de Edição aqui */}}>
+                                        <Pencil className="h-4 w-4" />
+                                        <span className="sr-only">Editar</span>
+                                    </Button>
+                                    <Button variant="ghost" size="icon" onClick={(e) => handleDeleteClick(e, mentor)}>
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                        <span className="sr-only">Excluir</span>
+                                    </Button>
+                                </CardFooter>
+                             )}
+                        </Link>
                     </Card>
-                  </Link>
                 ))
               ) : (
                 <div className="col-span-full text-center py-8">
@@ -188,5 +238,24 @@ export default function MentorsPage() {
         </CardContent>
       </Card>
     </main>
+    <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Tem a certeza?</AlertDialogTitle>
+                <AlertDialogDescription>
+                Esta ação não pode ser desfeita. Isto irá excluir o mentor
+                permanentemente.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel disabled={isSubmitting} onClick={() => setDeletingMentor(null)}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleConfirmDelete} disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Confirmar
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
