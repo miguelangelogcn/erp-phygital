@@ -171,7 +171,7 @@ export default function MentorsPage() {
                       </CardHeader>
                       <CardContent className="flex-grow flex flex-col items-center text-center">
                         <div className="relative w-32 h-32 rounded-full overflow-hidden mb-4 border-2 border-primary">
-                          <Image src={mentor.avatarUrl} alt={mentor.name} layout="fill" objectFit="cover" />
+                          <Image src={mentor.avatarUrl} alt={mentor.name} fill style={{ objectFit: 'cover' }} />
                         </div>
                         <p className="text-sm text-muted-foreground">{mentor.specialty}</p>
                       </CardContent>
