@@ -1,10 +1,13 @@
-import type {Metadata} from 'next';
-import './globals.css';
+import type { Metadata } from "next";
+import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import AuthGuard from "@/components/auth/AuthGuard";
+import DashboardLayoutComponent from "@/components/layout/DashboardLayout";
+import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata: Metadata = {
-  title: 'ERP Phygital',
-  description: 'Página de login para o ERP Phygital',
+  title: "Dashboard - ERP Phygital",
+  description: "Painel de controle do ERP Phygital",
 };
 
 export default function RootLayout({
@@ -20,7 +23,11 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet"></link>
       </head>
       <body className="font-body antialiased">
-        {children}
+        <AuthGuard>
+          <AuthProvider>
+            <DashboardLayoutComponent>{children}</DashboardLayoutComponent>
+          </AuthProvider>
+        </AuthGuard>
         <Toaster />
       </body>
     </html>
