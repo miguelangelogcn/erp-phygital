@@ -77,6 +77,7 @@ export default function MentorInteractionPage() {
         <PixelStreamComponent
           ref={pixelStreamRef}
           expId={experienceId}
+          apiKey={process.env.NEXT_PUBLIC_CONVAI_API_KEY || ''}
           InitialScreen={
             <div className="w-full h-full flex flex-col items-center justify-center text-white">
               <p className="mb-4">Pronto para conversar com {mentor.name}?</p>
