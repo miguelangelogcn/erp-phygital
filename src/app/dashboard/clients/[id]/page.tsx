@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, ArrowLeft, Briefcase, DollarSign, Edit, KeyRound, Megaphone, Trash2, Facebook } from "lucide-react";
+import { Loader2, ArrowLeft, Briefcase, DollarSign, Edit, KeyRound, Megaphone, Trash2, Facebook, LineChart } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -131,6 +131,12 @@ export default function ClientDetailPage() {
                   </div>
               </div>
               <div className="flex gap-2">
+                <Button variant="outline" asChild>
+                    <Link href={`/dashboard/clients/${id}/reports`}>
+                        <LineChart className="h-4 w-4" />
+                        <span className="sr-only">Ver Relatórios</span>
+                    </Link>
+                </Button>
                 <Button variant="outline" size="icon">
                     <Edit className="h-4 w-4" />
                     <span className="sr-only">Editar Cliente</span>
@@ -184,7 +190,7 @@ export default function ClientDetailPage() {
                     </div>
                     <div>
                         <p className="font-medium flex items-center"><Megaphone className="mr-2"/> ID da Conta de Anúncios Meta:</p>
-                        <p className="text-sm text-muted-foreground">{client.metaAdsAccountId || "Não informado."}</p>
+                        <p className="text-sm text-muted-foreground">{client.metaIntegration?.adAccountId || client.metaAdsAccountId || "Não informado."}</p>
                     </div>
                      <div>
                         <p className="font-medium flex items-center"><KeyRound className="mr-2"/> Credenciais:</p>
