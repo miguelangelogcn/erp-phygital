@@ -65,6 +65,7 @@ const RecurringTaskForm = ({ task, responsibleOptions = [], allUserOptions = [],
             assistantIds: task?.assistantIds || [],
             clientId: task?.clientId || "",
             dayOfWeek: task?.dayOfWeek || 1,
+            priority: task?.priority || 'media',
             isCompleted: task?.isCompleted || false,
             checklist: task?.checklist || [],
         },
@@ -172,7 +173,7 @@ const RecurringTaskForm = ({ task, responsibleOptions = [], allUserOptions = [],
                 </div>
             </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                     <Label>Cliente</Label>
                      <Controller
@@ -183,6 +184,23 @@ const RecurringTaskForm = ({ task, responsibleOptions = [], allUserOptions = [],
                                 <SelectTrigger><SelectValue placeholder="Selecione um cliente (opcional)" /></SelectTrigger>
                                 <SelectContent>
                                      {clients.filter(c => c.value).map(client => <SelectItem key={client.value} value={client.value}>{client.label}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    />
+                </div>
+                 <div className="space-y-2">
+                    <Label>Prioridade</Label>
+                     <Controller
+                        name="priority"
+                        control={control}
+                        render={({ field }) => (
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <SelectTrigger><SelectValue placeholder="Defina a prioridade" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="baixa">Baixa</SelectItem>
+                                    <SelectItem value="media">Média</SelectItem>
+                                    <SelectItem value="alta">Alta</SelectItem>
                                 </SelectContent>
                             </Select>
                         )}

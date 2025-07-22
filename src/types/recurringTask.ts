@@ -21,6 +21,7 @@ export interface RecurringTask {
   responsibleId: string;
   assistantIds?: string[];
   clientId?: string;
+  priority?: 'alta' | 'media' | 'baixa';
   checklist?: RecurringChecklistItem[];
   createdAt: Timestamp;
   startedAt?: Timestamp;

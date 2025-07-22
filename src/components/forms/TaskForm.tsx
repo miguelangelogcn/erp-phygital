@@ -64,6 +64,7 @@ const TaskForm = ({ task, responsibleOptions = [], allUserOptions = [], clients 
             assistantIds: task?.assistantIds || [],
             clientId: task?.clientId || "",
             dueDate: task?.dueDate ? task.dueDate.toDate() : null,
+            priority: task?.priority || 'media',
             checklist: task?.checklist?.map(item => ({
                 ...item,
                 dueDate: item.dueDate ? item.dueDate.toDate() : null
@@ -167,7 +168,7 @@ const TaskForm = ({ task, responsibleOptions = [], allUserOptions = [], clients 
                 </div>
             </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                     <Label>Cliente</Label>
                      <Controller
@@ -178,6 +179,23 @@ const TaskForm = ({ task, responsibleOptions = [], allUserOptions = [], clients 
                                 <SelectTrigger><SelectValue placeholder="Selecione um cliente (opcional)" /></SelectTrigger>
                                 <SelectContent>
                                     {clients.filter(c => c.value).map(client => <SelectItem key={client.value} value={client.value}>{client.label}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label>Prioridade</Label>
+                     <Controller
+                        name="priority"
+                        control={control}
+                        render={({ field }) => (
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <SelectTrigger><SelectValue placeholder="Defina a prioridade" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="baixa">Baixa</SelectItem>
+                                    <SelectItem value="media">Média</SelectItem>
+                                    <SelectItem value="alta">Alta</SelectItem>
                                 </SelectContent>
                             </Select>
                         )}

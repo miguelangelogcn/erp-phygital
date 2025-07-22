@@ -39,6 +39,7 @@ export interface Task {
   responsibleId: string;
   assistantIds?: string[];
   clientId?: string;
+  priority?: 'alta' | 'media' | 'baixa';
   checklist?: ChecklistItem[];
   approvalStatus?: ApprovalStatus;
   proofs?: TaskProof[];
