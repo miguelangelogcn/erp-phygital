@@ -92,7 +92,7 @@ export default function ClientDetailPage() {
 
   const handleLinkFacebookAccount = () => {
     if (!id) return;
-    const functionUrl = `https://southamerica-east1-phygital-login.cloudfunctions.net/startmetaauth?clientId=${id}`;
+    const functionUrl = `https://southamerica-east1-phygital-login.cloudfunctions.net/startMetaAuth?clientId=${id}`;
     window.open(functionUrl, 'metaAuthPopup', 'width=600,height=700');
   };
 
