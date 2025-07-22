@@ -40,7 +40,7 @@ export function SubmitForApprovalModal({
   task,
   taskType,
 }: SubmitForApprovalModalProps) {
-  const [file, setFile] = useState<ProofFile | null>(null); // Changed to single file
+  const [files, setFiles] = useState<ProofFile[]>([]);
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,48 +49,54 @@ export function SubmitForApprovalModal({
   const functions = getFunctions(auth.app, "southamerica-east1");
   const submitTaskForApproval = httpsCallable(functions, "submitTaskForApproval");
 
-  // Reset state when modal is closed
   useEffect(() => {
-      if (!isOpen) {
-          setFile(null);
-          setNotes("");
-          setIsSubmitting(false);
-      }
+    if (!isOpen) {
+      setFiles([]);
+      setNotes("");
+      setIsSubmitting(false);
+    }
   }, [isOpen]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      const newFile = event.target.files[0];
-      setFile({ file: newFile, name: newFile.name }); // Set single file
+    if (event.target.files) {
+      const newFiles = Array.from(event.target.files).map((file) => ({
+        file,
+        name: file.name,
+      }));
+      setFiles((prevFiles) => [...prevFiles, ...newFiles]);
     }
   };
 
-  const handleRemoveFile = () => {
-    setFile(null);
+  const handleRemoveFile = (indexToRemove: number) => {
+    setFiles((prevFiles) => prevFiles.filter((_, index) => index !== indexToRemove));
   };
 
   const handleUploadAndSubmit = async () => {
-    if (!file) {
+    if (files.length === 0) {
       toast({
         variant: "destructive",
         title: "Nenhum ficheiro selecionado",
-        description: "Por favor, adicione um ficheiro de prova.",
+        description: "Por favor, adicione pelo menos um ficheiro de prova.",
       });
       return;
     }
     setIsSubmitting(true);
     const storage = getStorage();
-    
+
     try {
-      const storageRef = ref(storage, `task_proofs/${task.id}/${file.name}`);
-      const snapshot = await uploadBytes(storageRef, file.file);
-      const url = await getDownloadURL(snapshot.ref);
-      const uploadedProof = { url, name: file.name };
+      const uploadedProofs = await Promise.all(
+        files.map(async (proofFile) => {
+          const storageRef = ref(storage, `task_proofs/${task.id}/${proofFile.name}`);
+          const snapshot = await uploadBytes(storageRef, proofFile.file);
+          const url = await getDownloadURL(snapshot.ref);
+          return { url, name: proofFile.name };
+        })
+      );
 
       await submitTaskForApproval({
         taskId: task.id,
         taskType: taskType,
-        proof: uploadedProof, // Changed to proof
+        proofs: uploadedProofs,
         notes: notes,
       });
 
@@ -117,40 +123,43 @@ export function SubmitForApprovalModal({
         <DialogHeader>
           <DialogTitle>Submeter Tarefa para Aprovação</DialogTitle>
           <DialogDescription>
-            Anexe o ficheiro de prova e adicione notas para a tarefa "{task.title}".
+            Anexe os ficheiros de prova e adicione notas para a tarefa "{task.title}".
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">
           <div className="space-y-2">
-            <Label>Ficheiro de Prova</Label>
+            <Label>Ficheiros de Prova</Label>
             <div
               className="border-2 border-dashed border-muted-foreground/50 rounded-lg p-6 text-center cursor-pointer hover:bg-muted"
               onClick={() => fileInputRef.current?.click()}
             >
               <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
               <p className="mt-2 text-sm text-muted-foreground">
-                Clique para carregar ou arraste e solte o ficheiro
+                Clique para carregar ou arraste e solte os ficheiros
               </p>
               <Input
                 ref={fileInputRef}
                 type="file"
+                multiple
                 className="hidden"
                 onChange={handleFileChange}
               />
             </div>
-            {file && (
+            {files.length > 0 && (
               <div className="mt-4 space-y-2">
-                <h4 className="font-medium text-sm">Ficheiro Selecionado:</h4>
+                <h4 className="font-medium text-sm">Ficheiros Selecionados:</h4>
                 <ul className="divide-y divide-border rounded-md border">
-                    <li className="flex items-center justify-between p-2">
-                        <div className="flex items-center gap-2">
-                            <FileIcon className="h-5 w-5 text-muted-foreground" />
-                            <span className="text-sm">{file.name}</span>
-                        </div>
-                        <Button variant="ghost" size="icon" onClick={handleRemoveFile}>
-                            <X className="h-4 w-4" />
-                        </Button>
+                  {files.map((proofFile, index) => (
+                    <li key={index} className="flex items-center justify-between p-2">
+                      <div className="flex items-center gap-2">
+                        <FileIcon className="h-5 w-5 text-muted-foreground" />
+                        <span className="text-sm">{proofFile.name}</span>
+                      </div>
+                      <Button variant="ghost" size="icon" onClick={() => handleRemoveFile(index)}>
+                        <X className="h-4 w-4" />
+                      </Button>
                     </li>
+                  ))}
                 </ul>
               </div>
             )}
