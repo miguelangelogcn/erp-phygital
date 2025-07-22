@@ -54,6 +54,7 @@ const ALL_PERMISSIONS = [
   { id: "manage_roles", label: "Gerenciar Cargos" },
   { id: "manage_teams", label: "Gerenciar Equipes" },
   { id: "manage_calendar", label: "Gerenciar Calendário" },
+  { id: "manage_mentors", label: "Gerenciar Mentores de IA" },
 ];
 
 export default function RolesPage() {

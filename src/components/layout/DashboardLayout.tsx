@@ -19,7 +19,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { Briefcase, Users, ListTodo, Shield, UserSquare, CheckSquare, Calendar, LogOut } from "lucide-react";
+import { Briefcase, Users, ListTodo, Shield, UserSquare, CheckSquare, Calendar, LogOut, BrainCircuit } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { NotificationsBell } from "../notifications/NotificationsBell";
@@ -37,6 +37,7 @@ export default function DashboardLayoutComponent({
   const canManageRoles = userData?.permissions?.includes("manage_roles");
   const canManageTeams = userData?.permissions?.includes("manage_teams");
   const canManageCalendar = userData?.permissions?.includes("manage_calendar");
+  const canManageMentors = userData?.permissions?.includes("manage_mentors");
   const isLeader = userData?.isLeader || false;
 
   const handleLogout = async () => {
@@ -131,6 +132,16 @@ export default function DashboardLayoutComponent({
                           <SidebarMenuButton>
                             <Calendar className="text-primary" />
                             Calendário de Gravações
+                          </SidebarMenuButton>
+                        </Link>
+                     </SidebarMenuItem>
+                   )}
+                   {canManageMentors && (
+                     <SidebarMenuItem>
+                        <Link href="/dashboard/mentors">
+                          <SidebarMenuButton>
+                            <BrainCircuit className="text-primary" />
+                            Mentores de IA
                           </SidebarMenuButton>
                         </Link>
                      </SidebarMenuItem>
