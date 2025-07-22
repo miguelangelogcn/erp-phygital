@@ -21,7 +21,6 @@ dotenv.config();
 
 // Configurações de encriptação (NÃO MUDE A CHAVE APÓS DEFINIDA)
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString("hex");
-const IV_LENGTH = 16;
 
 
 // Inicialização segura do Admin SDK
