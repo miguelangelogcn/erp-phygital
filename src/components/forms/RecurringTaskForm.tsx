@@ -224,7 +224,10 @@ const RecurringTaskForm = ({ task, responsibleOptions = [], allUserOptions = [],
                             render={({ field: checkField }) => (
                                 <Checkbox
                                     checked={checkField.value}
-                                    onCheckedChange={(checked) => handleCheckboxChange(index, !!checked)}
+                                    onCheckedChange={(checked) => {
+                                        checkField.onChange(checked);
+                                        handleCheckboxChange(index, !!checked);
+                                    }}
                                 />
                             )}
                         />
