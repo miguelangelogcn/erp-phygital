@@ -93,7 +93,7 @@ export default function DashboardLayoutComponent({
                 <SidebarGroupLabel>OPERAÇÕES</SidebarGroupLabel>
                  {menuItems.map(item => item.show && (
                     <SidebarMenuItem key={item.href}>
-                      <Link href={item.href}>
+                      <Link href={item.href} passHref>
                         <SidebarMenuButton isActive={pathname.startsWith(item.href)}>
                           <item.icon className="text-primary" />
                           {item.label}
@@ -108,7 +108,7 @@ export default function DashboardLayoutComponent({
                     <SidebarGroupLabel>GESTÃO</SidebarGroupLabel>
                     {adminMenuItems.map(item => item.show && (
                         <SidebarMenuItem key={item.href}>
-                            <Link href={item.href}>
+                            <Link href={item.href} passHref>
                                 <SidebarMenuButton isActive={pathname.startsWith(item.href)}>
                                     <item.icon className="text-primary" />
                                     {item.label}
@@ -128,7 +128,7 @@ export default function DashboardLayoutComponent({
               >
                 <LogOut />
                 Sair
-              </Button>
+              </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarFooter>
         </Sidebar>
