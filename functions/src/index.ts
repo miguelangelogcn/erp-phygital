@@ -1,4 +1,4 @@
-
+// Forçando a atualização do deploy em 2024-08-01T20:17:01.056Z
 import { onCall, HttpsError, onRequest } from "firebase-functions/v2/https";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
