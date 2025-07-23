@@ -19,6 +19,7 @@ import type { CalendarEvent, EventChecklistItem } from "@/types/calendarEvent";
 import type { SelectOption } from "@/types/common";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { CommentSection } from "../comments/CommentSection";
 
 interface EventDetailsModalProps {
   event: CalendarEvent | null;
@@ -44,6 +45,7 @@ export const EventDetailsModal = ({ event, isOpen, onClose, onEdit, users, clien
   
   const startDate = formatDateTime(event.startDateTime);
   const endDate = formatDateTime(event.endDateTime);
+  const docPath = `calendarEvents/${event.id}`;
 
   const handleCheckChange = (index: number, checked: boolean) => {
       if (!onChecklistItemChange || !event.checklist) return;
@@ -117,6 +119,8 @@ export const EventDetailsModal = ({ event, isOpen, onClose, onEdit, users, clien
                 <p className="text-sm text-muted-foreground">Nenhum roteiro adicionado a este evento.</p>
              )}
           </div>
+          <Separator />
+          <CommentSection docPath={docPath} />
         </div>
         <DialogFooter className="border-t pt-4">
             <Button variant="outline" onClick={onClose}>Fechar</Button>

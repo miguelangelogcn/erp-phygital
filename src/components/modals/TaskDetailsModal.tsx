@@ -19,6 +19,7 @@ import type { RecurringTask, RecurringChecklistItem } from "@/types/recurringTas
 import type { SelectOption } from "@/types/common";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { CommentSection } from "../comments/CommentSection";
 
 function isRecurringTask(task: Task | RecurringTask): task is RecurringTask {
     return 'dayOfWeek' in task;
@@ -57,10 +58,12 @@ const TaskDetailsModal = ({ task, isOpen, onClose, onEdit, users, clients, onChe
   
   let dateInfo: string;
   let statusInfo: string;
+  let docPath: string;
 
   if (isRecurring) {
     dateInfo = dayOfWeekMap[task.dayOfWeek] || "Dia inválido";
     statusInfo = task.isCompleted ? 'Concluído' : 'Pendente';
+    docPath = `recurringTasks/${task.id}`;
   } else {
     dateInfo = task.dueDate ? format(task.dueDate.toDate(), "PPP", { locale: ptBR }) : "Não definida";
     const statusMap: Record<string, string> = {
@@ -69,6 +72,7 @@ const TaskDetailsModal = ({ task, isOpen, onClose, onEdit, users, clients, onChe
         done: 'Concluído'
     };
     statusInfo = statusMap[task.status] || task.status;
+    docPath = `tasks/${task.id}`;
   }
   
   const handleCheckChange = (index: number, checked: boolean) => {
@@ -126,6 +130,8 @@ const TaskDetailsModal = ({ task, isOpen, onClose, onEdit, users, clients, onChe
               </div>
             </>
           )}
+          <Separator />
+          <CommentSection docPath={docPath} />
         </div>
         <DialogFooter className="border-t pt-4">
             <Button variant="outline" onClick={onClose}>Fechar</Button>
