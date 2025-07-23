@@ -84,7 +84,7 @@ export function CommentSection({ docPath }: CommentSectionProps) {
     const optimisticComment: Comment = {
       ...commentData,
       id: tempId,
-      createdAt: Timestamp.now(), // <-- CORREÇÃO AQUI
+      createdAt: Timestamp.now(),
     };
     setComments(prevComments => [...prevComments, optimisticComment]);
     setNewComment('');
@@ -96,7 +96,7 @@ export function CommentSection({ docPath }: CommentSectionProps) {
         console.error("Erro ao adicionar comentário:", error);
         toast({ variant: 'destructive', title: 'Erro ao adicionar comentário.' });
         // Reverter a atualização otimista em caso de erro
-        setComments(prevComments => prevComments.filter(c => c.id !== optimisticComment.id));
+        setComments(prevComments => prevComments.filter(c => c.id !== tempId));
     } finally {
         setIsSubmitting(false);
     }
@@ -108,6 +108,25 @@ export function CommentSection({ docPath }: CommentSectionProps) {
           user.display.toLowerCase().includes(query.toLowerCase())
       );
       callback(filteredUsers);
+  };
+
+  const renderCommentText = (text: string) => {
+    const mentionRegex = /@\[(.*?)\]\((.*?)\)/g;
+    const parts = text.split(mentionRegex);
+
+    return parts.map((part, index) => {
+      if (index % 3 === 1) { // This is the display name
+        return (
+          <strong key={index} className="comment-mention">
+            @{part}
+          </strong>
+        );
+      }
+      if (index % 3 === 2) { // This is the ID, we ignore it
+        return null;
+      }
+      return part; // This is regular text
+    });
   };
 
 
@@ -130,7 +149,7 @@ export function CommentSection({ docPath }: CommentSectionProps) {
                         {comment.createdAt ? formatDistanceToNow(comment.createdAt.toDate(), { addSuffix: true, locale: ptBR }) : 'agora mesmo'}
                     </p>
                 </div>
-                <p className="text-sm text-foreground whitespace-pre-wrap">{comment.text}</p>
+                <p className="text-sm text-foreground whitespace-pre-wrap">{renderCommentText(comment.text)}</p>
               </div>
             </div>
           ))
