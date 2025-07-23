@@ -46,6 +46,7 @@ import type { User } from "@/types/user";
 
 
 import TaskForm from "@/components/forms/TaskForm";
+import TaskDetailsModal from "@/components/modals/TaskDetailsModal";
 import { CreateTaskModal } from "@/components/modals/CreateTaskModal";
 import { SubmitForApprovalModal } from '@/components/modals/SubmitForApprovalModal';
 import { TaskCard } from "@/components/tasks/TaskCard";
@@ -81,6 +82,7 @@ export default function PontualTasks() {
   const [clients, setClients] = useState<SelectOption[]>([]);
   const { toast } = useToast();
 
+  const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
   const [taskForApproval, setTaskForApproval] = useState<Task | null>(null);
@@ -191,9 +193,6 @@ export default function PontualTasks() {
         newColumns[task.status].tasks.push(task)
       }
     });
-
-    // We no longer need to sort here as it's done before grouping
-    // Object.values(newColumns).forEach(col => col.tasks.sort((a, b) => (a.order || 0) - (b.order || 0)));
     
     setColumns(newColumns);
   }, [filteredTasks]);
@@ -204,9 +203,14 @@ export default function PontualTasks() {
   };
 
   const handleCardClick = (task: Task) => {
+    setViewingTask(task);
+  };
+
+  const handleEditClick = (task: Task) => {
+    setViewingTask(null);
     setEditingTask(task);
     setIsEditModalOpen(true);
-  };
+  }
   
   const onDragEnd = (result: DropResult) => {
     const { source, destination, draggableId } = result;
@@ -415,7 +419,7 @@ export default function PontualTasks() {
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
                             >
-                              <TaskCard task={task} onEdit={handleCardClick} />
+                              <TaskCard task={task} onCardClick={handleCardClick} />
                             </div>
                           )}
                         </Draggable>
@@ -469,6 +473,17 @@ export default function PontualTasks() {
         />
       )}
 
+      {viewingTask && (
+        <TaskDetailsModal
+          isOpen={!!viewingTask}
+          onClose={() => setViewingTask(null)}
+          task={viewingTask}
+          users={allUserOptions}
+          clients={clients}
+          onEdit={() => handleEditClick(viewingTask)}
+        />
+      )}
+
        {alertState && (
          <AlertDialog open={alertState.isOpen} onOpenChange={(isOpen) => !isOpen && setAlertState(null)}>
            <AlertDialogContent>
@@ -486,7 +501,3 @@ export default function PontualTasks() {
     </div>
   );
 }
-
-    
-
-    

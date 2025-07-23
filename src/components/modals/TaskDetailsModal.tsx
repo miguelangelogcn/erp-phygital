@@ -6,8 +6,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -21,11 +23,12 @@ interface TaskDetailsModalProps {
   task: Task | null;
   isOpen: boolean;
   onClose: () => void;
+  onEdit: () => void;
   users: SelectOption[];
   clients: SelectOption[];
 }
 
-const TaskDetailsModal = ({ task, isOpen, onClose, users, clients }: TaskDetailsModalProps) => {
+const TaskDetailsModal = ({ task, isOpen, onClose, onEdit, users, clients }: TaskDetailsModalProps) => {
   if (!task) return null;
 
   const responsible = users.find(u => u.value === task.responsibleId)?.label;
@@ -80,6 +83,10 @@ const TaskDetailsModal = ({ task, isOpen, onClose, users, clients }: TaskDetails
             </>
           )}
         </div>
+        <DialogFooter className="border-t pt-4">
+            <Button variant="outline" onClick={onClose}>Fechar</Button>
+            <Button onClick={onEdit}>Editar Tarefa</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

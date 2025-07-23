@@ -4,20 +4,18 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { XCircle, Clock, FileText } from "lucide-react";
+import { XCircle, Clock } from "lucide-react";
 import type { Task } from '@/types/task';
 import { PriorityBadge } from '../ui/PriorityBadge';
 
 interface TaskCardProps {
   task: Task;
-  onEdit: (task: Task) => void; 
+  onCardClick: (task: Task) => void; 
 }
 
-export function TaskCard({ task, onEdit }: TaskCardProps) {
-  // O clique no cartão agora sempre abre o modal de edição/detalhes.
-  // A lógica de exibir o feedback está dentro do próprio modal.
+export function TaskCard({ task, onCardClick }: TaskCardProps) {
   const handleCardClick = () => {
-    onEdit(task);
+    onCardClick(task);
   };
 
   return (
