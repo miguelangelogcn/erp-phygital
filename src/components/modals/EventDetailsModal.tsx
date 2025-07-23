@@ -12,8 +12,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
-import type { CalendarEvent } from "@/types/calendarEvent";
+import type { CalendarEvent, EventChecklistItem } from "@/types/calendarEvent";
 import type { SelectOption } from "@/types/common";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -25,9 +27,10 @@ interface EventDetailsModalProps {
   onEdit: () => void;
   users: SelectOption[];
   clients: SelectOption[];
+  onChecklistItemChange?: (eventId: string, checklist: EventChecklistItem[]) => void;
 }
 
-export const EventDetailsModal = ({ event, isOpen, onClose, onEdit, users, clients }: EventDetailsModalProps) => {
+export const EventDetailsModal = ({ event, isOpen, onClose, onEdit, users, clients, onChecklistItemChange }: EventDetailsModalProps) => {
   if (!event) return null;
 
   const responsible = users.find(u => u.value === event.responsibleId)?.label;
@@ -41,6 +44,13 @@ export const EventDetailsModal = ({ event, isOpen, onClose, onEdit, users, clien
   
   const startDate = formatDateTime(event.startDateTime);
   const endDate = formatDateTime(event.endDateTime);
+
+  const handleCheckChange = (index: number, checked: boolean) => {
+      if (!onChecklistItemChange || !event.checklist) return;
+      const updatedChecklist = [...event.checklist];
+      updatedChecklist[index] = { ...updatedChecklist[index], isCompleted: checked };
+      onChecklistItemChange(event.id, updatedChecklist);
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -62,6 +72,30 @@ export const EventDetailsModal = ({ event, isOpen, onClose, onEdit, users, clien
           </div>
 
           <Separator className="my-2"/>
+
+           {event.checklist && event.checklist.length > 0 && (
+            <>
+              <div>
+                <h4 className="font-semibold mb-2">Checklist de Preparação</h4>
+                <div className="space-y-2">
+                  {event.checklist.map((item, index) => (
+                    <div key={item.id} className="flex items-center space-x-2">
+                        <Checkbox
+                            id={`check-details-${item.id}`}
+                            checked={item.isCompleted}
+                            onCheckedChange={(checked) => handleCheckChange(index, !!checked)}
+                            disabled={!onChecklistItemChange}
+                        />
+                        <Label htmlFor={`check-details-${item.id}`} className={item.isCompleted ? "line-through text-muted-foreground" : ""}>
+                            {item.text}
+                        </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <Separator className="my-2"/>
+            </>
+          )}
           
           <div>
             <h4 className="font-semibold text-base mb-2">Roteiros Planeados</h4>

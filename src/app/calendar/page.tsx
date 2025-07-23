@@ -9,19 +9,22 @@ import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { EventInput, EventClickArg, DateClickArg } from '@fullcalendar/core';
 import { Loader2 } from 'lucide-react';
-import type { CalendarEvent } from '@/types/calendarEvent';
+import type { CalendarEvent, EventChecklistItem } from '@/types/calendarEvent';
 import { EventModal } from '@/components/modals/EventModal';
 import { EventDetailsModal } from '@/components/modals/EventDetailsModal';
 import { Timestamp } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getUsers } from '@/lib/firebase/services/users';
 import { getClients } from '@/lib/firebase/services/clients';
+import { updateEventChecklist } from '@/lib/firebase/services/calendarEvents';
 import type { SelectOption } from '@/types/common';
 import type { User } from '@/types/user';
+import { useToast } from '@/hooks/use-toast';
 
 export default function CalendarPage() {
   const [events, setEvents] = useState<EventInput[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   // States for modals
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -95,6 +98,31 @@ export default function CalendarPage() {
           setIsEditModalOpen(true);
       }
   }
+
+  const handleEventChecklistItemChange = async (eventId: string, checklist: EventChecklistItem[]) => {
+      if (!viewingEvent) return;
+
+      const originalEvents = [...events];
+      const updatedEvents = events.map(e => {
+        if (e.id === eventId) {
+          return { ...e, extendedProps: { ...e.extendedProps, checklist }};
+        }
+        return e;
+      });
+      setEvents(updatedEvents);
+
+      // Update viewingEvent state as well for instant UI feedback
+      setViewingEvent(prev => prev ? { ...prev, checklist } : null);
+
+      try {
+          await updateEventChecklist(eventId, checklist);
+      } catch (error) {
+          setEvents(originalEvents);
+          const originalEvent = originalEvents.find(e => e.id === eventId)?.extendedProps as CalendarEvent;
+          setViewingEvent(originalEvent || null);
+          toast({ variant: "destructive", title: "Erro ao atualizar checklist" });
+      }
+  };
   
   if (loading) {
     return (
@@ -148,6 +176,7 @@ export default function CalendarPage() {
         onEdit={handleEditFromDetails}
         users={users}
         clients={clients}
+        onChecklistItemChange={handleEventChecklistItemChange}
       />
     </main>
   );
