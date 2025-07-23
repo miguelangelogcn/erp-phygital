@@ -70,29 +70,36 @@ export function CommentSection({ docPath }: CommentSectionProps) {
     e.preventDefault();
     if (!newComment.trim() || !userData) return;
     setSubmitting(true);
-
+    
+    const tempId = Date.now().toString(); // ID temporário
+    
     const commentData: NewComment = {
       text: newComment,
       authorId: userData.id,
       authorName: userData.name,
     };
 
+    // Adiciona ao estado local para atualização instantânea da UI
+    const optimisticComment: Comment = {
+      ...commentData,
+      id: tempId,
+      createdAt: Timestamp.now(), // <-- CORREÇÃO AQUI
+    };
+    setComments(prevComments => [...prevComments, optimisticComment]);
+    setNewComment('');
+    
     try {
-      const newId = await addComment(docPath, commentData);
-      // Optimistic update
-      const optimisticComment: Comment = {
-        ...commentData,
-        id: newId, // Use a temporary or the returned ID
-        createdAt: Timestamp.now(),
-      };
-      setComments(prevComments => [...prevComments, optimisticComment]);
-      setNewComment('');
+      // Salva no Firestore em segundo plano
+      await addComment(docPath, commentData);
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Erro ao adicionar comentário', description: error.message });
+       // Opcional: remover o comentário otimista se a gravação falhar
+      setComments(prevComments => prevComments.filter(c => c.id !== tempId));
     } finally {
       setSubmitting(false);
     }
   };
+
 
   const fetchUsersForMention = (query: string, callback: (data: MentionUser[]) => void) => {
       if (!query) return;
