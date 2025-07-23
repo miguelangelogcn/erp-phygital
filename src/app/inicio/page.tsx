@@ -131,7 +131,7 @@ export default function InicioPage() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {availablePages.map((page) => (
-                <Link href={page.href} key={page.href} className="block">
+                <Link href={page.href} key={`${page.href}-${page.title}`} className="block">
                     <Card className="h-full hover:bg-accent hover:text-accent-foreground transition-colors">
                         <CardHeader className="flex flex-row items-center gap-4">
                             <page.icon className="h-8 w-8 text-primary" />
