@@ -132,6 +132,8 @@ export function CommentSection({ docPath }: CommentSectionProps) {
           <Mention
             trigger="@"
             data={fetchUsersForMention}
+            markup="@[__display__](__id__)"
+            displayTransform={(id, display) => `@${display}`}
             className="mentions__mention"
           />
         </MentionsInput>
