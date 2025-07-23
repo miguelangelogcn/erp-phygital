@@ -11,16 +11,41 @@ import { EventInput, EventClickArg, DateClickArg } from '@fullcalendar/core';
 import { Loader2 } from 'lucide-react';
 import type { CalendarEvent } from '@/types/calendarEvent';
 import { EventModal } from '@/components/modals/EventModal';
+import { EventDetailsModal } from '@/components/modals/EventDetailsModal';
 import { Timestamp } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getUsers } from '@/lib/firebase/services/users';
+import { getClients } from '@/lib/firebase/services/clients';
+import type { SelectOption } from '@/types/common';
+import type { User } from '@/types/user';
 
 export default function CalendarPage() {
   const [events, setEvents] = useState<EventInput[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<Partial<CalendarEvent> | null>(null);
+
+  // States for modals
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<Partial<CalendarEvent> | null>(null);
+  const [viewingEvent, setViewingEvent] = useState<CalendarEvent | null>(null);
+  
+  // State for auxiliary data
+  const [users, setUsers] = useState<SelectOption[]>([]);
+  const [clients, setClients] = useState<SelectOption[]>([]);
+
 
   useEffect(() => {
+    const fetchAuxData = async () => {
+        try {
+            const usersData = await getUsers();
+            const clientsData = await getClients();
+            setUsers(usersData.map((u: User) => ({ value: u.id, label: u.name })));
+            setClients(clientsData.map(c => ({ value: c.id, label: c.name })));
+        } catch (error) {
+            console.error("Failed to fetch users or clients", error);
+        }
+    }
+    fetchAuxData();
+    
     const unsubscribe = onSnapshot(collection(db, 'calendarEvents'), (snapshot) => {
       const fetchedEvents = snapshot.docs.map(doc => {
         const data = doc.data() as Omit<CalendarEvent, 'id'>;
@@ -49,19 +74,26 @@ export default function CalendarPage() {
   const handleDateClick = (arg: DateClickArg) => {
     const startDateTime = Timestamp.fromDate(arg.date);
     const endDateTime = Timestamp.fromDate(new Date(arg.date.getTime() + 60 * 60 * 1000)); // Add 1 hour
-    setSelectedEvent({ startDateTime, endDateTime });
-    setIsModalOpen(true);
+    setEditingEvent({ startDateTime, endDateTime });
+    setIsEditModalOpen(true);
   };
 
   const handleEventClick = (arg: EventClickArg) => {
     const eventData = arg.event.extendedProps as CalendarEvent;
-    setSelectedEvent(eventData);
-    setIsModalOpen(true);
+    setViewingEvent(eventData);
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedEvent(null);
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false);
+    setEditingEvent(null);
+  }
+
+  const handleEditFromDetails = () => {
+      if (viewingEvent) {
+          setEditingEvent(viewingEvent);
+          setViewingEvent(null);
+          setIsEditModalOpen(true);
+      }
   }
   
   if (loading) {
@@ -104,9 +136,18 @@ export default function CalendarPage() {
       </Card>
      
       <EventModal
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        event={selectedEvent}
+        isOpen={isEditModalOpen}
+        onClose={handleCloseEditModal}
+        event={editingEvent}
+      />
+
+      <EventDetailsModal
+        isOpen={!!viewingEvent}
+        onClose={() => setViewingEvent(null)}
+        event={viewingEvent}
+        onEdit={handleEditFromDetails}
+        users={users}
+        clients={clients}
       />
     </main>
   );
