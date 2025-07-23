@@ -10,6 +10,12 @@ export interface Script {
   cta?: string;
 }
 
+export interface EventChecklistItem {
+    id: string;
+    text: string;
+    isCompleted: boolean;
+}
+
 export interface CalendarEvent {
   id: string;
   title: string;
@@ -19,6 +25,7 @@ export interface CalendarEvent {
   responsibleId?: string;
   assistantIds?: string[];
   scripts?: Script[];
+  checklist?: EventChecklistItem[];
   color?: string; // e.g., hex code
 }
 

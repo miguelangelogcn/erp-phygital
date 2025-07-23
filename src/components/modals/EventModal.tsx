@@ -25,13 +25,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Trash2, PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getClients } from '@/lib/firebase/services/clients';
 import { getUsers } from '@/lib/firebase/services/users';
-import { addCalendarEvent, updateCalendarEvent, deleteCalendarEvent } from '@/lib/firebase/services/calendarEvents';
-import type { CalendarEvent, NewCalendarEvent, Script } from '@/types/calendarEvent';
+import { addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, updateEventChecklist } from '@/lib/firebase/services/calendarEvents';
+import type { CalendarEvent, NewCalendarEvent, Script, EventChecklistItem } from '@/types/calendarEvent';
 import type { Client } from '@/types/client';
 import type { User } from '@/types/user';
 import { Timestamp } from 'firebase/firestore';
@@ -60,20 +61,26 @@ export function EventModal({ isOpen, onClose, event, onEventChange }: EventModal
 
   const userOptions = users.map(u => ({ value: u.id, label: u.name }));
 
-  const { register, control, handleSubmit, reset } = useForm<NewCalendarEvent>({
+  const { register, control, handleSubmit, reset, getValues } = useForm<NewCalendarEvent>({
     defaultValues: {
       title: '',
       clientId: '',
       responsibleId: '',
       assistantIds: [],
       scripts: [],
+      checklist: [],
       color: '#3788d8',
     }
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields: scriptFields, append: appendScript, remove: removeScript } = useFieldArray({
     control,
     name: 'scripts',
+  });
+
+  const { fields: checklistFields, append: appendChecklistItem, remove: removeChecklistItem } = useFieldArray({
+      control,
+      name: "checklist"
   });
 
   useEffect(() => {
@@ -88,6 +95,7 @@ export function EventModal({ isOpen, onClose, event, onEventChange }: EventModal
             reset({
               ...event,
               scripts: event.scripts || [],
+              checklist: event.checklist || [],
             });
           } else {
              reset({
@@ -98,6 +106,7 @@ export function EventModal({ isOpen, onClose, event, onEventChange }: EventModal
                 responsibleId: '',
                 assistantIds: [],
                 scripts: [],
+                checklist: [],
                 color: '#3788d8',
             });
           }
@@ -123,6 +132,7 @@ export function EventModal({ isOpen, onClose, event, onEventChange }: EventModal
         responsibleId: data.responsibleId || '',
         assistantIds: data.assistantIds || [],
         scripts: data.scripts?.map(script => ({ ...script, id: script.id || crypto.randomUUID() })) || [],
+        checklist: data.checklist?.map(item => ({ ...item, id: item.id || crypto.randomUUID() })),
         color: data.color || '#3788d8',
       };
 
@@ -158,6 +168,29 @@ export function EventModal({ isOpen, onClose, event, onEventChange }: EventModal
           setIsAlertOpen(false);
       }
   }
+
+  const handleChecklistItemChange = async (index: number, checked: boolean) => {
+    if (!event?.id) return;
+
+    const currentChecklist = getValues("checklist") || [];
+    const updatedChecklist = [...currentChecklist];
+    updatedChecklist[index].isCompleted = !!checked;
+
+    try {
+      await updateEventChecklist(event.id, updatedChecklist);
+      // We don't show a toast here to avoid being too noisy on every check.
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao atualizar checklist",
+        description: "A sua alteração não foi guardada.",
+      });
+      // Revert the UI change if the update fails
+       updatedChecklist[index].isCompleted = !checked;
+      reset({ ...getValues(), checklist: updatedChecklist });
+    }
+  };
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -261,19 +294,51 @@ export function EventModal({ isOpen, onClose, event, onEventChange }: EventModal
                     <Label htmlFor="color">Cor do Evento</Label>
                     <Input id="color" type="color" {...register("color")} className="h-10 p-1" />
                 </div>
+                
+                 <div>
+                    <div className="flex justify-between items-center">
+                        <Label>Checklist de Preparação</Label>
+                        <Button type="button" size="sm" variant="outline" onClick={() => appendChecklistItem({ id: crypto.randomUUID(), text: '', isCompleted: false })}>
+                            <PlusCircle className="mr-2" /> Adicionar
+                        </Button>
+                    </div>
+                     <div className="space-y-2 mt-2">
+                      {checklistFields.map((field, index) => (
+                        <div key={field.id} className="flex items-center gap-2 p-2 border rounded-md">
+                            <Controller
+                                name={`checklist.${index}.isCompleted`}
+                                control={control}
+                                render={({ field: checkField }) => (
+                                    <Checkbox
+                                        checked={checkField.value}
+                                        onCheckedChange={(checked) => {
+                                            checkField.onChange(checked);
+                                            handleChecklistItemChange(index, !!checked);
+                                        }}
+                                    />
+                                )}
+                            />
+                            <Input {...register(`checklist.${index}.text`)} placeholder="Descrição do item" className="flex-grow" />
+                            <Button type="button" variant="ghost" size="icon" onClick={() => removeChecklistItem(index)}>
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </div>
+                      ))}
+                     </div>
+                </div>
               </div>
 
               <div className="md:col-span-1 space-y-4">
                 <div className="flex justify-between items-center">
                     <Label>Roteiros</Label>
-                    <Button type="button" size="sm" variant="outline" onClick={() => append({ id: crypto.randomUUID(), title: '', targetAudience: '', hook: '', development: '', cta: '' })}>
+                    <Button type="button" size="sm" variant="outline" onClick={() => appendScript({ id: crypto.randomUUID(), title: '', targetAudience: '', hook: '', development: '', cta: '' })}>
                         <PlusCircle className="mr-2" /> Adicionar Roteiro
                     </Button>
                 </div>
                  <div className="space-y-4">
-                  {fields.map((field, index) => (
+                  {scriptFields.map((field, index) => (
                     <div key={field.id} className="p-4 border rounded-lg space-y-3 relative">
-                      <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2" onClick={() => remove(index)}>
+                      <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2" onClick={() => removeScript(index)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                       <div>
