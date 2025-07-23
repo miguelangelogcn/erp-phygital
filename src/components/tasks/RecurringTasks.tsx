@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 
 import { CreateRecurringTaskModal } from "@/components/modals/CreateRecurringTaskModal";
 import RecurringTaskForm from "@/components/forms/RecurringTaskForm";
+import TaskDetailsModal from "@/components/modals/TaskDetailsModal";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Badge } from "@/components/ui/badge";
 
@@ -54,10 +55,14 @@ export default function RecurringTasks() {
   const [allTasks, setAllTasks] = useState<RecurringTask[]>([]);
   const [dayColumns, setDayColumns] = useState<DayColumn[]>(initialDays);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<RecurringTask | null>(null);
+
+  const [viewingTask, setViewingTask] = useState<RecurringTask | null>(null);
+  
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
   const [taskForApproval, setTaskForApproval] = useState<RecurringTask | null>(null);
-  const [editingTask, setEditingTask] = useState<RecurringTask | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -165,15 +170,19 @@ export default function RecurringTasks() {
     }
   }
 
-
   const handleCardClick = (task: RecurringTask) => {
-    setEditingTask(task);
-    setIsModalOpen(true);
+    setViewingTask(task);
   };
+  
+  const handleEditClick = (task: RecurringTask) => {
+    setViewingTask(null);
+    setEditingTask(task);
+    setIsEditModalOpen(true);
+  }
 
   const handleCloseModal = () => {
     setEditingTask(null);
-    setIsModalOpen(false);
+    setIsEditModalOpen(false);
   };
 
   const handleSaveTask = async (data: Partial<RecurringTask>) => {
@@ -228,7 +237,6 @@ export default function RecurringTasks() {
       );
       setAllTasks(updatedTasks);
       
-      // Also update the single editing task if it's the one being changed
       if (editingTask && editingTask.id === taskId) {
         setEditingTask({ ...editingTask, checklist });
       }
@@ -375,7 +383,7 @@ export default function RecurringTasks() {
         ))}
       </div>
 
-      <Dialog open={isModalOpen} onOpenChange={(open) => !open && handleCloseModal()}>
+      <Dialog open={isEditModalOpen} onOpenChange={(open) => !open && handleCloseModal()}>
         <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Editar Tarefa Recorrente</DialogTitle>
@@ -400,6 +408,17 @@ export default function RecurringTasks() {
           )}
         </DialogContent>
       </Dialog>
+      
+      {viewingTask && (
+        <TaskDetailsModal
+          isOpen={!!viewingTask}
+          onClose={() => setViewingTask(null)}
+          task={viewingTask}
+          users={allUserOptions}
+          clients={clients}
+          onEdit={() => handleEditClick(viewingTask)}
+        />
+      )}
 
        {taskForApproval && (
         <SubmitForApprovalModal
