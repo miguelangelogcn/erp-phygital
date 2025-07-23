@@ -357,7 +357,7 @@ const handleItemUpdate = async (
             const leaderId = team.data()?.leaderId;
             if (leaderId) {
                 const message = `A ${itemType} "${afterData.title}" foi submetida para aprovação.`;
-                const linkTo = `/dashboard/approvals`;
+                const linkTo = `/approvals`;
                 const creatorName = taskCreatorDoc.data()?.name || 'Um utilizador';
                 await createNotificationsForUsers([leaderId], message, linkTo, creatorName);
             }
@@ -559,4 +559,69 @@ export const onCalendarEventCreated = onDocumentCreated({ document: "calendarEve
 export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEvents/{eventId}", region: "southamerica-east1" }, async (event) => {
     if (!event.data) return;
     return handleItemUpdate(event.data, "evento", "/dashboard/calendar?openEvent=", event.params.eventId);
+});
+
+// --- Gatilho para menções em comentários ---
+export const onCommentCreated = onDocumentCreated({ document: "{collectionId}/{docId}/comments/{commentId}", region: "southamerica-east1" }, async (event) => {
+    if (!event.data) return;
+
+    const commentData = event.data.data();
+    const { text, authorName, authorId } = commentData;
+    const { collectionId, docId } = event.params;
+
+    if (!text || !authorName) {
+        logger.info("Comment text or authorName is missing.");
+        return;
+    }
+
+    const mentionRegex = /@\[.*?\]\((.*?)\)/g;
+    const mentionedIds = new Set<string>();
+    let match;
+    while ((match = mentionRegex.exec(text)) !== null) {
+        mentionedIds.add(match[1]);
+    }
+    
+    // Remove o próprio autor da lista de menções para evitar auto-notificação
+    if (authorId) {
+        mentionedIds.delete(authorId);
+    }
+    
+    if (mentionedIds.size === 0) {
+        return;
+    }
+
+    try {
+        const parentDocRef = db.collection(collectionId).doc(docId);
+        const parentDoc = await parentDocRef.get();
+        if (!parentDoc.exists) {
+            logger.warn(`Parent document ${docId} in ${collectionId} not found.`);
+            return;
+        }
+        const parentData = parentDoc.data();
+        const parentTitle = parentData?.title || 'item';
+
+        let itemType = 'item';
+        let linkTo = '';
+        
+        switch (collectionId) {
+            case 'tasks':
+                itemType = 'tarefa';
+                linkTo = `/tasks?openTask=${docId}`;
+                break;
+            case 'recurringTasks':
+                itemType = 'tarefa recorrente';
+                linkTo = `/tasks?tab=recurring&openTask=${docId}`;
+                break;
+            case 'calendarEvents':
+                itemType = 'evento';
+                linkTo = `/calendar?openEvent=${docId}`;
+                break;
+        }
+
+        const message = `${authorName} mencionou você no ${itemType} "${parentTitle}"`;
+        await createNotificationsForUsers(Array.from(mentionedIds), message, linkTo, authorName);
+
+    } catch (error) {
+        logger.error(`Error creating mention notifications for comment ${event.params.commentId}:`, error);
+    }
 });
