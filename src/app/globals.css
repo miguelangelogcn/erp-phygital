@@ -337,3 +337,33 @@ opacity: 1;
 }
 
 }
+
+/* Estilos para o react-mentions */
+.mentions {
+  @apply w-full;
+}
+
+.mentions__control {
+  @apply min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm;
+}
+
+.mentions__input {
+  @apply bg-transparent text-foreground outline-none;
+}
+
+.mentions__suggestions__list {
+  @apply mt-2 rounded-md border bg-popover text-popover-foreground shadow-md;
+}
+
+.mentions__suggestions__item {
+  @apply px-2 py-1.5 text-sm cursor-pointer;
+}
+
+.mentions__suggestions__item--focused {
+  @apply bg-accent text-accent-foreground;
+}
+
+/* Estilo específico para a menção no texto */
+.mentions__mention {
+  @apply bg-accent text-accent-foreground font-bold rounded-sm px-1;
+}
