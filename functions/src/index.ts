@@ -231,9 +231,10 @@ export const reviewTask = onCall({ region: "southamerica-east1" }, async (reques
           cleanFeedback.files = feedback.files;
         }
 
+        // Correção Definitiva: Usar new Date() para o timestamp dentro do array
         updateData.rejectionFeedback = admin.firestore.FieldValue.arrayUnion({
             ...cleanFeedback,
-            rejectedAt: new Date(), 
+            rejectedAt: new Date(), // <-- AQUI ESTÁ A CORREÇÃO
             rejectedBy: approverName,
         });
         
