@@ -12,7 +12,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
-  SidebarInset,
   SidebarTrigger,
   SidebarMenu,
   SidebarMenuItem,
@@ -70,7 +69,6 @@ export default function DashboardLayoutComponent({
       { href: "/employees", icon: Users, label: "Gerenciar Funcionários", show: canManageEmployees },
       { href: "/roles", icon: Shield, label: "Gerenciar Cargos", show: canManageRoles },
       { href: "/teams", icon: UserSquare, label: "Gerenciar Equipes", show: canManageTeams },
-      { href: "/reports", icon: AreaChart, label: "Relatórios", show: canViewReports },
   ];
 
   // Don't render the layout on the login page
@@ -126,6 +124,16 @@ export default function DashboardLayoutComponent({
                             </Link>
                         </SidebarMenuItem>
                     ))}
+                    {canViewReports && (
+                      <SidebarMenuItem>
+                          <Link href="/reports" passHref>
+                              <SidebarMenuButton isActive={pathname.startsWith("/reports")}>
+                                  <AreaChart className="text-primary" />
+                                  Relatórios
+                              </SidebarMenuButton>
+                          </Link>
+                      </SidebarMenuItem>
+                    )}
                  </SidebarGroup>
               )}
             </SidebarMenu>
@@ -142,9 +150,7 @@ export default function DashboardLayoutComponent({
             </SidebarMenuItem>
           </SidebarFooter>
         </Sidebar>
-        <SidebarInset>
-          <main>{children}</main>
-        </SidebarInset>
+        <main className="flex-1">{children}</main>
       </div>
     </SidebarProvider>
   );
