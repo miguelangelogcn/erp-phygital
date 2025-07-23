@@ -15,6 +15,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import './mention-styles.css';
+import { Timestamp } from 'firebase/firestore';
 
 interface CommentSectionProps {
   docPath: string; // e.g., 'tasks/taskId123' or 'calendarEvents/eventId456'
@@ -77,7 +78,14 @@ export function CommentSection({ docPath }: CommentSectionProps) {
     };
 
     try {
-      await addComment(docPath, commentData);
+      const newId = await addComment(docPath, commentData);
+      // Optimistic update
+      const optimisticComment: Comment = {
+        ...commentData,
+        id: newId, // Use a temporary or the returned ID
+        createdAt: Timestamp.now(),
+      };
+      setComments(prevComments => [...prevComments, optimisticComment]);
       setNewComment('');
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Erro ao adicionar comentário', description: error.message });
@@ -128,6 +136,8 @@ export function CommentSection({ docPath }: CommentSectionProps) {
           placeholder="Adicione um comentário... use @ para mencionar"
           className="mentions"
           disabled={submitting}
+          markup="@[__display__](__id__)"
+          displayTransform={(id, display) => `@${display}`}
         >
           <Mention
             trigger="@"
