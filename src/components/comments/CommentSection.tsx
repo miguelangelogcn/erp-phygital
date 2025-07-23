@@ -146,7 +146,6 @@ export function CommentSection({ docPath }: CommentSectionProps) {
             className="mentions"
             disabled={isSubmitting}
             markup="@[__display__](__id__)"
-            displayTransform={(id, display) => `@${display}`}
          >
             <Mention
                 trigger="@"
