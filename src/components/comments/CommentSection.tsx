@@ -1,24 +1,25 @@
 // src/components/comments/CommentSection.tsx
-"use client";
+'use client';
 
 import React, { useState, useEffect } from 'react';
-import { MentionsInput, Mention } from 'react-mentions';
 import { useAuth } from '@/context/AuthContext';
-import { getUsers } from '@/lib/firebase/services/users';
-import { onCommentsUpdate, addComment } from '@/lib/firebase/services/comments';
-import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Loader2, Send } from 'lucide-react';
-import type { Comment, NewComment } from '@/types/comment';
+import { MentionsInput, Mention } from 'react-mentions';
+import { getUsers } from '@/lib/firebase/services/users';
+import { onCommentsUpdate, addComment } from '@/lib/firebase/services/comments';
 import type { User } from '@/types/user';
+import type { Comment } from '@/types/comment';
+import { Timestamp } from 'firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useToast } from '@/hooks/use-toast';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import './mention-styles.css';
-import { Timestamp } from 'firebase/firestore';
+
 
 interface CommentSectionProps {
-  docPath: string; // e.g., 'tasks/taskId123' or 'calendarEvents/eventId456'
+  docPath: string;
 }
 
 interface MentionUser {
@@ -27,40 +28,41 @@ interface MentionUser {
 }
 
 export function CommentSection({ docPath }: CommentSectionProps) {
+  const { userData } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
-  const [mentionUsers, setMentionUsers] = useState<MentionUser[]>([]);
-  const [loadingComments, setLoadingComments] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const { userData } = useAuth();
+  const [usersForMentions, setUsersForMentions] = useState<MentionUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
+   useEffect(() => {
     getUsers()
       .then((users) => {
         const mappedUsers = users.map((user: User) => ({
           id: user.id,
           display: user.name,
         }));
-        setMentionUsers(mappedUsers);
+        setUsersForMentions(mappedUsers);
       })
       .catch(() => {
         toast({ variant: 'destructive', title: 'Erro ao carregar utilizadores para menções.' });
       });
   }, [toast]);
 
+
   useEffect(() => {
     if (!docPath) return;
-    setLoadingComments(true);
+    setLoading(true);
     const unsubscribe = onCommentsUpdate(
       docPath,
       (fetchedComments) => {
         setComments(fetchedComments);
-        setLoadingComments(false);
+        setLoading(false);
       },
       (error) => {
         toast({ variant: 'destructive', title: 'Erro ao carregar comentários.' });
-        setLoadingComments(false);
+        setLoading(false);
       }
     );
     return () => unsubscribe();
@@ -69,17 +71,16 @@ export function CommentSection({ docPath }: CommentSectionProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim() || !userData) return;
-    setSubmitting(true);
     
-    const tempId = Date.now().toString(); // ID temporário
-    
-    const commentData: NewComment = {
+    setIsSubmitting(true);
+
+    const commentData = {
       text: newComment,
       authorId: userData.id,
-      authorName: userData.name,
+      authorName: userData.name || "Utilizador Desconhecido",
     };
-
-    // Adiciona ao estado local para atualização instantânea da UI
+    
+    const tempId = Date.now().toString(); // ID temporário
     const optimisticComment: Comment = {
       ...commentData,
       id: tempId,
@@ -87,34 +88,35 @@ export function CommentSection({ docPath }: CommentSectionProps) {
     };
     setComments(prevComments => [...prevComments, optimisticComment]);
     setNewComment('');
-    
+
+
     try {
-      // Salva no Firestore em segundo plano
-      await addComment(docPath, commentData);
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Erro ao adicionar comentário', description: error.message });
-       // Opcional: remover o comentário otimista se a gravação falhar
-      setComments(prevComments => prevComments.filter(c => c.id !== tempId));
+       await addComment(docPath, commentData);
+    } catch (error) {
+        console.error("Erro ao adicionar comentário:", error);
+        toast({ variant: 'destructive', title: 'Erro ao adicionar comentário.' });
+        // Reverter a atualização otimista em caso de erro
+        setComments(prevComments => prevComments.filter(c => c.id !== optimisticComment.id));
     } finally {
-      setSubmitting(false);
+        setIsSubmitting(false);
     }
   };
-
-
+  
   const fetchUsersForMention = (query: string, callback: (data: MentionUser[]) => void) => {
       if (!query) return;
-      const filteredUsers = mentionUsers.filter(user => 
+      const filteredUsers = usersForMentions.filter(user => 
           user.display.toLowerCase().includes(query.toLowerCase())
       );
       callback(filteredUsers);
   };
 
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pt-4">
       <h4 className="font-semibold">Comentários</h4>
       <div className="space-y-4 max-h-48 overflow-y-auto pr-2">
-        {loadingComments ? (
-          <div className="flex justify-center items-center"><Loader2 className="h-5 w-5 animate-spin" /></div>
+        {loading ? (
+            <div className="flex justify-center items-center py-4"><Loader2 className="h-5 w-5 animate-spin" /></div>
         ) : comments.length > 0 ? (
           comments.map((comment) => (
             <div key={comment.id} className="flex items-start gap-3">
@@ -125,7 +127,7 @@ export function CommentSection({ docPath }: CommentSectionProps) {
                 <div className="flex items-center gap-2">
                     <p className="font-semibold text-sm">{comment.authorName}</p>
                     <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(comment.createdAt.toDate(), { addSuffix: true, locale: ptBR })}
+                        {comment.createdAt ? formatDistanceToNow(comment.createdAt.toDate(), { addSuffix: true, locale: ptBR }) : 'agora mesmo'}
                     </p>
                 </div>
                 <p className="text-sm text-foreground whitespace-pre-wrap">{comment.text}</p>
@@ -137,25 +139,25 @@ export function CommentSection({ docPath }: CommentSectionProps) {
         )}
       </div>
       <form onSubmit={handleSubmit} className="flex items-start gap-2">
-        <MentionsInput
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          placeholder="Adicione um comentário... use @ para mencionar"
-          className="mentions"
-          disabled={submitting}
-          markup="@[__display__](__id__)"
-          displayTransform={(id, display) => `@${display}`}
-        >
-          <Mention
-            trigger="@"
-            data={fetchUsersForMention}
+         <MentionsInput
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            placeholder="Adicione um comentário... Use @ para mencionar alguém."
+            className="mentions"
+            disabled={isSubmitting}
             markup="@[__display__](__id__)"
             displayTransform={(id, display) => `@${display}`}
-            className="mentions__mention"
-          />
+         >
+            <Mention
+                trigger="@"
+                data={fetchUsersForMention}
+                markup="@[__display__](__id__)"
+                displayTransform={(id, display) => `@${display}`}
+                className="mentions__mention"
+            />
         </MentionsInput>
-        <Button type="submit" size="icon" disabled={submitting || !newComment.trim()}>
-           {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+        <Button type="submit" size="icon" disabled={isSubmitting || !newComment.trim()}>
+          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
       </form>
     </div>
