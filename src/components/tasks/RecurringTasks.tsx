@@ -237,6 +237,10 @@ export default function RecurringTasks() {
       );
       setAllTasks(updatedTasks);
       
+      if (viewingTask && viewingTask.id === taskId) {
+        setViewingTask({ ...viewingTask, checklist });
+      }
+
       if (editingTask && editingTask.id === taskId) {
         setEditingTask({ ...editingTask, checklist });
       }
@@ -417,6 +421,7 @@ export default function RecurringTasks() {
           users={allUserOptions}
           clients={clients}
           onEdit={() => handleEditClick(viewingTask)}
+          onChecklistItemChange={handleChecklistItemChange}
         />
       )}
 

@@ -14,8 +14,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 
-import type { Task } from "@/types/task";
-import type { RecurringTask } from "@/types/recurringTask";
+import type { Task, ChecklistItem } from "@/types/task";
+import type { RecurringTask, RecurringChecklistItem } from "@/types/recurringTask";
 import type { SelectOption } from "@/types/common";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -34,6 +34,8 @@ const dayOfWeekMap: Record<number, string> = {
     7: 'Domingo',
 };
 
+type GenericChecklistItem = ChecklistItem | RecurringChecklistItem;
+
 interface TaskDetailsModalProps {
   task: Task | RecurringTask | null;
   isOpen: boolean;
@@ -41,9 +43,10 @@ interface TaskDetailsModalProps {
   onEdit: () => void;
   users: SelectOption[];
   clients: SelectOption[];
+  onChecklistItemChange?: (taskId: string, checklist: GenericChecklistItem[]) => void;
 }
 
-const TaskDetailsModal = ({ task, isOpen, onClose, onEdit, users, clients }: TaskDetailsModalProps) => {
+const TaskDetailsModal = ({ task, isOpen, onClose, onEdit, users, clients, onChecklistItemChange }: TaskDetailsModalProps) => {
   if (!task) return null;
 
   const responsible = users.find(u => u.value === task.responsibleId)?.label;
@@ -67,6 +70,14 @@ const TaskDetailsModal = ({ task, isOpen, onClose, onEdit, users, clients }: Tas
     };
     statusInfo = statusMap[task.status] || task.status;
   }
+  
+  const handleCheckChange = (index: number, checked: boolean) => {
+      if (!onChecklistItemChange || !task.checklist) return;
+      const updatedChecklist = [...task.checklist];
+      updatedChecklist[index] = { ...updatedChecklist[index], isCompleted: checked };
+      onChecklistItemChange(task.id, updatedChecklist as GenericChecklistItem[]);
+  };
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -100,8 +111,13 @@ const TaskDetailsModal = ({ task, isOpen, onClose, onEdit, users, clients }: Tas
                 <div className="space-y-2">
                   {task.checklist.map((item, index) => (
                     <div key={index} className="flex items-center space-x-2">
-                        <Checkbox id={`check-readonly-${index}`} checked={item.isCompleted} disabled />
-                        <Label htmlFor={`check-readonly-${index}`} className={item.isCompleted ? "line-through text-muted-foreground" : ""}>
+                        <Checkbox
+                            id={`check-details-${index}`}
+                            checked={item.isCompleted}
+                            onCheckedChange={(checked) => handleCheckChange(index, !!checked)}
+                            disabled={!onChecklistItemChange}
+                        />
+                        <Label htmlFor={`check-details-${index}`} className={item.isCompleted ? "line-through text-muted-foreground" : ""}>
                             {item.text}
                         </Label>
                     </div>
