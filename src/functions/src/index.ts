@@ -216,6 +216,12 @@ export const reviewTask = onCall({ region: "southamerica-east1" }, async (reques
     try {
       const approverUser = await auth.getUser(approverId);
       const approverName = approverUser.displayName || "Líder";
+      
+      const taskDoc = await taskRef.get();
+      if (!taskDoc.exists) {
+          throw new HttpsError("not-found", "A tarefa não foi encontrada.");
+      }
+      const taskData = taskDoc.data();
 
       const updateData: { [key: string]: any } = {
         approvalStatus: decision,
@@ -252,6 +258,17 @@ export const reviewTask = onCall({ region: "southamerica-east1" }, async (reques
       }
 
       await taskRef.update(updateData);
+      
+      if (decision === 'rejected' && taskData?.responsibleId) {
+            const taskTitle = taskData.title || 'sem título';
+            const message = `${approverName} reprovou a sua tarefa: '${taskTitle}'`;
+            const linkTo = taskType === 'tasks' 
+                ? `/tasks?openTask=${taskId}` 
+                : `/tasks?tab=recurring&openTask=${taskId}`;
+
+            await createNotificationsForUsers([taskData.responsibleId], message, linkTo, approverName);
+      }
+
       return { success: true, message: "Revisão da tarefa concluída." };
 
     } catch (error: any) {
@@ -559,4 +576,69 @@ export const onCalendarEventCreated = onDocumentCreated({ document: "calendarEve
 export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEvents/{eventId}", region: "southamerica-east1" }, async (event) => {
     if (!event.data) return;
     return handleItemUpdate(event.data, "evento", "/calendar?openEvent=", event.params.eventId);
+});
+
+// --- Gatilho para menções em comentários ---
+export const onCommentCreated = onDocumentCreated({ document: "{collectionId}/{docId}/comments/{commentId}", region: "southamerica-east1" }, async (event) => {
+    if (!event.data) return;
+
+    const commentData = event.data.data();
+    const { text, authorName, authorId } = commentData;
+    const { collectionId, docId } = event.params;
+
+    if (!text || !authorName) {
+        logger.info("Comment text or authorName is missing.");
+        return;
+    }
+
+    const mentionRegex = /@\[.*?\]\((.*?)\)/g;
+    const mentionedIds = new Set<string>();
+    let match;
+    while ((match = mentionRegex.exec(text)) !== null) {
+        mentionedIds.add(match[1]);
+    }
+    
+    // Remove o próprio autor da lista de menções para evitar auto-notificação
+    if (authorId) {
+        mentionedIds.delete(authorId);
+    }
+    
+    if (mentionedIds.size === 0) {
+        return;
+    }
+
+    try {
+        const parentDocRef = db.collection(collectionId).doc(docId);
+        const parentDoc = await parentDocRef.get();
+        if (!parentDoc.exists) {
+            logger.warn(`Parent document ${docId} in ${collectionId} not found.`);
+            return;
+        }
+        const parentData = parentDoc.data();
+        const parentTitle = parentData?.title || 'item';
+
+        let itemType = 'item';
+        let linkTo = '';
+        
+        switch (collectionId) {
+            case 'tasks':
+                itemType = 'tarefa';
+                linkTo = `/tasks?openTask=${docId}`;
+                break;
+            case 'recurringTasks':
+                itemType = 'tarefa recorrente';
+                linkTo = `/tasks?tab=recurring&openTask=${docId}`;
+                break;
+            case 'calendarEvents':
+                itemType = 'evento';
+                linkTo = `/calendar?openEvent=${docId}`;
+                break;
+        }
+
+        const message = `${authorName} mencionou você no ${itemType} "${parentTitle}"`;
+        await createNotificationsForUsers(Array.from(mentionedIds), message, linkTo, authorName);
+
+    } catch (error) {
+        logger.error(`Error creating mention notifications for comment ${event.params.commentId}:`, error);
+    }
 });
