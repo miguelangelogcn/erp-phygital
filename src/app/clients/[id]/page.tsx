@@ -182,12 +182,9 @@ export default function ClientDetailPage() {
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <h3 className="font-semibold text-lg flex items-center"><Edit className="mr-2"/> Estratégia e Acessos</h3>
-                       <Button 
-                         variant="outline"
-                         onClick={handleLinkFacebookAccount}
-                       >
+                      <Button variant="outline">
                          <Facebook className="mr-2 h-4 w-4" />
-                         Vincular Conta do Facebook
+                         Vincular Conta da Meta
                        </Button>
                     </div>
                      <div>
@@ -196,7 +193,7 @@ export default function ClientDetailPage() {
                     </div>
                     <div>
                         <p className="font-medium flex items-center"><Megaphone className="mr-2"/> ID da Conta de Anúncios Meta:</p>
-                        <p className="text-sm text-muted-foreground">{client.metaIntegration?.adAccountId || client.metaAdsAccountId || "Não informado."}</p>
+                        <p className="text-sm text-muted-foreground">{client.metaIntegration?.adAccountId || "Não informado."}</p>
                     </div>
                      <div>
                         <p className="font-medium flex items-center"><KeyRound className="mr-2"/> Credenciais:</p>
