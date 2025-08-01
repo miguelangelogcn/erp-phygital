@@ -1,4 +1,4 @@
-// Forçando a atualização do deploy em 2024-08-01T20:17:01.056Z
+// Forçando a atualização do deploy em 2024-08-02T13:47:33.277Z
 import { onCall, HttpsError, onRequest } from "firebase-functions/v2/https";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -394,6 +394,78 @@ const handleItemUpdate = async (
 };
 
 // --- INTEGRAÇÃO COM A META ---
+
+export const startMetaAuth = onRequest({ region: "southamerica-east1" }, (req, res) => {
+    corsHandler(req, res, () => {
+        const { clientId } = req.query;
+        if (typeof clientId !== 'string') {
+            res.status(400).send("O ID do Cliente é obrigatório.");
+            return;
+        }
+
+        const redirectUri = `https://southamerica-east1-phygital-login.cloudfunctions.net/metaauthcallback`;
+        const scope = "ads_read,read_insights,business_management";
+        const state = JSON.stringify({ clientId });
+
+        const authUrl = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${metaAppId.value()}&redirect_uri=${redirectUri}&state=${encodeURIComponent(state)}&scope=${scope}`;
+        
+        logger.info(`Redirecionando utilizador para a Meta para o cliente: ${clientId}`);
+        res.redirect(authUrl);
+    });
+});
+
+export const metaAuthCallback = onRequest({ region: "southamerica-east1" }, async (req, res) => {
+    corsHandler(req, res, async () => {
+        const { code, state } = req.query;
+
+        if (typeof code !== 'string' || typeof state !== 'string') {
+            res.status(400).send("O código de autorização e o estado são obrigatórios.");
+            return;
+        }
+
+        const { clientId } = JSON.parse(decodeURIComponent(state));
+        const redirectUri = `https://southamerica-east1-phygital-login.cloudfunctions.net/metaauthcallback`;
+
+        try {
+            // Trocar código por token de acesso
+            const tokenUrl = `https://graph.facebook.com/v20.0/oauth/access_token`;
+            const tokenResponse = await axios.get(tokenUrl, {
+                params: {
+                    client_id: metaAppId.value(),
+                    redirect_uri: redirectUri,
+                    client_secret: metaAppSecret.value(),
+                    code: code,
+                }
+            });
+            const accessToken = tokenResponse.data.access_token;
+
+            // Buscar as contas de anúncios do utilizador
+            const adAccountsUrl = `https://graph.facebook.com/v20.0/me/adaccounts?access_token=${accessToken}&fields=account_id,name`;
+            const adAccountsResponse = await axios.get(adAccountsUrl);
+            const adAccounts = adAccountsResponse.data.data;
+
+            if (!adAccounts || adAccounts.length === 0) {
+                 res.status(404).send("Nenhuma conta de anúncios encontrada para este utilizador.");
+                 return;
+            }
+            
+            // Usar a primeira conta de anúncios encontrada
+            const adAccountId = adAccounts[0].account_id;
+            
+            // Salvar no Firestore
+            await db.collection('clients').doc(clientId).update({
+                'metaIntegration.adAccountId': adAccountId,
+                'metaIntegration.accessToken': accessToken,
+            });
+
+            res.send("<p>Conta vinculada com sucesso! Esta janela será fechada em breve.</p><script>setTimeout(() => window.close(), 3000);</script>");
+
+        } catch (error: any) {
+            logger.error("Erro no callback da Meta:", error.response?.data || error.message);
+            res.status(500).send("Ocorreu um erro ao vincular a conta.");
+        }
+    });
+});
 
 export const syncMetaCampaigns = onSchedule({
     schedule: "every 2 hours", // "0 */2 * * *"

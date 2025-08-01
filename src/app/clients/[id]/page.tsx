@@ -92,7 +92,7 @@ export default function ClientDetailPage() {
 
   const handleLinkFacebookAccount = () => {
     if (!id) return;
-    const functionUrl = `https://southamerica-east1-phygital-login.cloudfunctions.net/startMetaAuth?clientId=${id}`;
+    const functionUrl = `https://southamerica-east1-phygital-login.cloudfunctions.net/startmetaauth?clientId=${id}`;
     window.open(functionUrl, 'metaAuthPopup', 'width=600,height=700');
   };
 
@@ -182,7 +182,7 @@ export default function ClientDetailPage() {
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <h3 className="font-semibold text-lg flex items-center"><Edit className="mr-2"/> Estratégia e Acessos</h3>
-                      <Button variant="outline">
+                      <Button variant="outline" onClick={handleLinkFacebookAccount}>
                          <Facebook className="mr-2 h-4 w-4" />
                          Vincular Conta da Meta
                        </Button>
