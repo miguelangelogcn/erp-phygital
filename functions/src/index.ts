@@ -216,6 +216,12 @@ export const reviewTask = onCall({ region: "southamerica-east1" }, async (reques
     try {
       const approverUser = await auth.getUser(approverId);
       const approverName = approverUser.displayName || "Líder";
+      
+      const taskDoc = await taskRef.get();
+      if (!taskDoc.exists) {
+          throw new HttpsError("not-found", "A tarefa não foi encontrada.");
+      }
+      const taskData = taskDoc.data();
 
       const updateData: { [key: string]: any } = {
         approvalStatus: decision,
@@ -231,10 +237,9 @@ export const reviewTask = onCall({ region: "southamerica-east1" }, async (reques
           cleanFeedback.files = feedback.files;
         }
 
-        // Correção Definitiva: Usar new Date() para o timestamp dentro do array
         updateData.rejectionFeedback = admin.firestore.FieldValue.arrayUnion({
             ...cleanFeedback,
-            rejectedAt: new Date(), // <-- AQUI ESTÁ A CORREÇÃO
+            rejectedAt: new Date(), 
             rejectedBy: approverName,
         });
         
@@ -253,6 +258,17 @@ export const reviewTask = onCall({ region: "southamerica-east1" }, async (reques
       }
 
       await taskRef.update(updateData);
+      
+      if (decision === 'rejected' && taskData?.responsibleId) {
+            const taskTitle = taskData.title || 'sem título';
+            const message = `${approverName} reprovou a sua tarefa: '${taskTitle}'`;
+            const linkTo = taskType === 'tasks' 
+                ? `/tasks?openTask=${taskId}` 
+                : `/tasks?tab=recurring&openTask=${taskId}`;
+
+            await createNotificationsForUsers([taskData.responsibleId], message, linkTo, approverName);
+      }
+
       return { success: true, message: "Revisão da tarefa concluída." };
 
     } catch (error: any) {
@@ -388,7 +404,7 @@ export const startMetaAuth = onRequest({ region: "southamerica-east1" }, (req, r
         }
 
         const redirectUri = `https://southamerica-east1-phygital-login.cloudfunctions.net/metaAuthCallback`;
-        const scope = "ads_read,read_insights";
+        const scope = "ads_management,public_profile";
         const state = JSON.stringify({ clientId }); // Passando o clientId através do state
 
         const authUrl = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${metaAppId.value()}&redirect_uri=${redirectUri}&state=${encodeURIComponent(state)}&scope=${scope}`;
@@ -532,34 +548,34 @@ export const syncMetaCampaigns = onSchedule({
 // --- Gatilhos para a coleção 'tasks' ---
 export const onTaskCreated = onDocumentCreated({ document: "tasks/{taskId}", region: "southamerica-east1" }, (event) => {
     if (!event.data) return;
-    return handleItemCreation(event.data, "uma nova tarefa", "/dashboard/tasks?openTask=", event.params.taskId);
+    return handleItemCreation(event.data, "uma nova tarefa", "/tasks?openTask=", event.params.taskId);
 });
 
 export const onTaskUpdated = onDocumentUpdated({ document: "tasks/{taskId}", region: "southamerica-east1" }, async (event) => {
     if (!event.data) return;
-    return handleItemUpdate(event.data, "tarefa", "/dashboard/tasks?openTask=", event.params.taskId);
+    return handleItemUpdate(event.data, "tarefa", "/tasks?openTask=", event.params.taskId);
 });
 
 // --- Gatilhos para a coleção 'recurringTasks' ---
 export const onRecurringTaskCreated = onDocumentCreated({ document: "recurringTasks/{taskId}", region: "southamerica-east1" }, (event) => {
     if (!event.data) return;
-    return handleItemCreation(event.data, "uma nova tarefa recorrente", "/dashboard/tasks?tab=recurring&openTask=", event.params.taskId);
+    return handleItemCreation(event.data, "uma nova tarefa recorrente", "/tasks?tab=recurring&openTask=", event.params.taskId);
 });
 
 export const onRecurringTaskUpdated = onDocumentUpdated({ document: "recurringTasks/{taskId}", region: "southamerica-east1" }, async (event) => {
     if (!event.data) return;
-    return handleItemUpdate(event.data, "tarefa recorrente", "/dashboard/tasks?tab=recurring&openTask=", event.params.taskId);
+    return handleItemUpdate(event.data, "tarefa recorrente", "/tasks?tab=recurring&openTask=", event.params.taskId);
 });
 
 // --- Gatilhos para a coleção 'calendarEvents' ---
 export const onCalendarEventCreated = onDocumentCreated({ document: "calendarEvents/{eventId}", region: "southamerica-east1" }, (event) => {
     if (!event.data) return;
-    return handleItemCreation(event.data, "um novo evento", "/dashboard/calendar?openEvent=", event.params.eventId);
+    return handleItemCreation(event.data, "um novo evento", "/calendar?openEvent=", event.params.eventId);
 });
 
 export const onCalendarEventUpdated = onDocumentUpdated({ document: "calendarEvents/{eventId}", region: "southamerica-east1" }, async (event) => {
     if (!event.data) return;
-    return handleItemUpdate(event.data, "evento", "/dashboard/calendar?openEvent=", event.params.eventId);
+    return handleItemUpdate(event.data, "evento", "/calendar?openEvent=", event.params.eventId);
 });
 
 // --- Gatilho para menções em comentários ---
